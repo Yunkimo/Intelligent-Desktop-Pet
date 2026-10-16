@@ -20,7 +20,7 @@ const apiKey = config.apiKey || '';
 // ==================================
 
 /** 统一封装 wx.request：自动带 X-API-Key，返回 Promise，非 2xx 抛出带后端详情的错误。 */
-function request(path, { method = 'GET', data } = {}) {
+function request(path, { method = 'GET', data, headers } = {}) {
   return new Promise((resolve, reject) => {
     wx.request({
       url: baseUrl + path,
@@ -29,6 +29,7 @@ function request(path, { method = 'GET', data } = {}) {
       header: {
         'X-API-Key': apiKey,
         'Content-Type': 'application/json',
+        ...(headers || {}),
       },
       success(res) {
         if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -106,4 +107,17 @@ module.exports = {
   createTask: (data) => request('/api/tasks', { method: 'POST', data }),
   updateTask: (id, data) => request(`/api/tasks/${id}`, { method: 'PUT', data }),
   deleteTask: (id) => request(`/api/tasks/${id}`, { method: 'DELETE' }),
+
+  // 提醒（B2/B3 契约见 docs/b3-wechat.md 与 backend/app/routers/reminders.py）
+  getReminders: () => request('/api/reminders'),
+  createReminder: (data) => request('/api/reminders', { method: 'POST', data }),
+
+  // 微信登录与订阅登记（B3；订阅接口需 Bearer 会话头，见契约）
+  wechatLogin: (code) => request('/api/wechat/login', { method: 'POST', data: { code } }),
+  wechatSubscribe: (data, sessionToken) =>
+    request('/api/wechat/subscribe', {
+      method: 'POST',
+      data,
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    }),
 };

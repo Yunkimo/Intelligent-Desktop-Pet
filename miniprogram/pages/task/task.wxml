@@ -13,9 +13,11 @@
       <view class="task-meta">
         <text wx:if="{{item.overdue}}" class="badge-overdue">已逾期</text>
         <text>{{item.dueText}}</text>
+        <text wx:if="{{item.remindText}}" class="remind-meta">⏰ {{item.remindText}} 提醒</text>
       </view>
     </view>
     <view class="task-actions">
+      <button wx:if="{{item.remind_at}}" class="btn btn-subscribe mini" data-task="{{item}}" bindtap="subscribeTask">订阅提醒</button>
       <button class="btn btn-ghost mini" data-task="{{item}}" bindtap="openEdit">编辑</button>
       <button class="btn btn-danger mini" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="remove">删除</button>
     </view>
@@ -38,6 +40,15 @@
         <text class="label">截止日期</text>
         <picker mode="date" value="{{form.due_at}}" data-field="due_at" bindchange="onFormInput">
           <view class="picker-value">{{form.due_at || '选择日期'}}</view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="label">提醒时间</text>
+        <picker mode="date" value="{{form.remind_date}}" data-field="remind_date" bindchange="onFormInput">
+          <view class="picker-value">{{form.remind_date || '选择日期'}}</view>
+        </picker>
+        <picker mode="time" value="{{form.remind_time}}" data-field="remind_time" bindchange="onFormInput">
+          <view class="picker-value">{{form.remind_time}}</view>
         </picker>
       </view>
       <view class="modal-actions">
