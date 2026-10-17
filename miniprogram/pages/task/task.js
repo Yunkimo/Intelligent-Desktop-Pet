@@ -148,6 +148,17 @@ Page({
         wx.showLoading({ title: '删除中' });
         try {
           await api.deleteTask(id);
+          // 后端契约：删任务不会级联删提醒，这里清理该任务的孤儿提醒，避免「今日提醒」残留
+          try {
+            const reminders = await api.getReminders();
+            await Promise.all(
+              reminders
+                .filter((r) => r.task_id === id)
+                .map((r) => api.deleteReminder(r.id))
+            );
+          } catch (cleanupErr) {
+            console.warn('[task] 清理孤儿提醒失败（不影响删除）:', cleanupErr);
+          }
           wx.showToast({ title: '已删除', icon: 'success' });
         } catch (err) {
           // 删除失败（如服务端已不存在该日程）也刷新列表，避免页面残留陈旧卡片

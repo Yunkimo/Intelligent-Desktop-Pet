@@ -112,6 +112,7 @@ module.exports = {
   getReminders: () => request('/api/reminders'),
   createReminder: (data) => request('/api/reminders', { method: 'POST', data }),
   updateReminder: (id, data) => request(`/api/reminders/${id}`, { method: 'PUT', data }),
+  deleteReminder: (id) => request(`/api/reminders/${id}`, { method: 'DELETE' }),
 
   // 微信登录与订阅登记（B3；订阅接口需 Bearer 会话头，见契约）
   wechatLogin: (code) => request('/api/wechat/login', { method: 'POST', data: { code } }),
