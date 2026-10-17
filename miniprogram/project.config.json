@@ -2,7 +2,7 @@
   "description": "智能桌宠小程序：今日课表/待办、课表与日程增删改，对接后端 FastAPI",
   "compileType": "miniprogram",
   "libVersion": "trial",
-  "appid": "wx171c15f2a77b6180",
+  "appid": "wxe7285a3ad2060156",
   "projectname": "IDP-miniprogram",
   "setting": {
     "urlCheck": false,
