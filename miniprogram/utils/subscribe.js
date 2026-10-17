@@ -61,7 +61,10 @@ async function ensureSession() {
     return stored;
   }
   const res = await new Promise((resolve, reject) => {
-    wx.login({ success: resolve, fail: reject });
+    wx.login({
+      success: resolve,
+      fail: (err) => reject(new Error(`登录失败，请检查网络后重试（${err && err.errMsg ? err.errMsg : '微信登录不可用'}）`)),
+    });
   });
   const data = await api.wechatLogin(res.code);
   const session = {
@@ -135,7 +138,9 @@ async function registerChoice(reminderId, templateId, choice, sessionToken) {
 }
 
 /**
- * 完整订阅流程（页面按钮触发）：登录 → phone 提醒 → 授权 → 登记。
+ * 完整订阅流程（页面按钮触发）：授权 → 登录 → phone 提醒 → 登记。
+ * 授权必须放在最前：微信要求 wx.requestSubscribeMessage 在用户点击的同步调用链中
+ * 触发，先做网络请求会导致真机上弹窗被静默吞掉。
  * 返回 { status, message }：status 为 accept/reject/ban/filter/cancel/error。
  * 用户取消授权时不落库、不提示错误；拒绝不影响基础课表功能。
  */
@@ -147,8 +152,7 @@ async function subscribeTaskReminder(task) {
   if (!task.remind_at) {
     throw new Error('该日程没有提醒时间，请先编辑设置');
   }
-  const session = await ensureSession();
-  const reminderId = await ensurePhoneReminder(task, session);
+  // 1) 同步触发授权弹窗（一次性订阅：无论同意与否，资格都随弹窗消耗）
   const choice = await requestSubscribe(templateId);
   if (choice === null) {
     return { status: 'cancel', message: '' };
@@ -157,8 +161,18 @@ async function subscribeTaskReminder(task) {
   if (choice === 'error') {
     return { status: 'error', message: '授权弹窗调用失败，请重试' };
   }
-  // 同意与拒绝/封禁/过滤都如实登记（拒绝登记为 rejected，后端不发送）；不显示「订阅成功」
-  await registerChoice(reminderId, templateId, choice, session.session_token);
+  // 2) 授权完成后再做网络请求；登录失败时本次授权已失效，提示用户恢复后重新订阅
+  try {
+    const session = await ensureSession();
+    const reminderId = await ensurePhoneReminder(task, session);
+    // 同意与拒绝/封禁/过滤都如实登记（拒绝登记为 rejected，后端不发送）；不显示「订阅成功」
+    await registerChoice(reminderId, templateId, choice, session.session_token);
+  } catch (err) {
+    if (choice === 'accept') {
+      throw new Error(`${err.message || '网络请求失败'}；本次授权已失效，恢复后请重新订阅`);
+    }
+    throw err;
+  }
   return { status: choice, message: classified.message };
 }
 

@@ -169,7 +169,7 @@ Page({
       }
       wx.showToast({ title: result.message || '订阅处理完成', icon: 'none' });
     } catch (err) {
-      wx.showToast({ title: err.message, icon: 'none' });
+      wx.showToast({ title: (err && err.message) || '操作失败，请重试', icon: 'none' });
     } finally {
       wx.hideLoading();
     }

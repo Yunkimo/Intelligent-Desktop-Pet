@@ -31,6 +31,7 @@ process.on('exit', () => {
 const storage = {};
 const wxState = {
   loginCode: 'code-123',
+  loginFail: null,
   subscribeResult: 'accept',
   subscribeFail: null,
 };
@@ -39,7 +40,13 @@ global.wx = {
   setStorageSync: (k, v) => {
     storage[k] = v;
   },
-  login: ({ success }) => success({ code: wxState.loginCode }),
+  login: ({ success, fail }) => {
+    if (wxState.loginFail) {
+      fail({ errMsg: wxState.loginFail });
+    } else {
+      success({ code: wxState.loginCode });
+    }
+  },
   requestSubscribeMessage: ({ success, fail }) => {
     if (wxState.subscribeFail) {
       fail({ errMsg: wxState.subscribeFail });
@@ -146,6 +153,25 @@ async function main() {
     const result = await subscribe.subscribeTaskReminder(TASK);
     assert.strictEqual(result.status, 'cancel');
     assert.ok(!calls.some((c) => c[0] === 'subscribe'));
+  });
+
+  await check('流程-断网登录失败：给出可恢复的中文提示，不落库', async () => {
+    mockApi();
+    storage.wechat_session = null; // 强制重新登录
+    wxState.loginFail = 'login:fail network timeout';
+    wxState.subscribeResult = 'accept';
+    wxState.subscribeFail = null;
+    let thrown = null;
+    try {
+      await subscribe.subscribeTaskReminder(TASK);
+    } catch (err) {
+      thrown = err;
+    }
+    assert.ok(thrown, '断网时应抛出错误');
+    assert.match(thrown.message, /登录失败，请检查网络后重试/);
+    assert.match(thrown.message, /本次授权已失效/);
+    assert.ok(!calls.some((c) => c[0] === 'subscribe'), '登录失败不应登记');
+    wxState.loginFail = null;
   });
 
   await check('流程-登记重试：网络失败后复用同一 request_id 重试，不重复累计', async () => {
