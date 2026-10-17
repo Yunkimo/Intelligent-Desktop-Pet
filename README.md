@@ -116,7 +116,6 @@ config.json      桌宠非敏感配置
 | [B4 天气与搜索](docs/b4-web-query.md) | curl 示例、输入/响应契约、配置与故障处理 |
 | [B4 测试报告](docs/b4-test-report.md) | 双版本回归、真实网络摘要、失败修正与原始证据 |
 | [考核证据索引](docs/assessment-evidence.md) | 各评分点对应的代码 / 测试 / 证据 |
-| [AI 辅助开发记录](docs/ai-log.md) | 使用 AI 助手的过程与关键决策 |
 | [第三方依赖说明](THIRD_PARTY_NOTICES.md) | 依赖许可证清单 |
 | [贡献指南](CONTRIBUTING.md) | 分支、提交与代码风格约定 |
 | [任务书 A / B / C](docs/tasks/) | 三人任务分解与验收标准 |
