@@ -54,22 +54,23 @@ function classifyResult(result) {
   return { ok: false, message: '' };
 }
 
-/** 确保微信登录会话有效；返回 session_token。 */
+/** 确保微信登录会话有效；返回会话对象 { session_token, user_id, expires_at }。 */
 async function ensureSession() {
   const stored = wx.getStorageSync(SESSION_KEY);
   if (isSessionValid(stored, Date.now())) {
-    return stored.session_token;
+    return stored;
   }
   const res = await new Promise((resolve, reject) => {
     wx.login({ success: resolve, fail: reject });
   });
   const data = await api.wechatLogin(res.code);
-  wx.setStorageSync(SESSION_KEY, {
+  const session = {
     session_token: data.session_token,
     user_id: data.user_id,
     expires_at: Date.now() + (data.expires_in || 7200) * 1000,
-  });
-  return data.session_token;
+  };
+  wx.setStorageSync(SESSION_KEY, session);
+  return session;
 }
 
 /** 找到或创建该任务对应的 phone 提醒（服务端为准，避免重复创建）。 */
@@ -113,9 +114,30 @@ function requestSubscribe(templateId) {
 }
 
 /**
+ * 登记一次授权结果；失败时用同一 request_id 重试一次。
+ * B3 契约幂等：同 request_id、内容与事件一致时返回同一记录，不追加授权次数。
+ */
+async function registerChoice(reminderId, templateId, choice, sessionToken) {
+  const requestId = newRequestId();
+  const payload = {
+    reminder_id: reminderId,
+    request_id: requestId,
+    template_id: templateId,
+    result: choice,
+  };
+  try {
+    await api.wechatSubscribe(payload, sessionToken);
+  } catch (err) {
+    // 网络抖动/后端瞬时故障：复用同一 request_id 重试一次，避免重复累计授权记录
+    await api.wechatSubscribe(payload, sessionToken);
+  }
+  return requestId;
+}
+
+/**
  * 完整订阅流程（页面按钮触发）：登录 → phone 提醒 → 授权 → 登记。
  * 返回 { status, message }：status 为 accept/reject/ban/filter/cancel/error。
- * 用户取消授权时不落库、不提示错误。
+ * 用户取消授权时不落库、不提示错误；拒绝不影响基础课表功能。
  */
 async function subscribeTaskReminder(task) {
   const templateId = getTemplateId();
@@ -132,32 +154,12 @@ async function subscribeTaskReminder(task) {
     return { status: 'cancel', message: '' };
   }
   const classified = classifyResult(choice);
-  if (!classified.ok && choice !== 'error') {
-    // 拒绝/封禁/过滤：登记被拒结果（后端据此置 rejected，不发送），不显示「订阅成功」
-    await api.wechatSubscribe(
-      {
-        reminder_id: reminderId,
-        request_id: newRequestId(),
-        template_id: templateId,
-        result: choice,
-      },
-      session.session_token
-    );
-    return { status: choice, message: classified.message };
-  }
   if (choice === 'error') {
     return { status: 'error', message: '授权弹窗调用失败，请重试' };
   }
-  await api.wechatSubscribe(
-    {
-      reminder_id: reminderId,
-      request_id: newRequestId(),
-      template_id: templateId,
-      result: 'accept',
-    },
-    session.session_token
-  );
-  return { status: 'accept', message: classified.message };
+  // 同意与拒绝/封禁/过滤都如实登记（拒绝登记为 rejected，后端不发送）；不显示「订阅成功」
+  await registerChoice(reminderId, templateId, choice, session.session_token);
+  return { status: choice, message: classified.message };
 }
 
 module.exports = {

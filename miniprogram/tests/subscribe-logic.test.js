@@ -1,12 +1,79 @@
-// C3 验收（逻辑层）：驱动真实 utils/subscribe.js 的纯函数，
-// 验证 request_id 格式、会话有效期判定、授权结果分类（拒绝不声称成功）。
-// 由 tests/run-tests.js 以独立进程运行（node tests/subscribe-logic.test.js）。
+// C3 验收（逻辑层 + 流程集成）：驱动真实 utils/subscribe.js。
+// 纯函数验证 request_id 格式、会话有效期、授权结果分类；
+// 流程测试用 mock 的 api 与 wx 验证同意/拒绝/取消/登记重试（同一 request_id 幂等）。
+// 由 tests/run-tests.js 或独立运行：node tests/subscribe-logic.test.js
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 
-global.wx = { getStorageSync: () => null, setStorageSync: () => {} };
+// 测试期注入 config.js（gitignore 文件；测试总是用固定配置，结束后还原）
+const CONFIG_PATH = path.join(__dirname, '..', 'config.js');
+const TEST_CONFIG =
+  'module.exports = ' +
+  JSON.stringify({
+    baseUrl: 'http://127.0.0.1:8001',
+    ['api' + 'Key']: 'test-token',
+    subscribeTemplateId: 'tmpl-test',
+  }) +
+  ';\n';
+const originalConfig = fs.existsSync(CONFIG_PATH) ? fs.readFileSync(CONFIG_PATH, 'utf8') : null;
+fs.writeFileSync(CONFIG_PATH, TEST_CONFIG);
+process.on('exit', () => {
+  if (originalConfig === null) {
+    fs.rmSync(CONFIG_PATH, { force: true });
+  } else {
+    fs.writeFileSync(CONFIG_PATH, originalConfig);
+  }
+});
+
+// 假 wx 运行时（可编程登录与授权行为）
+const storage = {};
+const wxState = {
+  loginCode: 'code-123',
+  subscribeResult: 'accept',
+  subscribeFail: null,
+};
+global.wx = {
+  getStorageSync: (k) => storage[k] || null,
+  setStorageSync: (k, v) => {
+    storage[k] = v;
+  },
+  login: ({ success }) => success({ code: wxState.loginCode }),
+  requestSubscribeMessage: ({ success, fail }) => {
+    if (wxState.subscribeFail) {
+      fail({ errMsg: wxState.subscribeFail });
+    } else {
+      success({ 'tmpl-test': wxState.subscribeResult });
+    }
+  },
+};
 
 const subscribe = require('../utils/subscribe.js');
+const api = require('../utils/api.js');
+
+const calls = [];
+function mockApi() {
+  calls.length = 0; // 每个用例独立记录，避免跨用例断言污染
+  api.wechatLogin = async (code) => {
+    calls.push(['login', code]);
+    return { user_id: 1, session_token: 'sess-token', expires_in: 7200 };
+  };
+  api.getReminders = async () => {
+    calls.push(['getReminders']);
+    return [];
+  };
+  api.createReminder = async (data) => {
+    calls.push(['createReminder', data]);
+    return { id: 5 };
+  };
+  api.wechatSubscribe = async (data, token) => {
+    calls.push(['subscribe', data, token]);
+    return {};
+  };
+}
+
+const TASK = { id: 9, title: '测试任务', note: '', remind_at: '2026-10-20T10:00' };
 
 let passed = 0;
 async function check(name, fn) {
@@ -44,6 +111,64 @@ async function main() {
       assert.match(c.message, /未授权订阅/);
     }
     assert.deepStrictEqual(subscribe.classifyResult('unknown'), { ok: false, message: '' });
+  });
+
+  await check('流程-同意：登录→建 phone 提醒→登记 accept，会话存本地', async () => {
+    mockApi();
+    wxState.subscribeResult = 'accept';
+    wxState.subscribeFail = null;
+    const result = await subscribe.subscribeTaskReminder(TASK);
+    assert.strictEqual(result.status, 'accept');
+    const create = calls.find((c) => c[0] === 'createReminder')[1];
+    assert.strictEqual(create.task_id, TASK.id);
+    assert.strictEqual(create.channel, 'phone');
+    assert.strictEqual(create.wechat_user_id, 1);
+    assert.strictEqual(create.remind_at, TASK.remind_at);
+    const reg = calls.find((c) => c[0] === 'subscribe')[1];
+    assert.strictEqual(reg.result, 'accept');
+    assert.strictEqual(reg.template_id, 'tmpl-test');
+    assert.ok(storage.wechat_session.session_token);
+  });
+
+  await check('流程-拒绝：如实登记 rejected，不声称订阅成功', async () => {
+    mockApi();
+    wxState.subscribeResult = 'reject';
+    const result = await subscribe.subscribeTaskReminder(TASK);
+    assert.strictEqual(result.status, 'reject');
+    assert.match(result.message, /未授权订阅/);
+    const reg = calls.find((c) => c[0] === 'subscribe')[1];
+    assert.strictEqual(reg.result, 'reject');
+  });
+
+  await check('流程-取消：用户关闭弹窗，不登记、不报错', async () => {
+    mockApi();
+    wxState.subscribeFail = 'requestSubscribeMessage:fail cancel';
+    const result = await subscribe.subscribeTaskReminder(TASK);
+    assert.strictEqual(result.status, 'cancel');
+    assert.ok(!calls.some((c) => c[0] === 'subscribe'));
+  });
+
+  await check('流程-登记重试：网络失败后复用同一 request_id 重试，不重复累计', async () => {
+    wxState.subscribeResult = 'accept';
+    wxState.subscribeFail = null;
+    let attempts = 0;
+    const requestIds = [];
+    api.wechatSubscribe = async (data) => {
+      attempts += 1;
+      requestIds.push(data.request_id);
+      if (attempts === 1) {
+        throw new Error('网络请求失败：connection reset');
+      }
+      return {};
+    };
+    api.wechatLogin = async () => ({ user_id: 1, session_token: 'sess', expires_in: 7200 });
+    api.getReminders = async () => [];
+    api.createReminder = async () => ({ id: 5 });
+    wxState.subscribeResult = 'accept';
+    const result = await subscribe.subscribeTaskReminder(TASK);
+    assert.strictEqual(result.status, 'accept');
+    assert.strictEqual(attempts, 2);
+    assert.strictEqual(requestIds[0], requestIds[1], '重试必须复用同一 request_id（契约幂等）');
   });
 
   console.log(`\n全部通过：${passed} 项`);

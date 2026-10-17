@@ -36,3 +36,12 @@
 - 所有请求带 `X-API-Key` 头，由后端校验；401 = Key 无效，503 = 后端未配置 `API_TOKEN`。
 - 课表 `/api/courses`、日程 `/api/tasks`；字段以 `backend/app/schemas.py` 为准。
 - 课表 `weeks` 在后端是 JSON 字符串（如 `"[1,2,3]"`），提交时传数字数组，展示由页面解析。
+
+## 订阅提醒（C3）
+
+- 入口：日程页带提醒时间的任务显示「订阅提醒」按钮；由用户**主动点击**触发微信一次性订阅授权，页面加载不会自动弹窗。
+- 流程（见 `utils/subscribe.js`）：`wx.login` → `POST /api/wechat/login`（会话存本地，60s 提前过期）→ 按任务查找/创建 phone 提醒（`POST /api/reminders`，服务端为准避免重复）→ `wx.requestSubscribeMessage` → `POST /api/wechat/subscribe`（Bearer 会话头）。
+- 结果语义：同意 = 登记意图（平台最终判定），拒绝/封禁/过滤 = 登记 rejected 且**不显示订阅成功**；用户关闭弹窗 = 静默不落库；登记网络失败用**同一 request_id 重试一次**（B3 契约幂等，不重复累计授权记录）。
+- 契约：`docs/b3-wechat.md`（B3）；一次性订阅不承诺「点一次必收一条」，后续订阅由用户再次主动触发。
+- 前置阻塞（未配置时的行为）：`config.js` 缺 `subscribeTemplateId` → 点击提示未配置；后端未启用微信渠道 → 503 中文提示；真机链路需 B3 合并 + 模板申请 + `backend/.env` 的 WX_* 配置。
+- 验收：正常授权/拒绝/取消/失败四种路径的客户端逻辑测试见 `tests/subscribe-logic.test.js`（7 项，`node tests/subscribe-logic.test.js` 运行）；真机实收见 Issue #11。
