@@ -41,6 +41,9 @@ global.wx = {
   setStorageSync: (k, v) => {
     storage[k] = v;
   },
+  removeStorageSync: (k) => {
+    delete storage[k];
+  },
   getSetting: ({ success }) =>
     success({ subscriptionsSetting: { itemSettings: { 'tmpl-test': wxState.rememberedSetting } } }),
   login: ({ success, fail }) => {
@@ -264,6 +267,35 @@ async function main() {
     assert.strictEqual(updates[0][1].remind_at, TASK.remind_at);
     const reg = calls.find((c) => c[0] === 'subscribe')[1];
     assert.strictEqual(reg.reminder_id, 5);
+  });
+
+  await check('流程-会话失效 401：自动重新登录并幂等重试成功', async () => {
+    storage['sub_flag_' + TASK.id] = null;
+    storage.wechat_session = null; // 强制走完整登录链
+    wxState.subscribeResult = 'accept';
+    wxState.subscribeFail = null;
+    let attempts = 0;
+    let logins = 0;
+    api.wechatSubscribe = async (data) => {
+      attempts += 1;
+      if (attempts === 1) {
+        throw new Error('HTTP 401：wechat_session_invalid');
+      }
+      calls.push(['subscribe', data, null]);
+      return {};
+    };
+    api.wechatLogin = async (code) => {
+      logins += 1;
+      calls.push(['login', code]);
+      return { user_id: 1, session_token: 'sess-new', expires_in: 7200 };
+    };
+    api.getReminders = async () => [];
+    api.createReminder = async () => ({ id: 5 });
+    const result = await subscribe.subscribeTaskReminder(TASK);
+    assert.strictEqual(result.status, 'accept', '401 后应自动重登录并成功');
+    assert.strictEqual(attempts, 2, '应重试一次登记');
+    assert.ok(logins >= 2, '会话失效后应重新登录');
+    assert.strictEqual(storage.wechat_session.session_token, 'sess-new');
   });
 
   await check('流程-登记重试：网络失败后复用同一 request_id 重试，不重复累计', async () => {

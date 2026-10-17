@@ -162,13 +162,34 @@ async function registerChoice(reminderId, templateId, choice, sessionToken) {
     await api.wechatSubscribe(payload, sessionToken);
     return { status: 'ok', requestId };
   } catch (err) {
-    if (String(err.message || '').includes('409')) {
+    const message = String(err.message || '');
+    if (message.includes('409')) {
       return { status: 'already', requestId };
+    }
+    // HTTP 4xx（401 会话失效等）交给上层处理（重新登录），不在这里重试
+    if (message.includes('401') || message.includes('HTTP 4')) {
+      throw err;
     }
     // 网络抖动/后端瞬时故障：复用同一 request_id 重试一次，避免重复累计授权记录
     await api.wechatSubscribe(payload, sessionToken);
     return { status: 'ok', requestId };
   }
+}
+
+/** 网络登记段：登录 → 找到/更新 phone 提醒 → 登记授权结果。 */
+async function registerForReminder(task, templateId, choice) {
+  const session = await ensureSession();
+  const reminderId = await ensurePhoneReminder(task, session);
+  const registered = await registerChoice(reminderId, templateId, choice, session.session_token);
+  return { session, reminderId, registered };
+}
+
+/** 同意后网络失败：如实说明本次授权已失效（一次性订阅资格随弹窗消耗）。 */
+function wrapAcceptError(err, choice) {
+  if (choice === 'accept') {
+    return new Error(`${(err && err.message) || '网络请求失败'}；本次授权已失效，恢复后请重新订阅`);
+  }
+  return err;
 }
 
 /**
@@ -218,25 +239,33 @@ async function subscribeTaskReminder(task) {
     return { status: 'error', message: '授权弹窗调用失败，请重试' };
   }
   const classified = classifyResult(choice);
-  // 2) 授权完成后再做网络请求；登录失败时本次授权已失效，提示用户恢复后重新订阅
+  // 2) 授权完成后再做网络请求；服务端会话失效（401）自动重登录幂等重试一次；
+  //    登录失败时本次授权已失效，提示用户恢复后重新订阅
+  let outcome;
   try {
-    const session = await ensureSession();
-    const reminderId = await ensurePhoneReminder(task, session);
-    const registered = await registerChoice(reminderId, templateId, choice, session.session_token);
-    if (registered.status === 'already') {
-      wx.setStorageSync(flagKey, 'done');
-      return { status: 'already', message: '该提醒已订阅过，无需重复授权' };
-    }
-    if (choice === 'accept') {
-      wx.setStorageSync(flagKey, 'done');
-    } else {
-      wx.setStorageSync(flagKey, choice); // 拒绝后允许再次尝试
-    }
+    outcome = await registerForReminder(task, templateId, choice);
   } catch (err) {
-    if (choice === 'accept') {
-      throw new Error(`${err.message || '网络请求失败'}；本次授权已失效，恢复后请重新订阅`);
+    if (String(err.message || '').includes('401')) {
+      // 会话已失效（过期或被重新登录撤销）：清本地会话重新登录，重试一次。
+      // 401 发生在服务端处理之前，不会产生业务记录，重试安全。
+      wx.removeStorageSync(SESSION_KEY);
+      try {
+        outcome = await registerForReminder(task, templateId, choice);
+      } catch (retryErr) {
+        throw wrapAcceptError(retryErr, choice);
+      }
+    } else {
+      throw wrapAcceptError(err, choice);
     }
-    throw err;
+  }
+  if (outcome.registered.status === 'already') {
+    wx.setStorageSync(flagKey, 'done');
+    return { status: 'already', message: '该提醒已订阅过，无需重复授权' };
+  }
+  if (choice === 'accept') {
+    wx.setStorageSync(flagKey, 'done');
+  } else {
+    wx.setStorageSync(flagKey, choice); // 拒绝后允许再次尝试
   }
   if (choice !== 'accept') {
     return {
