@@ -34,12 +34,15 @@ const wxState = {
   loginFail: null,
   subscribeResult: 'accept',
   subscribeFail: null,
+  rememberedSetting: undefined,
 };
 global.wx = {
   getStorageSync: (k) => storage[k] || null,
   setStorageSync: (k, v) => {
     storage[k] = v;
   },
+  getSetting: ({ success }) =>
+    success({ subscriptionsSetting: { itemSettings: { 'tmpl-test': wxState.rememberedSetting } } }),
   login: ({ success, fail }) => {
     if (wxState.loginFail) {
       fail({ errMsg: wxState.loginFail });
@@ -154,6 +157,16 @@ async function main() {
     const result = await subscribe.subscribeTaskReminder(TASK);
     assert.strictEqual(result.status, 'cancel');
     assert.ok(!calls.some((c) => c[0] === 'subscribe'));
+  });
+
+  await check('流程-真机静默拒绝：微信已记住拒绝时给出恢复指引', async () => {
+    mockApi();
+    wxState.subscribeFail = 'requestSubscribeMessage:fail cancel'; // 真机不再弹框的返回
+    wxState.rememberedSetting = 'reject';
+    const result = await subscribe.subscribeTaskReminder(TASK);
+    assert.strictEqual(result.status, 'remembered-reject');
+    assert.match(result.message, /授权管理/);
+    wxState.rememberedSetting = undefined;
   });
 
   await check('流程-已订阅后不重复弹授权框、不重复登记', async () => {

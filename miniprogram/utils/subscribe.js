@@ -107,6 +107,24 @@ async function ensurePhoneReminder(task, session) {
   return created.id;
 }
 
+/** 查询微信记住的模板授权设置（accept/reject/ban/filter 或 undefined=未记录）。 */
+function getRememberedSetting(templateId) {
+  return new Promise((resolve) => {
+    if (!wx.getSetting) {
+      resolve(undefined);
+      return;
+    }
+    wx.getSetting({
+      withSubscriptions: true,
+      success: (res) => {
+        const settings = (res.subscriptionsSetting && res.subscriptionsSetting.itemSettings) || {};
+        resolve(settings[templateId]);
+      },
+      fail: () => resolve(undefined),
+    });
+  });
+}
+
 /** 触发微信一次性订阅授权；用户关闭弹窗（cancel）返回 null。 */
 function requestSubscribe(templateId) {
   return new Promise((resolve) => {
@@ -176,6 +194,14 @@ async function subscribeTaskReminder(task) {
   // 1) 同步触发授权弹窗（一次性订阅：无论同意与否，资格都随弹窗消耗）
   const choice = await requestSubscribe(templateId);
   if (choice === null) {
+    // 真机上微信可能静默按旧选择返回（不再弹框）：查询记住的设置，给出恢复指引
+    const remembered = await getRememberedSetting(templateId);
+    if (remembered === 'reject' || remembered === 'ban') {
+      return {
+        status: 'remembered-reject',
+        message: '微信已记住对该订阅的拒绝。可在微信「我-设置-个人信息与权限-授权管理」中恢复后重试',
+      };
+    }
     return { status: 'cancel', message: '' };
   }
   if (choice === 'error') {
