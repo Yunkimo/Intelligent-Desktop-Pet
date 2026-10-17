@@ -25,8 +25,6 @@ def test_env_override(monkeypatch):
 def test_config_json_fields():
     s = Settings()
     assert s.pet_name == "小萌"  # 运行时可通过「切换人设」更改
-    assert s.image_engine in ("live2d", "sprite")  # 运行时可通过「切换图片」在两种引擎间切换
-    assert s.live2d_model == ""
     assert s.whisper_model == "base"
     assert s.tts_voice == "zh-CN-XiaoxiaoNeural"
     assert s.max_history > 0

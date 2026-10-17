@@ -13,7 +13,7 @@ ruff format .           # 格式化
 
 ## 提交规范（Conventional Commits）
 
-提交信息统一为 `type(scope): imperative summary`，标题与正文均使用英文，一个提交只做一件事。Issue、PR 说明和项目文档使用中文。
+提交信息统一为 `type(scope): imperative summary`，一个提交只做一件事。Issue、PR 说明和项目文档使用中文。
 
 | type | 用途 |
 |---|---|

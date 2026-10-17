@@ -1,7 +1,9 @@
 """后端配置：从 backend/.env 读取密钥与数据库路径。"""
 
+import json
 import math
 import os
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -61,6 +63,32 @@ REMINDER_NAIVE_OFFSET_MINUTES = integer_setting("REMINDER_NAIVE_OFFSET_MINUTES",
 if SCHEDULER_LEASE_SECONDS <= SCHEDULER_SEND_TIMEOUT_SECONDS + 2 * DB_TIMEOUT_SECONDS:
     raise ValueError("SCHEDULER_LEASE_SECONDS 必须大于发送超时加两倍数据库锁等待上限")
 
+# 微信渠道默认关闭；真实联调显式启用，不影响现有桌宠/REST。
+WX_ENABLED = os.getenv("WX_ENABLED", "false").lower()
+if WX_ENABLED not in {"true", "false"}:
+    raise ValueError("WX_ENABLED 必须为 true 或 false")
+WX_ENABLED = WX_ENABLED == "true"
+WX_APPID = os.getenv("WX_APPID", "").strip()
+WX_SECRET = os.getenv("WX_SECRET", "").strip()
+WX_TEMPLATE_ID = os.getenv("WX_TEMPLATE_ID", "").strip()
+WX_TIMEOUT_SECONDS = positive_seconds("WX_TIMEOUT_SECONDS", "10")
+WX_SESSION_TTL_SECONDS = integer_setting("WX_SESSION_TTL_SECONDS", "7200", 60, 86400)
+WX_MINIPROGRAM_STATE = os.getenv("WX_MINIPROGRAM_STATE", "developer")
+if WX_MINIPROGRAM_STATE not in {"developer", "trial", "formal"}:
+    raise ValueError("WX_MINIPROGRAM_STATE 必须为 developer、trial 或 formal")
+WX_TEMPLATE_FIELDS = json.loads(os.getenv("WX_TEMPLATE_FIELDS", "{}"))
+if not isinstance(WX_TEMPLATE_FIELDS, dict) or not all(
+    isinstance(key, str)
+    and isinstance(value, str)
+    and (
+        (re.fullmatch(r"thing[0-9]+", key) and value in {"title", "body"})
+        or (re.fullmatch(r"time[0-9]+", key) and value == "remind_at")
+    )
+    for key, value in WX_TEMPLATE_FIELDS.items()
+):
+    raise ValueError("WX_TEMPLATE_FIELDS 仅支持 thingN 对应 title/body、timeN 对应 remind_at")
+WX_DELIVERY_TIMEOUT_SECONDS = WX_TIMEOUT_SECONDS * 4
+WX_DELIVERY_LEASE_SECONDS = WX_DELIVERY_TIMEOUT_SECONDS + 2 * DB_TIMEOUT_SECONDS + 5
 # B4：固定上游主机，调用者只能提供城市或关键词，不能传入目标 URL。
 WEB_WEATHER_URL = "https://wttr.in"
 WEB_SEARCH_URL = "https://html.duckduckgo.com/html/"

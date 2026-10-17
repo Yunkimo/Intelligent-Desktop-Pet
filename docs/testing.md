@@ -26,7 +26,7 @@ ruff check . ../scripts
 pytest --cov=app --cov-report=term
 ```
 
-CI（GitHub Actions）在每次 push/PR 自动执行上述步骤，并额外跑三个冒烟脚本（桌面端、后端 WebSocket、后端调度器）、`detect-secrets` 密钥扫描与 `pip-audit` 依赖漏洞审计。
+CI（GitHub Actions）在 main/develop 的 push 和 PR 时执行上述步骤，并额外运行后端 WebSocket、调度器与微信 Mock 三个冒烟脚本、`detect-secrets` 密钥扫描与 `pip-audit` 依赖漏洞审计。桌面人工冒烟脚本不在 CI 中运行。
 
 ## 3. 测试用例清单
 
@@ -49,11 +49,10 @@ CI（GitHub Actions）在每次 push/PR 自动执行上述步骤，并额外跑�
 | `test_hotkey.py` | 全局快捷键注册、组合键解析与触发 | 8 |
 | `test_tts.py` | TTS 文本切分、音色参数、离线回退 | 6 |
 | `test_image_utils.py` | 图片缩放/裁剪纯函数 | 5 |
-| `test_live2d.py` | Live2D 视图边界 | 2 |
 
 合计 **106 个用例**，全部通过。
 
-### 3.2 后端（`backend/tests/`，109 个用例）
+### 3.2 后端（`backend/tests/`，168 个用例）
 
 | 文件 | 覆盖点 | 用例数 |
 |---|---|---|
@@ -63,8 +62,9 @@ CI（GitHub Actions）在每次 push/PR 自动执行上述步骤，并额外跑�
 | `test_scheduler.py` | 到期判定、30s 轮询、广播后标记完成、禁用开关、边界时间 | 33 |
 | `test_vision.py` | 视觉模型响应解析、节次/周数映射、备注防臆造、异常降级 | 28 |
 | `test_ws.py` | WebSocket 鉴权、广播推送、断线清理、事件格式 | 24 |
+| `test_wechat.py` | 登录会话、授权归属、缓存/刷新、幂等发送、故障恢复、迁移及渠道隔离 | 59 |
 
-合计 **109 个用例**，全部通过。
+合计 **168 个用例**，Windows Python 3.13/3.10 均通过；B3 环境与原始记录见 [B3 报告](b3-test-report.md)。
 
 ## 4. 实验环境
 
@@ -77,7 +77,7 @@ CI（GitHub Actions）在每次 push/PR 自动执行上述步骤，并额外跑�
 
 ## 5. 结果
 
-以下数字取自 CI 最新一次运行（Ubuntu，Python 3.12），与本地 Windows 开发环境一致：
+以下保留 B3 之前的 CI 实测记录（Ubuntu，Python 3.12），用于历史对照；B3 新结果见下方增量，不将这些历史数值当作当前完整版本的覆盖率：
 
 ```
 桌宠端：106 passed，ruff check main.py pet tests → All checks passed!
@@ -94,10 +94,14 @@ CI（GitHub Actions）在每次 push/PR 自动执行上述步骤，并额外跑�
 
 **已知局限**：
 
-- `window`（23%）、`sprite`（14%）、`hotkey_dialog`/`live2d_dialog`（0%）等 Qt 界面层不做无头 UI 自动化，
+- `window`（23%）、`sprite`（14%）、`hotkey_dialog`（0%）等 Qt 界面层不做无头 UI 自动化，
   按 §1 策略由 `scripts/smoke_test.py` + 人工验证覆盖。
 - 久坐检测的 Windows 分支（`ctypes` `GetLastInputTime`）在 Linux CI 下不覆盖，仅由本地人工验证。
 - Live2D 模块依赖 `PyQt6-WebEngine`，在 Linux CI 运行时未加载，故不计入 CI 覆盖率统计。
+
+### B3 增量（2026-10-14）
+
+本地后端 168 项通过，行覆盖 94.19%（1153 语句、1086 覆盖）；桌面仍为 106 项通过。微信新增四模块行覆盖均为 100%，不代表分支覆盖或真机接收通过。Mock 30 次发送只取一次 token，重复登记未造成额外发送。[PR #29](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/29) 提供当前远端检查记录；详细用例、基线、限制和证据见 [B3 测试报告](b3-test-report.md)。
 
 ## B4 分支验证增量（2026-10-15）
 

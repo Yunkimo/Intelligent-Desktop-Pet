@@ -11,10 +11,9 @@
     }
   },
   "frames": [
-    "custom.gif"
+    "tray.webp"
   ],
   "sprite_size": 300,
-  "image_engine": "sprite",
   "whisper_model": "base",
   "tts_voice": "zh-CN-XiaoxiaoNeural",
   "tts_timeout_seconds": 30,

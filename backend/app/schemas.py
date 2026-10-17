@@ -48,6 +48,7 @@ class ReminderIn(BaseModel):
     remind_at: str
     channel: Literal["both", "pc", "phone"] = "both"
     task_id: int | None = None
+    wechat_user_id: int | None = Field(default=None, gt=0)
 
     @field_validator("remind_at")
     @classmethod
@@ -63,11 +64,12 @@ class ReminderUpdate(BaseModel):
     channel: Literal["both", "pc", "phone"] | None = None
     done: bool | None = None
     task_id: int | None = None
+    wechat_user_id: int | None = Field(default=None, gt=0)
 
     @model_validator(mode="after")
     def validate_update(self) -> "ReminderUpdate":
         """拒绝不可空字段的显式 null，仅允许缺省表示不修改。"""
-        for field in self.model_fields_set - {"task_id"}:
+        for field in self.model_fields_set - {"task_id", "wechat_user_id"}:
             if getattr(self, field) is None:
                 raise ValueError(f"{field} 不能为 null")
         if "remind_at" in self.model_fields_set:

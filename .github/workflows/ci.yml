@@ -46,6 +46,8 @@ jobs:
       - name: Reminder scheduling smoke test
         run: python ../scripts/smoke_backend_scheduler.py --interval 1 --samples 30 --max-delay 5
 
+      - name: WeChat subscription smoke test (mock upstream)
+        run: python ../scripts/smoke_backend_wechat.py --samples 30
       - name: Weather and search curl smoke test (mock upstream)
         run: python ../scripts/smoke_backend_web_query.py
 

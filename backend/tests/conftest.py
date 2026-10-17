@@ -11,6 +11,12 @@ from app import config, db  # noqa: E402
 from app.main import app  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def disable_real_wechat(monkeypatch):
+    """普通测试禁止真实微信渠道；B3 专项测试显式启用 MockTransport。"""
+    monkeypatch.setattr(config, "WX_ENABLED", False)
+
+
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
