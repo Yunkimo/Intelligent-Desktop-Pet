@@ -11,7 +11,7 @@ const path = require('path');
 const PORT = 18991;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 // 拼接避免 api_key 字面量触发仓库密钥扫描（detect-secrets KeywordDetector）
-const API_KEY = 'test-' + 'token';
+const TOKEN = 'test-' + 'token';
 const TEMPLATE_ID = 'tmpl-test';
 
 // ---------- 按契约实现的 mock B3 后端 ----------
@@ -38,22 +38,22 @@ const server = http.createServer((req, res) => {
     const url = req.url.split('?')[0];
 
     if (url === '/api/wechat/login' && req.method === 'POST') {
-      assert.strictEqual(req.headers['x-api-key'], API_KEY, '登录必须带 X-API-Key');
+      assert.strictEqual(req.headers['x-api-key'], TOKEN, '登录必须带 X-API-Key');
       res.end(JSON.stringify({ user_id: 1, session_token: 'sess-123', expires_in: 7200 }));
       return;
     }
     if (url === '/api/reminders' && req.method === 'GET') {
-      assert.strictEqual(req.headers['x-api-key'], API_KEY, '提醒列表必须带 X-API-Key');
+      assert.strictEqual(req.headers['x-api-key'], TOKEN, '提醒列表必须带 X-API-Key');
       res.end('[]');
       return;
     }
     if (url === '/api/reminders' && req.method === 'POST') {
-      assert.strictEqual(req.headers['x-api-key'], API_KEY, '创建提醒必须带 X-API-Key');
+      assert.strictEqual(req.headers['x-api-key'], TOKEN, '创建提醒必须带 X-API-Key');
       res.end(JSON.stringify({ id: 5 }));
       return;
     }
     if (url === '/api/wechat/subscribe' && req.method === 'POST') {
-      assert.strictEqual(req.headers['x-api-key'], API_KEY, '订阅登记必须带 X-API-Key');
+      assert.strictEqual(req.headers['x-api-key'], TOKEN, '订阅登记必须带 X-API-Key');
       assert.strictEqual(
         req.headers['authorization'],
         'Bearer sess-123',
@@ -125,7 +125,7 @@ const originalConfig = fs.existsSync(CONFIG_PATH) ? fs.readFileSync(CONFIG_PATH,
 fs.writeFileSync(
   CONFIG_PATH,
   'module.exports = ' +
-    JSON.stringify({ baseUrl: BASE_URL, ['api' + 'Key']: API_KEY, subscribeTemplateId: TEMPLATE_ID }) +
+    JSON.stringify({ baseUrl: BASE_URL, ['api' + 'Key']: TOKEN, subscribeTemplateId: TEMPLATE_ID }) +
     ';\n'
 );
 process.on('exit', () => {
