@@ -210,3 +210,53 @@ POST tasks / courses
 `/ws` 在握手前验证 token，在断线后清理连接。每个应用生命周期只有一个 PushService，
 退出时停止注册并释放连接。同步 SQLite 不在新增异步路由中直接执行；事件失败不回滚提交。
 本次仅新增必要的广播边界，没有引入 ORM、中间件或额外数据库表。
+
+## 6. 小程序端架构（C1–C4）
+
+### 6.1 适配层与页面分层
+
+```mermaid
+flowchart LR
+    P1[pages/index 今日] --> A[utils/api.js REST 适配]
+    P2[pages/schedule 课表] --> A
+    P3[pages/task 日程] --> A
+    P3 --> S[utils/subscribe.js 订阅流程]
+    W[utils/ws.js 事件适配] --> P1
+    W --> P2
+    W --> P3
+    A --> B[后端 FastAPI]
+    W --> B
+    S --> B
+    cfg[config.js 集中配置] --> A
+    cfg --> W
+    cfg --> S
+```
+
+- 页面只做交互与展示；请求统一经 `utils/api.js`（`baseUrl`/`X-API-Key` 顶部集中配置），
+  WebSocket 统一经 `utils/ws.js`（连接/重连/去重/节流单例），订阅流程统一经 `utils/subscribe.js`。
+- 配置派生：REST `http(s)://<host>`，WS 由同一 `baseUrl` 映射为 `ws(s)://<host>/ws?token=`。
+
+### 6.2 事件刷新时序（C2）
+
+```mermaid
+sequenceDiagram
+    participant O as 其他端
+    participant B as 后端
+    participant W as ws.js
+    participant P as 页面
+    O->>B: POST /api/courses
+    B->>W: course.created（信封校验 + event_id 去重 + 节流）
+    W->>P: 事件分发
+    P->>B: GET /api/courses（REST 重读，唯一数据源）
+```
+
+### 6.3 部署拓扑（C4 三路线）
+
+```mermaid
+flowchart LR
+    D[开发者工具/真机] -->|本地路线 http/ws 局域网| B1[本机后端 :8001]
+    D -->|穿透路线 https/wss 域名| T[cpolar 隧道] --> B1
+    D -->|学生机路线 https/wss 备案域名| N[Nginx TLS] --> B2[systemd 后端 :8001 单 worker]
+```
+
+细节与操作见 [deploy.md](deploy.md)；单 worker/单调度实例约束来自 B1/B2/B3 契约。

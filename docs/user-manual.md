@@ -179,3 +179,29 @@ Windows 默认允许 `tts_windows_fallback=true`：在线服务失败后使用�
 ## B4 天气与搜索入口
 
 后端启动后，可使用带 X-API-Key 的 curl 请求获取天气和搜索摘要，完整示例及错误排查见 [B4 使用说明](b4-web-query.md)。无需天气/搜索上游密钥；无公网条件下运行 `python scripts/smoke_backend_web_query.py` 验证 Mock 链路，显式增加 `--live` 才进行真实上游验收。
+
+# 小程序端（C）
+
+## 安装与配置
+
+1. 微信开发者工具导入 `miniprogram/` 目录（appid 已在 `project.config.json`）。
+2. 复制 `config.example.js` 为 `config.js`，填 `baseUrl`（本机 `http://127.0.0.1:8001`，真机用电脑局域网 IP）与 `apiKey`（= `backend/.env` 的 `API_TOKEN`）。
+3. 开发期：详情 → 本地设置 → 勾选「不校验合法域名」（仅限调试；正式路线见 [部署手册](deploy.md)）。
+4. 后端运行：`powershell -File scripts\run-backend.ps1`（自动建 venv/装依赖）。
+
+## 主要操作
+
+- **今日页**：顶部切换「第 X 周」（本地保存，两页联动）；显示今天的课与到期待办；勾选完成；下拉刷新。
+- **课表页**：右下「＋」增删改课程（周次支持 `1-16`/`1,3,5` 写法）；绿色「识」按钮拍照/选图识别导入；本周不上课的课程置灰标「本周不上」。
+- **日程页**：增删改与勾选完成；编辑可设提醒时间（日期+时间）；带提醒时间的任务有「订阅提醒」按钮，触发微信一次性订阅授权。
+
+## 故障排查
+
+| 现象 | 排查 |
+|---|---|
+| HTTP 401：API Key 无效 | `config.js` 的 `apiKey` 与 `backend/.env` 的 `API_TOKEN` 不一致 |
+| 网络请求失败 | 后端未启动或 `baseUrl` 不对；真机需同一 WiFi 且防火墙放行 8001（见部署手册） |
+| 识别返回 503 | 后端未配置视觉模型（`LLM_API_KEY`/`LLM_BASE_URL`/`LLM_VISION_MODEL`） |
+| 点订阅提醒提示未配置模板 | `config.js` 的 `subscribeTemplateId` 为空（需在微信公众平台申请模板） |
+| 订阅登记 503/401 | B3 后端未启用（`WX_ENABLED`）或会话过期（重新点一次会重新登录） |
+| 页面不自动刷新 | 后端事件连接依赖 WS；重进页面会 REST 重读，杀后端再重启会退避重连 |

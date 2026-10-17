@@ -38,3 +38,12 @@
 2026-10-11 的 Windows/Python 3.13 后端运行依赖扫描未发现已知漏洞，见
 `docs/evidence/b1/dependency-audit.json`。这不是“没有漏洞”的保证；非 Windows 条件依赖
 由 Linux CI 再验。后续变更须重跑审计。
+
+## 小程序端 JS 检查工具（开发依赖，不打入运行）
+
+| 依赖 | 版本 | 许可证 | 用途 |
+|---|---|---|---|
+| eslint | 10.12.0（miniprogram/package-lock.json 锁定） | MIT | 小程序 JS 静态检查（CI miniprogram job） |
+| prettier | 3.9.10（同上） | MIT | 代码格式化（检查命令预留） |
+
+安装与复现：`cd miniprogram && npm ci`（Node 22）；运行依赖仅微信基础库，无第三方运行时依赖。

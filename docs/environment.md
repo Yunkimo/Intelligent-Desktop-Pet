@@ -27,3 +27,15 @@
 ## B4 增量环境（2026-10-15）
 
 沿用 Windows 硬件、Python 3.13.0/3.10.22 和已有依赖锁文件；起始基线 `42a95ba`，无新增运行依赖。新增 63 项测试，后端总计 172 项；桌面 106 项。真实验收使用 Uvicorn 单 worker、curl、本机随机端口和临时库，上游流量经既有代理；命令、时间口径与结果见 [B4 报告](b4-test-report.md)。
+
+## C 增量环境（2026-10-12 ~ 2026-10-17）
+
+- 仓库与分支：`Yunkimo/Intelligent-Desktop-Pet`（原名 IDP，2026-10-14 改名）；C3 分支 `feat/miniprogram-c3`、C4 分支 `feat/miniprogram-c4`（均自 develop 切出）。
+- 微信开发者工具：Stable 2.01.2510290（Windows）；模拟器 iPhone 12/13 机型；真机预览为本人手机（型号与微信版本待补录）。
+- JS 检查环境：本机 Node 24.20.0 / npm 11.19.0（CI Node 22）；eslint 10.12.0 + prettier 3.9.10 精确锁定（miniprogram/package-lock.json）。
+- 后端：沿用 B 环境（本机 Python 3.13.2 venv；CI 3.10/3.12）；视觉识别联调用硅基流动 `Qwen/Qwen3-VL-32B-Instruct`（用户实名认证账户）。
+- 真机网络：手机与电脑同一 WiFi，电脑局域网 IP 192.168.5.19，防火墙放行 TCP 8001；测试数据均清理。
+- C2 验收：模拟器 + 真机各一次「后端加数据 → 页面约 1 秒刷新」人工确认；适配层逻辑验收 7 项入 CI。
+- C3 逻辑验收：subscribe 纯函数 + 流程集成 7 项（同意/拒绝/取消/登记重试幂等），本地 Node 实测通过。
+- C4 验收：run-backend.ps1 实测启动、check_deployment 5/5、reset_demo 实测（含备份命名修复）。
+- 未执行项：微信订阅真机链路（待 B3 合并与模板配置）、他人干净环境部署复现（C-T06）、公网/学生机路线（C-T07）。
