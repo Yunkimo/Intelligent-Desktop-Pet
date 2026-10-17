@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtCore import QPoint, QRect, Qt, QUrl
 from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMenu, QWidget
@@ -11,7 +11,8 @@ from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMenu, QWidget
 from .asr import ASREngine
 from .avatar import create_avatar
 from .backend_client import BackendClient, WsListener, build_ws_url
-from .bubble import SpeechBubble
+from .bubble import SpeechBubble, bubble_placement
+from .commands import Command, Submenu, populate_menu
 from .config import Settings
 from .event_cache import RecentEvents
 from .health import HealthMonitor
@@ -27,7 +28,6 @@ from .worker import ASRWorker, ChatWorker, TTSWorker
 
 _GAP = 8
 _INPUT_H = 36
-_BUBBLE_RESERVE = 240
 
 # 回复里出现这些词，通常表示宠物没听懂 / 需要用户澄清，此时做「疑惑」表情
 _DOUBT_KEYWORDS = (
@@ -133,7 +133,8 @@ class PetWindow(QWidget):
         sw = self.avatar.widget.width()
         sh = self.avatar.widget.height()
         self.win_w = max(320, sw + 120)
-        self.win_h = sh + _INPUT_H + _BUBBLE_RESERVE + _GAP * 4
+        # 气泡已是独立置顶浮层，窗口只需容纳形象 + 输入框，不再预留气泡空间
+        self.win_h = sh + _INPUT_H + _GAP * 2
         self.resize(self.win_w, self.win_h)
 
         screen = QGuiApplication.primaryScreen()
@@ -157,11 +158,23 @@ class PetWindow(QWidget):
         self._position_bubble()
 
     def _position_bubble(self) -> None:
-        if not self.bubble.isVisible():
+        # 气泡随宠物在屏幕上的方位自适应：形象靠下半屏时气泡在形象上方，靠上半屏
+        # 时翻到形象下方（尾巴方向随之翻转），水平方向偏向屏幕中心，并夹在可用区域
+        # 内。首条文本前气泡仍隐藏，但 move() 对隐藏控件同样生效，故不判断
+        # isVisible()，避免首条气泡落在屏幕左上角。
+        avatar = self.avatar.widget
+        screen = avatar.screen() or QGuiApplication.primaryScreen()
+        geo = screen.availableGeometry() if screen else None
+        if geo is None:
             return
-        bx = (self.width() - self.bubble.width()) // 2
-        by = self.avatar.widget.y() - self.bubble.height() - _GAP
-        self.bubble.move(max(0, bx), max(0, by))
+        rect = QRect(avatar.mapToGlobal(QPoint(0, 0)), avatar.size())
+        # 输入框展开时占住形象下方，气泡强制让位到上方，避免挡住输入栏
+        above = True if self.input.isVisible() else None
+        x, y, tail_up = bubble_placement(
+            rect, geo, self.bubble.width(), self.bubble.height(), _GAP, above
+        )
+        self.bubble.set_tail_up(tail_up)
+        self.bubble.move(x, y)
 
     # ---------- 拖拽与点击 ----------
     def _hit_avatar(self, pos) -> bool:
@@ -183,13 +196,15 @@ class PetWindow(QWidget):
                 self._moved = True
                 self.move(self.pos() + delta)
                 self._press_pos = event.globalPosition().toPoint()
+                # 气泡是独立浮层：拖拽时同步跟随，并保持在桌宠窗口之上
+                self._position_bubble()
+                self.bubble.raise_()
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         if event.button() != Qt.MouseButton.LeftButton or self._press_pos is None:
             return
         if not self._moved:
-            # 点击交给形象处理：Live2D 命中脸则换表情，未命中（或静态形象）再收起/展开输入框
-            self.avatar.tap(event.position().toPoint(), on_miss=self.toggle_input)
+            self.toggle_input()
         self._press_pos = None
         self._moved = False
 
@@ -199,54 +214,41 @@ class PetWindow(QWidget):
         else:
             self.input.show()
             self.input.focus_input()
+        # 输入框显隐改变形象下方的占用情况，气泡需要重新让位
+        self._position_bubble()
 
     # ---------- 更换形象 / 切换人设 ----------
     def contextMenuEvent(self, event) -> None:  # noqa: N802
         if not self._hit_avatar(event.pos()):
             return
         menu = QMenu(self)
-
-        change = menu.addAction("切换图片…")
-        change.triggered.connect(self._choose_image)
-
-        if self.avatar.supports_motion:
-            poke = menu.addAction("逗一下 ♪")
-            poke.triggered.connect(lambda: self.avatar.react("poke"))
-
-            expr_menu = menu.addMenu("切换表情")
-            for name in self.avatar.expressions:
-                act = expr_menu.addAction(name)
-                act.triggered.connect(lambda _checked=False, n=name: self.avatar.set_expression(n))
-
-            model_menu = menu.addMenu("切换模型")
-            self._populate_model_menu(model_menu)
-            model_menu.addSeparator()
-            add_model = model_menu.addAction("添加 Live2D 模型…")
-            add_model.triggered.connect(self._add_live2d_model)
-        else:
-            to_live2d = menu.addAction("切换为 Live2D 动态形象")
-            to_live2d.triggered.connect(lambda: self._switch_engine("live2d"))
-
-        persona_menu = menu.addMenu("切换人设")
-        for name in self.settings.personas:
-            act = persona_menu.addAction(name)
-            act.triggered.connect(lambda _checked=False, n=name: self._switch_persona(n))
-        persona_menu.addSeparator()
-        add_act = persona_menu.addAction("添加人设…")
-        add_act.triggered.connect(self._add_persona)
-
-        hotkey_act = menu.addAction("设置语音快捷键…")
-        hotkey_act.triggered.connect(self._set_voice_hotkey)
-
-        backend_act = menu.addAction("测试后端连接")
-        backend_act.triggered.connect(self._debug_backend)
-
-        quit_act = menu.addAction("退出")
-        quit_act.triggered.connect(self.close)
-
+        populate_menu(menu, self._build_commands())
         menu.exec(event.globalPos())
 
+    def _build_commands(self) -> list[Command]:
+        """按固定顺序组装右键菜单：命令与子菜单逐项包装。"""
+        commands: list[Command] = []
+
+        commands.append(Command("切换图片…", self._choose_image))
+        commands.append(Submenu(self._build_persona_menu()))
+        commands.append(Command("设置语音快捷键…", self._set_voice_hotkey))
+        commands.append(Command("测试后端连接", self._debug_backend))
+        commands.append(Command("退出", self.close))
+        return commands
+
+    def _build_persona_menu(self) -> QMenu:
+        """组装「切换人设」子菜单：逐项包装人设切换调用。"""
+        menu = QMenu("切换人设", self)
+        commands: list[Command] = []
+        for name in self.settings.personas:
+            commands.append(Command(name, lambda n=name: self._switch_persona(n)))
+        populate_menu(menu, commands)
+        menu.addSeparator()
+        menu.addAction("添加人设…").triggered.connect(self._add_persona)
+        return menu
+
     def _switch_persona(self, name: str) -> None:
+        """切换人设，并清空旧人设对话避免语气/身份残留。"""
         if not self.settings.switch_persona(name):
             return
         self.memory.set_system(build_system_prompt(self.settings))
@@ -268,6 +270,7 @@ class PetWindow(QWidget):
             self._switch_persona(name)
 
     def _choose_image(self) -> None:
+        """弹出图片选择框并更换形象。"""
         path, _ = QFileDialog.getOpenFileName(
             self,
             "选择桌宠形象",
@@ -279,65 +282,13 @@ class PetWindow(QWidget):
         self._apply_image(Path(path))
 
     def _apply_image(self, src: Path) -> None:
-        """更换形象：用图片/动图引擎显示所选图片（必要时先从 Live2D 切过来）。"""
+        """更换形象：用图片/动图精灵引擎显示所选图片。"""
         # 先释放当前形象对图片文件的占用，避免覆盖正在显示的图片时锁文件崩溃
         self.avatar.clear()
         dest = normalize_image(src, self.settings.assets_dir)
         self.settings.update_frames([dest.name])
-        if self.settings.image_engine != "sprite":
-            self._switch_engine("sprite")  # 会按新 frames 重建并布局
-        else:
-            self.avatar.set_appearance(dest, self.settings.sprite_size)
-            self._size_and_position()
-
-    def _switch_engine(self, engine: str) -> None:
-        """运行时切换形象引擎（图片 ↔ Live2D），重建形象控件并重新布局。"""
-        if engine == self.settings.image_engine:
-            return
-        self.settings.update_image_engine(engine)
-        self._rebuild_avatar()
-
-    def _rebuild_avatar(self) -> None:
-        """销毁旧形象控件，按当前配置重建并重新布局。"""
-        old = self.avatar.widget
-        old.hide()
-        old.setParent(None)
-        old.deleteLater()
-
-        self.avatar = create_avatar(self.settings, parent=self)
-        self.avatar.widget.show()
+        self.avatar.set_appearance(dest, self.settings.sprite_size)
         self._size_and_position()
-
-    def _populate_model_menu(self, menu: QMenu) -> None:
-        """往「切换模型」子菜单填充已发现的 Live2D 模型，勾选当前项。"""
-        from .live2d_view import discover_models
-
-        for m in discover_models():
-            act = menu.addAction(m["name"])
-            act.setCheckable(True)
-            act.setChecked(m["name"] == self.settings.live2d_model)
-            act.triggered.connect(lambda _checked=False, n=m["name"]: self._switch_live2d_model(n))
-
-    def _switch_live2d_model(self, name: str) -> None:
-        """切换到指定 Live2D 模型并重建形象。"""
-        if name == self.settings.live2d_model:
-            return
-        self.settings.update_live2d_model(name)
-        self._rebuild_avatar()
-
-    def _add_live2d_model(self) -> None:
-        """弹出「添加 Live2D 模型」对话框，导入成功后切换到新模型。"""
-        from .live2d_dialog import AddModelDialog
-
-        dialog = AddModelDialog(self)
-        if not dialog.exec() or not dialog.model_name:
-            return
-        self.settings.update_live2d_model(dialog.model_name)
-        if self.settings.image_engine != "live2d":
-            self._switch_engine("live2d")
-        else:
-            self._rebuild_avatar()
-        self.bubble.set_text(f"已添加并切换到「{dialog.model_name}」模型 ♪")
 
     # ---------- 文本/聊天 ----------
     def send_text(self, text: str) -> None:
@@ -377,8 +328,6 @@ class PetWindow(QWidget):
             self.memory.save()
             if _is_confused_reply(text):
                 self.avatar.react("confused")  # 没听懂用户提问
-            else:
-                self.avatar.reset_expression()  # 成功答出，恢复正常神态
             if self.settings.enable_voice:
                 self._speak(text)
         else:

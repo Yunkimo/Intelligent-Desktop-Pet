@@ -1,0 +1,14 @@
+{
+  "mode": "MockTransport; no real WeChat requests",
+  "samples": 30,
+  "accepted": 30,
+  "replayed_subscriptions": 30,
+  "duplicate_sends": 0,
+  "calls": {
+    "login": 1,
+    "token": 1,
+    "send": 30
+  },
+  "database": "temporary",
+  "external_messages_sent": 0
+}

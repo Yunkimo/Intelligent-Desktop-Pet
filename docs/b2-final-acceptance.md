@@ -57,7 +57,7 @@
 Windows 11、Python 3.13.0，依赖沿用 [桌宠环境清单](evidence/b2/acceptance-desktop-packages.txt)。
 每轮随机端口/凭证、临时 SQLite、真实 Uvicorn / WsListener / PetWindow / SpeechBubble；
 不使用个人数据，不调用聊天模型，所有测试进程退出后临时库清理。
-视觉组使用普通顶层窗口和内置猫，便于工具枚举；不等同于 Live2D 或生产置顶行为验收。
+视觉组使用普通顶层窗口和内置猫，便于工具枚举；不等同于生产置顶行为验收。
 
 ```powershell
 .venv/Scripts/python scripts/acceptance_reminder_gui.py --interval 1 --lead 20 --samples 30 --spacing 2 --hold 8 --capture-window --output tmp/gui-final.json

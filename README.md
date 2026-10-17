@@ -29,9 +29,9 @@ HTTP REST + WebSocket                  HTTP REST + WebSocket
 |---|---|
 | **桌宠端 A1–A4**：后端客户端 / Agent 工具调用 / 健康关怀 / 实时接收 | ✅ 已完成 |
 | **后端 B1–B2**：WebSocket 广播 / 到期提醒调度器 | ✅ 已完成 |
-| **后端 B3**：微信订阅消息（离线推送） | 🔄 实现见 PR #29，待合并 |
+| **后端 B3**：微信登录、订阅登记与离线推送 | ✅ 已合并 develop（Mock 验证完成；真机待 C3 联调） |
 | **小程序 C1–C2**：骨架 + api.js / 实时刷新（含识别导入、周次过滤） | ✅ 已合并 develop，真机验收通过 |
-| **小程序 C3**：订阅授权 | 🔄 PR #43 待评审（真机链路待 B3 合并与模板配置） |
+| **小程序 C3**：订阅授权 | 🔄 PR #43 待评审（真机链路待模板配置） |
 | **小程序 C4**：部署 + 阶段文档 + CI（含原 C5 转入项） | 🔄 PR #44 待评审（公网/学生机路线待实测） |
 | **小程序 C5**：最终验收与演示 | ⏸ 暂缓（用户指示，Issue #13 保持打开） |
 | **工程基建**：CI 多 job、ruff、分支保护 | ✅ 已完成 |
@@ -74,8 +74,7 @@ copy .env.example .env     :: 填入 API_TOKEN
 
 - **拖拽**移动宠物，**点击**唤出 / 收起输入框，回车发送，宠物流式回复并语音播报
 - **说话**：点输入框右侧 🎤 录音；或全局按住 `Ctrl+T` 录音、松开自动识别发送（右键可改快捷键）
-- **右键菜单**：切换形象 / 切换人设 / 切换 Live2D 模型 / 添加 Live2D 模型 / 退出
-- **Live2D**：点模型脸换表情，说话与待机自动做动作；仓库不内置模型，用「添加 Live2D 模型…」导入 Cubism 4 模型文件夹即可
+- **右键菜单**：切换形象 / 切换人设 / 设置语音快捷键 / 测试后端连接 / 退出
 
 完整操作与配置项见 [用户手册](docs/user-manual.md)。
 
@@ -85,7 +84,7 @@ copy .env.example .env     :: 填入 API_TOKEN
 pet/             桌宠端（PyQt6：窗口 / 形象 / 对话 / 语音 / 记忆）
 backend/         后端（FastAPI + SQLite，唯一数据源）
 miniprogram/     小程序（骨架 + api.js，C1）
-assets/          桌宠素材（live2d/ 为渲染运行时，模型由用户自行导入）
+assets/          桌宠素材（图片 / 动图）
 docs/            设计文档、用户手册、测试与安全文档、三份任务书
 tests/           桌宠端测试（后端测试在 backend/tests/）
 scripts/         冒烟测试
@@ -112,6 +111,8 @@ config.json      桌宠非敏感配置
 | [测试文档](docs/testing.md) | 测试策略、用例清单、实验环境与覆盖率 |
 | [信息安全设计](docs/security.md) | 密钥管理、隐私保护、供应链 |
 | [API 契约](docs/api-contract.md) | 后端 REST / WebSocket 实时事件字段 |
+| [B3 微信接口与部署](docs/b3-wechat.md) | 登录、授权归属、发送状态、配置及 C3 联调步骤 |
+| [B3 测试报告](docs/b3-test-report.md) | 双 Python 版本、故障测试、Mock 量化与原始证据 |
 | [B4 天气与搜索](docs/b4-web-query.md) | curl 示例、输入/响应契约、配置与故障处理 |
 | [B4 测试报告](docs/b4-test-report.md) | 双版本回归、真实网络摘要、失败修正与原始证据 |
 | [考核证据索引](docs/assessment-evidence.md) | 各评分点对应的代码 / 测试 / 证据 |
@@ -128,16 +129,12 @@ config.json      桌宠非敏感配置
 
 | 依赖 | 许可证 | 用途 |
 |---|---|---|
-| PyQt6 / PyQt6-WebEngine | GPL-3.0 / 商业 | GUI 与 Live2D 渲染 |
+| PyQt6 | GPL-3.0 / 商业 | GUI |
 | fastapi / uvicorn / pydantic | MIT / BSD / MIT | 后端服务 |
 | openai | Apache-2.0 | LLM 调用 |
 | edge-tts | LGPL-3.0 | 语音合成 |
 | faster-whisper | MIT | 语音识别 |
 | sounddevice / numpy / Pillow / python-dotenv | MIT / BSD / MIT / BSD | 录音、数值、图像、配置 |
-
-`assets/live2d/` 内含 Live2D 前端运行时：pixi.js（MIT）、pixi-live2d-display（MIT）、Cubism Core（Live2D 专有许可）。
-
-> ⚠️ **模型版权**：仓库不内置任何 Live2D 模型，模型由用户自行导入，请确认其授权情况。本项目仅用于课程设计 / 学习演示。
 
 ## 常见问题
 

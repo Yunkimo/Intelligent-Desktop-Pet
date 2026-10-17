@@ -63,6 +63,7 @@ def _conn():
 def init_db() -> None:
     """幂等建表，保留提醒迁移及其备份，再补充课表教师字段。"""
     from .reminder_store import migrate
+    from .wechat_store import migrate as migrate_wechat
 
     with _conn() as conn:
         conn.executescript(_SCHEMA)
@@ -70,6 +71,7 @@ def init_db() -> None:
         columns = {row[1] for row in conn.execute("PRAGMA table_info(courses)")}
         if "teacher" not in columns:
             conn.execute("ALTER TABLE courses ADD COLUMN teacher TEXT NOT NULL DEFAULT ''")
+        migrate_wechat(conn)
 
 
 def _get_by_id(table: str, row_id: int) -> dict | None:
@@ -202,7 +204,9 @@ def list_reminders() -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def create_reminder(title, remind_at, body="", channel="both", task_id=None) -> dict:
+def create_reminder(
+    title, remind_at, body="", channel="both", task_id=None, wechat_user_id=None
+) -> dict:
     """创建提醒及持久化调度状态，两者在同一事务提交。"""
     from .reminder_store import seed_delivery
     from .reminder_time import normalize_reminder_time
@@ -210,9 +214,9 @@ def create_reminder(title, remind_at, body="", channel="both", task_id=None) -> 
     remind_at = normalize_reminder_time(remind_at)
     with _conn() as conn:
         cur = conn.execute(
-            "INSERT INTO reminders (title, body, remind_at, channel, task_id) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (title, body, remind_at, channel, task_id),
+            "INSERT INTO reminders (title, body, remind_at, channel, task_id, wechat_user_id) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (title, body, remind_at, channel, task_id, wechat_user_id),
         )
         new_id = cur.lastrowid
         seed_delivery(
@@ -226,7 +230,7 @@ def update_reminder(reminder_id: int, fields: dict) -> dict | None:
     from .reminder_store import seed_delivery
     from .reminder_time import normalize_reminder_time
 
-    cols = {"title", "body", "remind_at", "channel", "done", "task_id"}
+    cols = {"title", "body", "remind_at", "channel", "done", "task_id", "wechat_user_id"}
     updates = {key: value for key, value in fields.items() if key in cols}
     if not updates:
         return _get_by_id("reminders", reminder_id)

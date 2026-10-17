@@ -9,6 +9,8 @@ from uuid import uuid4
 from fastapi import WebSocket, WebSocketDisconnect
 from pydantic import AwareDatetime, BaseModel, Field
 
+from .wechat_client import WeChatClient, WeChatError
+
 logger = logging.getLogger(__name__)
 EventType = Literal["task.created", "course.created", "reminder.due"]
 
@@ -32,11 +34,20 @@ class Event(BaseModel):
 class PushService:
     """每个应用生命周期拥有一个实例，仅在同一事件循环内调用。"""
 
-    def __init__(self, send_timeout: float, close_timeout: float) -> None:
+    def __init__(
+        self, send_timeout: float, close_timeout: float, wechat: WeChatClient | None = None
+    ) -> None:
         self.send_timeout = send_timeout
         self.close_timeout = close_timeout
         self._connections: dict[WebSocket, asyncio.Lock] = {}
         self._closing = False
+        self._wechat = wechat
+
+    async def send_wechat_msg(self, openid: str, reminder: dict) -> None:
+        """向已由服务端验证的收件人发送；授权和幂等性由调度层控制。"""
+        if self._wechat is None:
+            raise WeChatError("wechat_not_configured")
+        await self._wechat.send(openid, reminder)
 
     @property
     def connection_count(self) -> int:

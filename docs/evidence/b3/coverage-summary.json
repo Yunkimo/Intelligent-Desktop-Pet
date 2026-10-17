@@ -1,0 +1,55 @@
+{
+  "measurement": "line coverage, not branch coverage",
+  "totals": {
+    "covered_lines": 1086,
+    "num_statements": 1153,
+    "percent_covered": 94.18907198612315,
+    "percent_covered_display": "94",
+    "missing_lines": 67,
+    "excluded_lines": 0,
+    "percent_statements_covered": 94.18907198612315,
+    "percent_statements_covered_display": "94"
+  },
+  "wechat_modules": {
+    "backend/app/routers/wechat.py": {
+      "covered_lines": 53,
+      "num_statements": 53,
+      "percent_covered": 100.0,
+      "percent_covered_display": "100",
+      "missing_lines": 0,
+      "excluded_lines": 0,
+      "percent_statements_covered": 100.0,
+      "percent_statements_covered_display": "100"
+    },
+    "backend/app/wechat_client.py": {
+      "covered_lines": 101,
+      "num_statements": 101,
+      "percent_covered": 100.0,
+      "percent_covered_display": "100",
+      "missing_lines": 0,
+      "excluded_lines": 0,
+      "percent_statements_covered": 100.0,
+      "percent_statements_covered_display": "100"
+    },
+    "backend/app/wechat_dispatcher.py": {
+      "covered_lines": 38,
+      "num_statements": 38,
+      "percent_covered": 100.0,
+      "percent_covered_display": "100",
+      "missing_lines": 0,
+      "excluded_lines": 0,
+      "percent_statements_covered": 100.0,
+      "percent_statements_covered_display": "100"
+    },
+    "backend/app/wechat_store.py": {
+      "covered_lines": 84,
+      "num_statements": 84,
+      "percent_covered": 100.0,
+      "percent_covered_display": "100",
+      "missing_lines": 0,
+      "excluded_lines": 0,
+      "percent_statements_covered": 100.0,
+      "percent_statements_covered_display": "100"
+    }
+  }
+}

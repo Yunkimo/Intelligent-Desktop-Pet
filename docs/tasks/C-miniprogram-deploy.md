@@ -30,7 +30,7 @@
 
 > 本节保留任务建立时的起始背景；开工前核对仓库和对应 Issue 的实际进度。C3/C4 已于 2026-10-16 按 Issue #11/#12 同步细化；2026-10-17 将 C5 的阶段文档、CI 维护及依赖/安全说明移至 C4，C5 收尾暂缓。以下验收项是待执行要求，不代表已实现或通过。
 
-- 仓库：本仓库（`origin = https://github.com/Yunkimo/IDP`），分支模型 `main` / `develop` / `feat/*`。
+- 仓库：本仓库（`origin = https://github.com/Yunkimo/Intelligent-Desktop-Pet`），分支模型 `main` / `develop` / `feat/*`。
 - 现状：仓库已有 `backend/`（M1 后端骨架已完成）和 `pet/`（桌宠基线）。小程序是全新目录 `miniprogram/`。
 - 前置：安装「微信开发者工具」；注册小程序（个人主体即可，需实名）拿到 `appid`。
 - 你的工作分支：从 `develop` 切出 `feat/miniprogram`。

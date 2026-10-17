@@ -54,12 +54,6 @@ class Settings:
         self.frames: list[str] = data.get("frames", [])
         self.sprite_size: int = int(data.get("sprite_size", 180))
 
-        # 形象引擎：sprite（图片/动图）或 live2d（透明 WebView 渲染）
-        self.image_engine: str = data.get("image_engine", "sprite")
-        self.live2d_width: int = int(data.get("live2d_width", 360))
-        self.live2d_height: int = int(data.get("live2d_height", 360))
-        self.live2d_model: str = data.get("live2d_model", "")
-
         self.whisper_model: str = data.get("whisper_model", "base")
         self.tts_voice: str = data.get("tts_voice", DEFAULT_TTS_VOICE)
         # 旧默认声音已不在服务声音列表中，仅迁移该旧值，保留其他自选声音。
@@ -104,16 +98,6 @@ class Settings:
         """更新形象帧列表并写回 config.json，使更换在重启后仍然生效。"""
         self.frames = frames
         self._save_json(frames=frames)
-
-    def update_image_engine(self, engine: str) -> None:
-        """切换形象引擎并写回 config.json，使切换在重启后仍然生效。"""
-        self.image_engine = engine
-        self._save_json(image_engine=engine)
-
-    def update_live2d_model(self, name: str) -> None:
-        """切换 Live2D 模型并写回 config.json，使切换在重启后仍然生效。"""
-        self.live2d_model = name
-        self._save_json(live2d_model=name)
 
     def update_voice_hotkey(self, hotkey: str) -> None:
         """更新语音快捷键并写回 config.json，使设置重启后仍然生效。"""

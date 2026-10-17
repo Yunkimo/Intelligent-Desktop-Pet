@@ -105,7 +105,7 @@ def run(args) -> dict:
                 settings.history_path = Path(directory) / "history.json"
                 settings.enable_voice = args.voice
                 settings.health_enabled = False
-                settings.image_engine, settings.frames = "sprite", []
+                settings.frames = []
                 settings.bubble_timeout_ms = 60000
                 settings.pet_name = (
                     "B2 故障恢复验收（临时环境）"
