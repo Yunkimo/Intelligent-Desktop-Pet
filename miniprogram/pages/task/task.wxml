@@ -17,7 +17,7 @@
       </view>
     </view>
     <view class="task-actions">
-      <button wx:if="{{item.remind_at}}" class="btn btn-subscribe mini" data-task="{{item}}" bindtap="subscribeTask">订阅提醒</button>
+      <button wx:if="{{item.remind_at}}" class="btn btn-subscribe mini" data-task="{{item}}" bindtap="subscribeTask">开启提醒</button>
       <button class="btn btn-ghost mini" data-task="{{item}}" bindtap="openEdit">编辑</button>
       <button class="btn btn-danger mini" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="remove">删除</button>
     </view>

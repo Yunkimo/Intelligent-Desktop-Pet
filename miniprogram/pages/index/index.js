@@ -22,6 +22,7 @@ Page({
     todayLabel: '',
     courses: [],
     tasks: [],
+    reminders: [],
     loading: false,
     error: '',
   },
@@ -41,7 +42,10 @@ Page({
   },
 
   // 后端事件到达：REST 重读（onShow 也走这里，覆盖断线恢复）
-  onWsEvent() {
+  onWsEvent(event) {
+    if (event && event.type === 'reminder.due') {
+      wx.showToast({ title: '有提醒到期', icon: 'none', duration: 3000 });
+    }
     this.loadToday();
   },
 
@@ -60,7 +64,11 @@ Page({
   async loadToday() {
     this.setData({ loading: true, error: '' });
     try {
-      const [courses, tasks] = await Promise.all([api.getCourses(), api.getTasks()]);
+      const [courses, tasks, reminders] = await Promise.all([
+        api.getCourses(),
+        api.getTasks(),
+        api.getReminders(),
+      ]);
       const dow = todayDow();
       const today = dateStr(new Date());
       this.setData({
@@ -75,6 +83,12 @@ Page({
             checked: false,
             dueText: t.due_at.slice(0, 10),
             overdue: t.due_at.slice(0, 10) < today,
+          })),
+        reminders: reminders
+          .filter((r) => !r.done && r.remind_at && r.remind_at.slice(0, 10) === today)
+          .map((r) => ({
+            ...r,
+            remindTime: r.remind_at.slice(11, 16),
           })),
       });
     } catch (err) {
