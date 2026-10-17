@@ -112,6 +112,8 @@ Page({
     try {
       if (form.id) {
         await api.updateTask(form.id, payload);
+        // 编辑后提醒时间可能已变：清除本地订阅标记，允许（且需要）重新订阅
+        wx.removeStorageSync('sub_flag_' + form.id);
       } else {
         await api.createTask(payload);
       }

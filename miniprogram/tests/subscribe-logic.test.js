@@ -208,7 +208,29 @@ async function main() {
     storage['sub_flag_' + TASK.id] = null;
   });
 
+  await check('流程-提醒时间变更：既有提醒时间不一致时先更新提醒再登记', async () => {
+    mockApi();
+    wxState.subscribeResult = 'accept';
+    wxState.subscribeFail = null;
+    api.getReminders = async () => [
+      { id: 5, task_id: TASK.id, channel: 'phone', wechat_user_id: 1, remind_at: '2026-10-20T09:00' },
+    ];
+    const updates = [];
+    api.updateReminder = async (id, data) => {
+      updates.push([id, data]);
+      return {};
+    };
+    const result = await subscribe.subscribeTaskReminder(TASK);
+    assert.strictEqual(result.status, 'accept');
+    assert.strictEqual(updates.length, 1, '提醒时间不一致时应先更新提醒');
+    assert.strictEqual(updates[0][0], 5);
+    assert.strictEqual(updates[0][1].remind_at, TASK.remind_at);
+    const reg = calls.find((c) => c[0] === 'subscribe')[1];
+    assert.strictEqual(reg.reminder_id, 5);
+  });
+
   await check('流程-登记重试：网络失败后复用同一 request_id 重试，不重复累计', async () => {
+    storage['sub_flag_' + TASK.id] = null;
     wxState.subscribeResult = 'accept';
     wxState.subscribeFail = null;
     let attempts = 0;

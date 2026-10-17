@@ -77,13 +77,23 @@ async function ensureSession() {
   return session;
 }
 
-/** 找到或创建该任务对应的 phone 提醒（服务端为准，避免重复创建）。 */
+/** 找到或创建该任务对应的 phone 提醒（服务端为准，避免重复创建）。
+
+任务编辑后提醒时间可能已变化：按 B3 契约更新提醒（修改会取消旧待发授权，
+需重新登记）。 */
 async function ensurePhoneReminder(task, session) {
   const reminders = await api.getReminders();
   const existing = reminders.find(
     (r) => r.task_id === task.id && r.channel === 'phone' && r.wechat_user_id === session.user_id
   );
   if (existing) {
+    if (existing.remind_at !== task.remind_at) {
+      await api.updateReminder(existing.id, {
+        title: task.title,
+        body: task.note || '',
+        remind_at: task.remind_at,
+      });
+    }
     return existing.id;
   }
   const created = await api.createReminder({
