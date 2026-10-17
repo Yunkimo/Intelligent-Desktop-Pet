@@ -10,6 +10,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # 小程序：JS 静态检查与适配层逻辑验收（微信运行时由开发者工具提供，CI 只验逻辑层）
+  miniprogram:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: miniprogram
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: miniprogram/package-lock.json
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Adapter logic tests (ws)
+        run: npm test
+
   # 后端：FastAPI + SQLite，轻量，无需系统依赖，单独跑 backend/tests
   backend:
     runs-on: ubuntu-latest

@@ -39,3 +39,6 @@ dist/
 # 模型缓存（faster-whisper 下载到用户目录，通常不在仓库内，兜底忽略）
 *.pt
 *.bin
+
+# Node（小程序端 JS 检查）
+node_modules/
