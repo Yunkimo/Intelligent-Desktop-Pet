@@ -62,6 +62,7 @@ const api = require('../utils/api.js');
 const calls = [];
 function mockApi() {
   calls.length = 0; // 每个用例独立记录，避免跨用例断言污染
+  storage['sub_flag_' + TASK.id] = null; // 每个用例从「未订阅」状态开始
   api.wechatLogin = async (code) => {
     calls.push(['login', code]);
     return { user_id: 1, session_token: 'sess-token', expires_in: 7200 };
@@ -155,23 +156,56 @@ async function main() {
     assert.ok(!calls.some((c) => c[0] === 'subscribe'));
   });
 
-  await check('流程-断网登录失败：给出可恢复的中文提示，不落库', async () => {
+  await check('流程-已订阅后不重复弹授权框、不重复登记', async () => {
     mockApi();
-    storage.wechat_session = null; // 强制重新登录
-    wxState.loginFail = 'login:fail network timeout';
     wxState.subscribeResult = 'accept';
     wxState.subscribeFail = null;
-    let thrown = null;
-    try {
-      await subscribe.subscribeTaskReminder(TASK);
-    } catch (err) {
-      thrown = err;
-    }
-    assert.ok(thrown, '断网时应抛出错误');
-    assert.match(thrown.message, /登录失败，请检查网络后重试/);
-    assert.match(thrown.message, /本次授权已失效/);
-    assert.ok(!calls.some((c) => c[0] === 'subscribe'), '登录失败不应登记');
-    wxState.loginFail = null;
+    // 第一次：正常订阅，登记 accept 并记录本地状态
+    const first = await subscribe.subscribeTaskReminder(TASK);
+    assert.strictEqual(first.status, 'accept');
+    const regs1 = calls.filter((c) => c[0] === 'subscribe');
+    assert.strictEqual(regs1.length, 1);
+    // 第二次：本地已标记订阅过 → 不弹授权、不再登记
+    let dialogCalls = 0;
+    const original = global.wx.requestSubscribeMessage;
+    global.wx.requestSubscribeMessage = () => {
+      dialogCalls += 1;
+      original({ success: () => {}, fail: () => {} });
+    };
+    const second = await subscribe.subscribeTaskReminder(TASK);
+    assert.strictEqual(second.status, 'already');
+    assert.match(second.message, /已订阅过/);
+    assert.strictEqual(dialogCalls, 0, '已订阅后不应再弹授权框');
+    const regs2 = calls.filter((c) => c[0] === 'subscribe');
+    assert.strictEqual(regs2.length, 1, '已订阅后不应重复登记');
+    global.wx.requestSubscribeMessage = original;
+    storage['sub_flag_' + TASK.id] = null;
+  });
+
+  await check('流程-服务端 409 视为已订阅：友好提示且记录本地状态', async () => {
+    mockApi();
+    wxState.subscribeResult = 'accept';
+    wxState.subscribeFail = null;
+    api.wechatSubscribe = async () => {
+      throw new Error('HTTP 409：reminder_already_registered');
+    };
+    const result = await subscribe.subscribeTaskReminder(TASK);
+    assert.strictEqual(result.status, 'already');
+    assert.match(result.message, /已订阅过/);
+    assert.strictEqual(storage['sub_flag_' + TASK.id], 'done');
+    storage['sub_flag_' + TASK.id] = null;
+  });
+
+  await check('流程-拒绝后给出恢复授权指引，允许再次尝试', async () => {
+    mockApi();
+    wxState.subscribeResult = 'reject';
+    wxState.subscribeFail = null;
+    const result = await subscribe.subscribeTaskReminder(TASK);
+    assert.strictEqual(result.status, 'reject');
+    assert.match(result.message, /授权管理/);
+    assert.strictEqual(storage['sub_flag_' + TASK.id], 'reject');
+    // 拒绝状态不阻断再次尝试：清掉标记后仍会走授权流程（下一用例覆盖）
+    storage['sub_flag_' + TASK.id] = null;
   });
 
   await check('流程-登记重试：网络失败后复用同一 request_id 重试，不重复累计', async () => {

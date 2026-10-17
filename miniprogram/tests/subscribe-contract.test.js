@@ -170,12 +170,11 @@ async function main() {
       assert.match(reg.body.request_id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     });
 
-    await check('契约链路-重复触发：会话缓存有效时不再重复登录', async () => {
+    await check('契约链路-重复触发：已订阅后直接返回，不再发任何请求', async () => {
       received.requests.length = 0;
-      await subscribe.subscribeTaskReminder(TASK);
-      assert.ok(!received.requests.some((r) => r.url === '/api/wechat/login'), '二次触发不应重新登录');
-      const regs = received.requests.filter((r) => r.url === '/api/wechat/subscribe');
-      assert.strictEqual(regs.length, 1);
+      const result = await subscribe.subscribeTaskReminder(TASK);
+      assert.strictEqual(result.status, 'already');
+      assert.strictEqual(received.requests.length, 0, '已订阅后不应再发登录/登记请求');
     });
 
     console.log(`\n全部通过：${passed} 项`);

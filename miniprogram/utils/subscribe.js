@@ -9,6 +9,7 @@ const api = require('./api');
 
 // ===== 集中配置 =====
 const SESSION_KEY = 'wechat_session';
+const SUB_FLAG_PREFIX = 'sub_flag_'; // 每任务的本机订阅状态提示（业务状态以服务端为准）
 const SESSION_SKEW_SECONDS = 60; // 会话提前过期余量，避免临界期请求被拒
 // ====================
 
@@ -119,6 +120,7 @@ function requestSubscribe(templateId) {
 /**
  * 登记一次授权结果；失败时用同一 request_id 重试一次。
  * B3 契约幂等：同 request_id、内容与事件一致时返回同一记录，不追加授权次数。
+ * 返回 { status: 'ok' | 'already' }：409（重复登记）视为已订阅过，不当作错误。
  */
 async function registerChoice(reminderId, templateId, choice, sessionToken) {
   const requestId = newRequestId();
@@ -130,11 +132,15 @@ async function registerChoice(reminderId, templateId, choice, sessionToken) {
   };
   try {
     await api.wechatSubscribe(payload, sessionToken);
+    return { status: 'ok', requestId };
   } catch (err) {
+    if (String(err.message || '').includes('409')) {
+      return { status: 'already', requestId };
+    }
     // 网络抖动/后端瞬时故障：复用同一 request_id 重试一次，避免重复累计授权记录
     await api.wechatSubscribe(payload, sessionToken);
+    return { status: 'ok', requestId };
   }
-  return requestId;
 }
 
 /**
@@ -152,26 +158,47 @@ async function subscribeTaskReminder(task) {
   if (!task.remind_at) {
     throw new Error('该日程没有提醒时间，请先编辑设置');
   }
+  // 本机提示：该任务已订阅过则不再重复弹授权框（业务状态以服务端为准）
+  const flagKey = SUB_FLAG_PREFIX + task.id;
+  if (wx.getStorageSync(flagKey) === 'done') {
+    return { status: 'already', message: '该提醒已订阅过，无需重复授权' };
+  }
   // 1) 同步触发授权弹窗（一次性订阅：无论同意与否，资格都随弹窗消耗）
   const choice = await requestSubscribe(templateId);
   if (choice === null) {
     return { status: 'cancel', message: '' };
   }
-  const classified = classifyResult(choice);
   if (choice === 'error') {
     return { status: 'error', message: '授权弹窗调用失败，请重试' };
   }
+  const classified = classifyResult(choice);
   // 2) 授权完成后再做网络请求；登录失败时本次授权已失效，提示用户恢复后重新订阅
   try {
     const session = await ensureSession();
     const reminderId = await ensurePhoneReminder(task, session);
-    // 同意与拒绝/封禁/过滤都如实登记（拒绝登记为 rejected，后端不发送）；不显示「订阅成功」
-    await registerChoice(reminderId, templateId, choice, session.session_token);
+    const registered = await registerChoice(reminderId, templateId, choice, session.session_token);
+    if (registered.status === 'already') {
+      wx.setStorageSync(flagKey, 'done');
+      return { status: 'already', message: '该提醒已订阅过，无需重复授权' };
+    }
+    if (choice === 'accept') {
+      wx.setStorageSync(flagKey, 'done');
+    } else {
+      wx.setStorageSync(flagKey, choice); // 拒绝后允许再次尝试
+    }
   } catch (err) {
     if (choice === 'accept') {
       throw new Error(`${err.message || '网络请求失败'}；本次授权已失效，恢复后请重新订阅`);
     }
     throw err;
+  }
+  if (choice !== 'accept') {
+    return {
+      status: choice,
+      message:
+        classified.message +
+        '。如曾勾选「总是保持以上选择」，可在微信「我-设置-个人信息与权限-授权管理」中恢复后重试',
+    };
   }
   return { status: choice, message: classified.message };
 }

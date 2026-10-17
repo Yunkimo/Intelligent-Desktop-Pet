@@ -167,7 +167,7 @@ Page({
       if (result.status === 'cancel') {
         return; // 用户关闭授权弹窗：静默，不落库不提示
       }
-      wx.showToast({ title: result.message || '订阅处理完成', icon: 'none' });
+      wx.showToast({ title: result.message || '订阅处理完成', icon: 'none', duration: 3000 });
     } catch (err) {
       wx.showToast({ title: (err && err.message) || '操作失败，请重试', icon: 'none' });
     } finally {
