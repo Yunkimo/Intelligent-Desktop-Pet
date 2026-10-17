@@ -166,14 +166,18 @@ Page({
     wx.showLoading({ title: '处理中', mask: true });
     try {
       const result = await subscribe.subscribeTaskReminder(task);
+      wx.hideLoading(); // 先关遮罩再弹 toast：真机上遮罩会盖住 toast
       if (result.status === 'cancel') {
         return; // 用户关闭授权弹窗：静默，不落库不提示
       }
       wx.showToast({ title: result.message || '订阅处理完成', icon: 'none', duration: 3000 });
     } catch (err) {
-      wx.showToast({ title: (err && err.message) || '操作失败，请重试', icon: 'none' });
-    } finally {
       wx.hideLoading();
+      wx.showToast({
+        title: (err && err.message) || '操作失败，请重试',
+        icon: 'none',
+        duration: 3000,
+      });
     }
   },
 
