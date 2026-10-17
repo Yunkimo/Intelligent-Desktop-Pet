@@ -169,6 +169,30 @@ async function main() {
     wxState.rememberedSetting = undefined;
   });
 
+  await check('流程-服务通知手动拒收：本地订阅状态跟随失效并给指引', async () => {
+    mockApi();
+    storage['sub_flag_' + TASK.id] = 'done';
+    wxState.rememberedSetting = 'reject';
+    const result = await subscribe.subscribeTaskReminder(TASK);
+    assert.strictEqual(result.status, 'setting-off');
+    assert.match(result.message, /服务通知/);
+    assert.strictEqual(storage['sub_flag_' + TASK.id], 'reject', '本地标记应同步为 reject');
+    assert.strictEqual(calls.length, 0, '不应发起任何请求');
+    wxState.rememberedSetting = undefined;
+    storage['sub_flag_' + TASK.id] = null;
+  });
+
+  await check('流程-服务通知保持接收：已订阅标记继续生效', async () => {
+    mockApi();
+    storage['sub_flag_' + TASK.id] = 'done';
+    wxState.rememberedSetting = 'accept';
+    const result = await subscribe.subscribeTaskReminder(TASK);
+    assert.strictEqual(result.status, 'already');
+    assert.strictEqual(storage['sub_flag_' + TASK.id], 'done');
+    wxState.rememberedSetting = undefined;
+    storage['sub_flag_' + TASK.id] = null;
+  });
+
   await check('流程-已订阅后不重复弹授权框、不重复登记', async () => {
     mockApi();
     wxState.subscribeResult = 'accept';

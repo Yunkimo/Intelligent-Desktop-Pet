@@ -186,9 +186,19 @@ async function subscribeTaskReminder(task) {
   if (!task.remind_at) {
     throw new Error('该日程没有提醒时间，请先编辑设置');
   }
-  // 本机提示：该任务已订阅过则不再重复弹授权框（业务状态以服务端为准）
+  // 本机提示：该任务已订阅过则不再重复弹授权框（业务状态以服务端为准）。
+  // 服务通知页是用户可手动操作的开关：本地标记要跟随微信侧的当前设置，
+  // 用户手动拒收后（总是保持状态仍在微信侧，代码无法清除），本地同步失效并给出指引。
   const flagKey = SUB_FLAG_PREFIX + task.id;
   if (wx.getStorageSync(flagKey) === 'done') {
+    const remembered = await getRememberedSetting(templateId);
+    if (remembered === 'reject' || remembered === 'ban') {
+      wx.setStorageSync(flagKey, 'reject');
+      return {
+        status: 'setting-off',
+        message: '检测到你在服务通知中已关闭接收消息。在微信「服务通知」重新开启接收后，再点订阅提醒即可',
+      };
+    }
     return { status: 'already', message: '该提醒已订阅过，无需重复授权' };
   }
   // 1) 同步触发授权弹窗（一次性订阅：无论同意与否，资格都随弹窗消耗）
