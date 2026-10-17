@@ -45,13 +45,13 @@
 - 模板、超时、会话有效期集中配置；用户拒绝不发送。网络结果不明时持久化 uncertain，禁止自动重发；并发领取与幂等登记阻止重复消费。
 - 公网部署还需 HTTPS、限流、用户级 CRUD 授权、数据库文件权限与隐私数据清理策略。当前没有声称完成这些部署能力。
 
-实现边界、错误分类及恢复方式见 [B3 说明](b3-wechat.md)，安全用例见 [测试报告](b3-test-report.md)。B3 沿用已锁定的 httpx、FastAPI 等依赖，未新增第三方运行依赖；本次 `pip-audit -r backend/requirements.txt` 未发现已知漏洞。
+实现边界、错误分类及恢复方式见 [API 契约](api-contract.md) §B3，安全用例见 [测试文档](testing.md) §3.2。B3 沿用已锁定的 httpx、FastAPI 等依赖，未新增第三方运行依赖；本次 `pip-audit -r backend/requirements.txt` 未发现已知漏洞。
 
 ## 8. B4 只读联网查询边界
 
 天气/搜索接口沿用 X-API-Key。目标 HTTPS 主机固定、禁止跟随重定向，城市不能传 URL/IP/特殊路径，搜索关键词只作为参数编码。结果链接不被后端抓取。TLS 校验、总超时、并发上限和压缩前后大小上限同时启用；验证码、压缩损坏、畸形响应和超时均返回明确脱敏错误，不能伪装成正常摘要。
 
-查询结果不持久化，响应为 JSON 纯文本字段；客户端必须将其作为不可信引用展示，不能用 innerHTML 或把内容当作模型系统指令。httpx/Uvicorn 查询参数脱敏，wttr URL 路径仍包含城市名；部署者需管理代理及访问日志。共享 API Key 不构成多租户授权，公网仍需 TLS、网关限流和访问控制。详见 [B4 说明](b4-web-query.md) 与 [用例](b4-test-report.md)。
+查询结果不持久化，响应为 JSON 纯文本字段；客户端必须将其作为不可信引用展示，不能用 innerHTML 或把内容当作模型系统指令。httpx/Uvicorn 查询参数脱敏，wttr URL 路径仍包含城市名；部署者需管理代理及访问日志。共享 API Key 不构成多租户授权，公网仍需 TLS、网关限流和访问控制。详见 [API 契约](api-contract.md) §B4 与 [测试文档](testing.md) §3.2。
 
 ## 7. 小程序与部署安全边界（C3/C4）
 

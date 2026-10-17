@@ -22,14 +22,14 @@
 `cbd0f634965abdcd95f4a53896ccee52f6f43aa6`。
 每组真实网络测试独立临时库、30 条提醒、1 个 WS 客户端、单 worker；分别使用 1 秒和默认 30 秒扫描。
 服务与收包脚本在同一机器，记录 UTC 时间及墙钟漂移估计；不将其作为跨设备时钟同步证明。
-配置、逐条数据、双版本结果与复现命令见 [B2 报告](b2-test-report.md)。
+配置、逐条数据、双版本结果与复现命令见 [测试文档](testing.md) §5.2 与 `docs/evidence/b2/`。
 
 ## B3 增量环境（2026-10-14）
 
-沿用上述 Windows 硬件与 Python 3.13.0/3.10.22，基线 `ee1a638`（已集成 PR #22）。B3 未新增运行依赖；当前锁文件包括已合入课表导入功能的 python-multipart。微信实验使用 MockTransport、临时 SQLite、固定/可注入时钟；WS 实验使用本机真实网络、单 worker、1 秒扫描。168 项后端测试分别在两个 Python 版本通过，桌面 106 项通过；详细结果见 [B3 报告](b3-test-report.md)。GitHub CI 配置覆盖 Linux Python 3.10/3.12 后端及 Python 3.12 桌面，远端执行结果以对应 PR 检查为准。
+沿用上述 Windows 硬件与 Python 3.13.0/3.10.22，基线 `ee1a638`（已集成 PR #22）。B3 未新增运行依赖；当前锁文件包括已合入课表导入功能的 python-multipart。微信实验使用 MockTransport、临时 SQLite、固定/可注入时钟；WS 实验使用本机真实网络、单 worker、1 秒扫描。168 项后端测试分别在两个 Python 版本通过，桌面 106 项通过；详细结果见 [测试文档](testing.md) §5.2 与 `docs/evidence/b3/`。GitHub CI 配置覆盖 Linux Python 3.10/3.12 后端及 Python 3.12 桌面，远端执行结果以对应 PR 检查为准。
 ## B4 增量环境（2026-10-15）
 
-沿用 Windows 硬件、Python 3.13.0/3.10.22 和已有依赖锁文件；起始基线 `42a95ba`，无新增运行依赖。新增 63 项测试，后端总计 172 项；桌面 106 项。真实验收使用 Uvicorn 单 worker、curl、本机随机端口和临时库，上游流量经既有代理；命令、时间口径与结果见 [B4 报告](b4-test-report.md)。
+沿用 Windows 硬件、Python 3.13.0/3.10.22 和已有依赖锁文件；起始基线 `42a95ba`，无新增运行依赖。新增 63 项测试，后端总计 172 项；桌面 106 项。真实验收使用 Uvicorn 单 worker、curl、本机随机端口和临时库，上游流量经既有代理；命令、时间口径与结果见 [测试文档](testing.md) §5.2 与 `docs/evidence/b4/`。
 
 ## C 增量环境（2026-10-12 ~ 2026-10-17）
 

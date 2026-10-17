@@ -27,7 +27,7 @@
 
 ## 3. 当前状态与起点
 
-- 仓库：本仓库（`origin = https://github.com/Yunkimo/IDP`），分支模型 `main` / `develop` / `feat/*`。
+- 仓库：本仓库（`origin = https://github.com/Yunkimo/Intelligent-Desktop-Pet`），分支模型 `main` / `develop` / `feat/*`。
 - 现状：`backend/` 已有 **M1 后端骨架**（已完成、6 单测通过）：
   - `app/main.py`：FastAPI 应用，lifespan 初始化 DB，挂载路由 + `/api/health`
   - `app/config.py`：读 `.env`（`API_TOKEN`、`DB_PATH`）
@@ -53,7 +53,7 @@
 - 依赖：B1。
 - 验收（2026-10-12 按用户授权统一）：联调配置扫描 1 秒，加 `remind_at=now+60s` 提醒，
   到期后 5 秒内显示气泡且该提醒标记为 done；30 条样本均限时显示，故障重试不会重复通知。
-  默认 30 秒扫描单独报告延迟，不套用五秒目标。原“创建后 60 秒内”的冲突及失败数据保留在 `docs/b2-acceptance.md`。
+  默认 30 秒扫描单独报告延迟，不套用五秒目标。原“创建后 60 秒内”的冲突及失败数据保留在 [测试文档](../testing.md) §5.3。
 
 ### B3. 微信订阅消息
 - 新建 `app/routers/wechat.py`：`POST /api/wechat/login`（`code`→`openid`）、`POST /api/wechat/subscribe`（记录订阅授权）。
