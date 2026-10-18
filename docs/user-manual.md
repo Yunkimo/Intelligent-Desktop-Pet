@@ -11,7 +11,7 @@
 
 ### 2.1 一键安装
 
-双击 `setup.bat`，脚本会自动创建虚拟环境 `.venv` 并安装依赖。
+双击 `setup.bat`，脚本会自动创建虚拟环境 `.venv`、安装依赖，并把 Claude Code 状态监控 hooks 合并写入 `.claude/settings.local.json`（本机路径，已被 git 忽略；重复运行不会重复添加）。
 
 或手动执行：
 
@@ -73,7 +73,13 @@ LLM_MODEL=deepseek-chat
 | Claude 本轮完成 | 当前回合的最后一条回复已输出 |
 | Claude 状态未知 | 处理中/等你确认超过 5 分钟没有新事件（可能被中断或异常退出） |
 
-状态由 Claude Code hooks 写入 `data/agent-status.json`。在项目根目录的 `.claude/settings.local.json`（个人本地配置，已被 git 忽略）中加入：
+状态由 Claude Code hooks 写入 `data/agent-status.json`。运行过 `setup.bat` 的话，hooks 已自动写入 `.claude/settings.local.json`，可跳过下面的手工配置；需要手动生成时执行：
+
+```bat
+.venv\Scripts\python scripts\install_claude_status_hook.py
+```
+
+脚本会保留已有配置、重复运行不重复添加，并自动使用本机 Python 与脚本的绝对路径。也可以手工编辑项目根目录的 `.claude/settings.local.json`（个人本地配置，已被 git 忽略）：
 
 ```json
 {
