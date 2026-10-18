@@ -72,6 +72,12 @@ cp backend/.env.example backend/.env && chmod 600 backend/.env
 vi backend/.env                            # 填 API_TOKEN（openssl rand -hex 32 生成）
 ```
 
+### 3.1 前置与目录
+
+> **快速路径**： 一键完成 §3.1 与 §3.2 的全部步骤
+> （依赖安装、服务账号、代码复制、venv、.env 生成、systemd、Nginx WebSocket 代理、健康检查）。
+> 手工步骤保留如下，便于排错与回滚。
+
 ### 3.2 systemd 服务
 
 `/etc/systemd/system/idp-backend.service`（root 创建）：
