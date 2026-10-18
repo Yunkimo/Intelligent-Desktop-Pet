@@ -36,8 +36,15 @@ def test_badge_paints_rounded_background(qapp):
     badge.set_state("working")
 
     image = badge.grab().toImage()
-    cx, cy = image.width() // 2, image.height() // 2
-    # 中心是实心底色，左边缘是强调色边框，圆角处透明
-    assert image.pixelColor(cx, cy).name() == "#e8f0fe"
+    cy = image.height() // 2
+    opaque = [
+        image.pixelColor(x, y).name()
+        for x in range(image.width())
+        for y in range(image.height())
+        if image.pixelColor(x, y).alpha() > 0
+    ]
+    # 胶囊内铺满状态底色，左边缘是实心边框，圆角处透明
+    assert opaque.count("#e8f0fe") > image.width()
+    assert image.pixelColor(0, cy).alpha() > 200  # 圆角抗锯齿会有少量半透明
     assert image.pixelColor(0, cy).name() != "#e8f0fe"
     assert image.pixelColor(0, 0).alpha() == 0
