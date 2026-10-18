@@ -9,9 +9,28 @@ import subprocess
 import sys
 import tempfile
 import time
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 import httpx
+
+
+@contextmanager
+def temporary_test_dir() -> Iterator[str]:
+    """等待 Windows 释放刚关闭的服务日志后再清理测试目录。"""
+    directory = tempfile.mkdtemp(prefix="c3-test-")
+    try:
+        yield directory
+    finally:
+        for attempt in range(50):
+            try:
+                shutil.rmtree(directory)
+                break
+            except PermissionError:
+                if attempt == 49:
+                    raise
+                time.sleep(0.1)
 
 
 def main() -> int:
@@ -23,7 +42,7 @@ def main() -> int:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
-    with tempfile.TemporaryDirectory(prefix="c3-test-") as directory:
+    with temporary_test_dir() as directory:
         env = os.environ.copy()
         env.update(
             PYTHONPATH=str(root / "backend"),
