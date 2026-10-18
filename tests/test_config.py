@@ -46,15 +46,6 @@ def test_update_methods_set_attrs_and_save(monkeypatch):
     assert saved == {"health_enabled": False, "sedentary_interval_min": 30}
 
 
-def test_update_monitor_claude_sets_attr_and_saves(monkeypatch):
-    saved: dict = {}
-    monkeypatch.setattr(Settings, "_save_json", lambda self, **kw: saved.update(kw))
-    s = Settings()
-    s.update_monitor_claude(True)
-    assert s.monitor_claude is True
-    assert saved == {"monitor_claude": True}
-
-
 def test_switch_persona_and_add_persona(monkeypatch):
     monkeypatch.setattr(Settings, "_save_json", lambda self, **kw: None)
     s = Settings()
