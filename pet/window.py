@@ -200,9 +200,10 @@ class PetWindow(QWidget):
                 self._moved = True
                 self.move(self.pos() + delta)
                 self._press_pos = event.globalPosition().toPoint()
-                # 气泡是独立浮层：拖拽时同步跟随，并保持在桌宠窗口之上
+                # 气泡与角标都是独立浮层：拖拽时同步跟随，并保持在桌宠窗口之上
                 self._position_bubble()
                 self.bubble.raise_()
+                self._position_status_badge()
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         if event.button() != Qt.MouseButton.LeftButton or self._press_pos is None:
@@ -436,12 +437,21 @@ class PetWindow(QWidget):
         self._position_status_badge()
 
     def _position_status_badge(self) -> None:
-        """角标固定在窗口右上角，不参与形象/气泡布局。
+        """角标是独立浮层，复用气泡的屏幕方位规则贴住桌宠窗口。
 
-        父窗口尚未 show() 时 isVisible() 也为 False，因此这里不按可见性跳过，
-        否则启动时已开启监控的角标会停在默认位置。
+        窗口在下半屏时角标放上方、上半屏时放下方，水平偏向屏幕中心并夹在可用
+        区域内，避免桌宠靠边时角标被遮住或出屏。父窗口尚未 show() 时角标也
+        不可见，因此不按可见性跳过，否则启动时角标会停在默认位置。
         """
-        self.status_badge.move(self.width() - self.status_badge.width() - 8, 8)
+        screen = self.screen() or QGuiApplication.primaryScreen()
+        geo = screen.availableGeometry() if screen else None
+        if geo is None:
+            return
+        rect = QRect(self.mapToGlobal(QPoint(0, 0)), self.size())
+        x, y, _ = bubble_placement(
+            rect, geo, self.status_badge.width(), self.status_badge.height(), _GAP
+        )
+        self.status_badge.move(x, y)
         self.status_badge.raise_()
 
     # ---------- 全局语音快捷键 ----------

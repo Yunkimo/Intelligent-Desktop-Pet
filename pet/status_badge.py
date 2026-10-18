@@ -13,11 +13,23 @@ _STYLES = {
 
 
 class StatusBadge(QLabel):
-    """右上角状态角标；idle 时自动隐藏。"""
+    """状态角标；idle 时自动隐藏。
+
+    仿气泡做成顶层置顶浮层：作为窗口子控件时只能贴在窗口角落，桌宠靠边时会被
+    遮住；独立浮层才能随桌宠方位翻到屏幕空闲一侧。
+    """
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.Tool
+            | Qt.WindowType.Window
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.hide()
 
