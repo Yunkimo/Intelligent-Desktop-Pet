@@ -28,3 +28,16 @@ def test_badge_hides_on_idle_and_unknown_fallback(qapp):
     badge.set_state("不存在的状态")
     assert not badge.isHidden()
     assert badge.text() == "Claude 状态未知"
+
+
+def test_badge_paints_rounded_background(qapp):
+    """半透明顶层窗口不会绘制样式表背景，需由 paintEvent 自行画出胶囊底。"""
+    badge = StatusBadge()
+    badge.set_state("working")
+
+    image = badge.grab().toImage()
+    cx, cy = image.width() // 2, image.height() // 2
+    # 中心是实心底色，左边缘是强调色边框，圆角处透明
+    assert image.pixelColor(cx, cy).name() == "#e8f0fe"
+    assert image.pixelColor(0, cy).name() != "#e8f0fe"
+    assert image.pixelColor(0, 0).alpha() == 0

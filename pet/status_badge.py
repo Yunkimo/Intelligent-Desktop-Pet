@@ -1,6 +1,7 @@
 """Claude Code 状态角标：独立于气泡的小标签，不打断宠物自己的对话。"""
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QRectF, Qt
+from PyQt6.QtGui import QColor, QPainter, QPen
 from PyQt6.QtWidgets import QLabel
 
 _STYLES = {
@@ -31,6 +32,7 @@ class StatusBadge(QLabel):
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._fg, self._bg = _STYLES["unknown"][1:]
         self.hide()
 
     def set_state(self, state: str) -> None:
@@ -39,6 +41,7 @@ class StatusBadge(QLabel):
         if not text:
             self.hide()
             return
+        self._fg, self._bg = fg, bg
         self.setText(text)
         self.setStyleSheet(
             f"QLabel {{ color: {fg}; background-color: {bg}; "
@@ -48,3 +51,17 @@ class StatusBadge(QLabel):
         self.adjustSize()
         self.show()
         self.raise_()
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        """自行绘制圆角底色与边框。
+
+        角标是半透明顶层窗口，样式表里的 background/border 不会生效，只能由
+        paintEvent 画出胶囊底；文字仍交给 QLabel 按样式表绘制。
+        """
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QPen(QColor(self._fg), 1))
+        painter.setBrush(QColor(self._bg))
+        painter.drawRoundedRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5), 9, 9)
+        painter.end()
+        super().paintEvent(event)
