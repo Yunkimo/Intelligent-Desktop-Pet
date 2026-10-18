@@ -4,7 +4,9 @@
 
 - 统一使用 [Ruff](https://docs.astral.sh/ruff/) 检查与格式化（配置见 `pyproject.toml`）。
 - 行宽 ≤ 100；启用规则 `E`/`F`/`I`/`W`（忽略 E501 由 ruff-format 处理）。
-- 所有函数/方法使用类型注解；模块职责单一。
+- 类型注解要求分层：①所有跨模块公开接口必须加；②所有 A2 里的 AI 工具函数必须加；③私有方法推荐加但不强制；④测试代码与第三方库包装层豁免。禁止为了过 Lint 盲目写 `Any`。
+- 模块职责单一。
+- 所有文本文件使用 UTF-8（无 BOM），缩进与换行遵循 `.editorconfig`。
 
 ```bash
 ruff check .            # 静态检查
@@ -13,7 +15,7 @@ ruff format .           # 格式化
 
 ## 提交规范（Conventional Commits）
 
-提交信息统一为 `type(scope): imperative summary`，一个提交只做一件事。Issue、PR 说明和项目文档使用中文。
+提交信息统一为 `type(scope): 中文祈使句`，一个提交只做一件事。Issue、PR 说明和项目文档使用中文。
 
 | type | 用途 |
 |---|---|
@@ -34,19 +36,19 @@ scope 表示改动所属模块，取以下固定值：
 | miniprogram | 小程序 |
 | repo | 仓库级（脚手架、文档、CI 等跨模块改动） |
 
-示例：`feat(backend): add authenticated websocket broadcasts`、`fix(backend): prevent duplicate reminder claims`、`docs(repo): document deployment steps`。
+示例：`feat(pet): 新增后端任务工具`、`fix(backend): 修复重复认领提醒`、`docs(repo): 补充部署步骤`。
 
 ## 分支与协作流程
 
 1. 检查工作区与已有分支，保留未提交改动；从 `develop` 拉取最新代码（仅快进）。
-2. 创建功能分支：`git checkout -b feat/xxx`。
+2. 按改动类型创建分支：`feat/xxx`（功能）、`fix/xxx`（修复）、`docs/xxx`（文档）。
 3. 开发并按上面的规范提交。
 4. 关联已有 Issue，推送到远端并创建以 `develop` 为目标的 **Pull Request**，通过 CI 与至少一名其他成员评审后合并。`main` 保留验收版本。
 
 ## 测试要求
 
 - 新增或修改逻辑必须补充/更新对应单元测试。
-- 提交前本地跑通：`ruff check . && pytest`。
+- 提交前本地跑通：`ruff check . && pytest`（只覆盖桌宠测试；后端测试命令见下节）。
 
 ## 本地开发
 
@@ -78,7 +80,7 @@ python -m pip_audit -r backend/requirements.txt
 第三方 `assets/` 与依赖清单不参加密钥启发式扫描；业务源码、配置、测试和文档参加扫描。
 .secrets.baseline 仅登记已核实的两处占位值：设计文档 `sk-xxxx`、桌宠测试 `sk-test`。
 扫描不向外部服务发送候选密钥验证；基线按文件和内容哈希匹配，不排除整个源文件。
-CI 复验这些检查，并运行真实 WebSocket 冒烟与后端依赖审计。
+CI 复验这些检查，并运行真实 WebSocket 冒烟与依赖审计（后端与桌宠）。
 
 密钥钩子使用 `python -X utf8`：中文 UTF-8 源文件在 Windows 默认本地编码下可能漏扫，
 固定编码以保持与 Linux CI 一致。明确的测试假值仅在对应行注明 allowlist 原因，禁止排除整个测试文件。
@@ -90,5 +92,6 @@ CI 复验这些检查，并运行真实 WebSocket 冒烟与后端依赖审计。
 uv pip compile --universal --python-version 3.10 backend/requirements.in -o backend/requirements.txt
 ```
 
-本地 agent 守则放在仓库外，不暂存、不提交、不推送。工作记录、契约与实测证据放入
-项目文档；接口与共享配置变更请相关成员评审。仅测试通过不能标记任务已完成。
+本地 agent 守则优先放在仓库外；如需放入工作区，必须加入 `.git/info/exclude`，并用
+`git check-ignore -v -- <路径>` 核验，不暂存、不提交、不推送。工作记录、契约与实测证据
+放入项目文档；接口与共享配置变更请相关成员评审。仅测试通过不能标记任务已完成。
