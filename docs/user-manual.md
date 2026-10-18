@@ -62,6 +62,37 @@ LLM_MODEL=deepseek-chat
 - 回复以气泡流式显示，同时用语音播报。
 - 对话历史保存在 `data/history.json`，重启后仍在。
 
+### 监控 Claude Code 回合状态（可选）
+
+桌宠右上角可以显示一个独立状态角标，提示当前 Claude Code 会话的进度。该功能默认关闭，右键宠物勾选「监控 Claude」开启，再勾选一次关闭。
+
+| 角标 | 含义 |
+|---|---|
+| Claude 处理中… | 已提交提示词，Claude 正在处理 |
+| Claude 等你确认 | Claude 正在等待你确认权限 |
+| Claude 本轮完成 | 当前回合的最后一条回复已输出 |
+| Claude 状态未知 | 处理中/等你确认超过 5 分钟没有新事件（可能被中断或异常退出） |
+
+状态由 Claude Code hooks 写入 `data/agent-status.json`。在项目根目录的 `.claude/settings.local.json`（个人本地配置，已被 git 忽略）中加入：
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.venv/Scripts/python.exe\" \"$CLAUDE_PROJECT_DIR/scripts/claude_status_hook.py\"", "timeout": 5 }] }],
+    "PreToolUse":       [{ "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.venv/Scripts/python.exe\" \"$CLAUDE_PROJECT_DIR/scripts/claude_status_hook.py\"", "timeout": 5 }] }],
+    "PostToolUse":      [{ "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.venv/Scripts/python.exe\" \"$CLAUDE_PROJECT_DIR/scripts/claude_status_hook.py\"", "timeout": 5 }] }],
+    "Notification":     [{ "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.venv/Scripts/python.exe\" \"$CLAUDE_PROJECT_DIR/scripts/claude_status_hook.py\"", "timeout": 5 }] }],
+    "Stop":             [{ "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.venv/Scripts/python.exe\" \"$CLAUDE_PROJECT_DIR/scripts/claude_status_hook.py\"", "timeout": 5 }] }],
+    "SessionStart":     [{ "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.venv/Scripts/python.exe\" \"$CLAUDE_PROJECT_DIR/scripts/claude_status_hook.py\"", "timeout": 5 }] }],
+    "SessionEnd":       [{ "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.venv/Scripts/python.exe\" \"$CLAUDE_PROJECT_DIR/scripts/claude_status_hook.py\"", "timeout": 5 }] }]
+  }
+}
+```
+
+如果当前 shell 不展开 `$CLAUDE_PROJECT_DIR`，把两处路径换成项目绝对路径（路径含空格时必须保留引号）。修改 hooks 后需重启 Claude Code（hooks 在会话启动时加载），也可用 `/hooks` 查看是否生效。
+
+> 脚本只写入状态名、事件名、会话 ID 与时间戳，不记录对话内容；写入失败或输入非法时静默退出，不影响 Claude Code 本身。
+
 ## 5. 自定义
 
 所有非敏感配置在 `config.json`：
@@ -76,6 +107,7 @@ LLM_MODEL=deepseek-chat
   "tts_rate": "+10%", "tts_pitch": "+20Hz",
   "whisper_model": "base",        // 识别精度：base/small/medium
   "enable_voice": true,           // 关闭语音播报
+  "monitor_claude": false,        // Claude Code 回合状态角标（右键可切换）
   "max_history": 20               // 记忆轮数
 }
 ```
