@@ -9,4 +9,7 @@ module.exports = {
   // 微信订阅消息模板 ID（C3）：在微信公众平台「订阅消息」申请模板后填入；
   // 留空时点「订阅提醒」会提示未配置。模板字段映射见 backend/.env 的 WX_TEMPLATE_FIELDS
   subscribeTemplateId: '',
+  // 提醒显示及无时区旧数据解释须与后端 REMINDER_NAIVE_OFFSET_MINUTES 一致。
+  reminderOffsetMinutes: 480,
+  requestTimeoutMs: 15000,
 };

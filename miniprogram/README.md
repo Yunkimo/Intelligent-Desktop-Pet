@@ -39,54 +39,31 @@
 
 ## 订阅提醒（C3）
 
-- 入口：日程页带提醒时间的任务显示「订阅提醒」按钮，由用户主动点击触发微信一次性订阅授权。
-- 流程：`wx.login` → `POST /api/wechat/login`（会话本地缓存，60s 提前过期，401 自动重登录幂等重试）→ 按任务查找/创建 phone 提醒（`POST /api/reminders`，服务端为准避免重复）→ `wx.requestSubscribeMessage` → `POST /api/wechat/subscribe`（Bearer 会话头）。
-- 结果语义：同意=登记意图；拒绝/取消/失败均如实提示；已订阅过的任务不重复弹框、不重复登记（本地状态跟随服务通知页开关）；微信记住拒绝时给出恢复指引。
-- 应用内提醒补充：到期时后端广播 reminder.due，今日页「今日提醒」区展示 + 弹提示（小程序开着即可见）。
-- 前置：`config.js` 的 `subscribeTemplateId` 与 `backend/.env` 的 WX_* 配置（B3）；真机实收以微信服务通知为准。
-- 验收：逻辑 15 项 + 契约 2 项测试见 tests/；真机五项验收记录见 Issue #11。
+日程页设置提醒时间后，主动点击“订阅提醒”。按钮处理中不可重复触发。微信授权在点击同步调用链发起；随后获取后端会话、原子创建或复用本人的 phone 提醒，查询当前事件，再登记选择。页面加载不会弹出授权窗口。
 
-## 接口约定
+- 配置 `subscribeTemplateId`，后端启用 WX_*；AppID、模板和开发版/体验版/正式版需一致。缺配置、取消、拒绝及调用失败分别反馈。
+- 同意仅表示用户选择；pending 为已登记，sent 为平台受理，手机实收另验。拒绝仍能使用课表/日程，可再次主动同意；微信记住拒绝时需在微信订阅设置中调整。
+- 页面恢复、WS 重连、下拉刷新时读取本人当前事件状态。旧本地 done 标记不参与完成判断。phone 走微信渠道，不产生 `reminder.due`；应用内不会保证 phone 到期弹窗。pc/both 的既有 WS 行为不变。
+- 网络结果不明时保留用户、环境、任务、事件和原 request_id；再次点击先查询原记录，未登记才重放相同请求，不自动再次授权。跨页面重进可恢复；清空应用存储后无法恢复尚未登记的选择，需要主动重新授权。服务端已登记的事件仍会去重。
+- 同一任务同一用户通过新接口创建的提醒在事务中复用，包括创建成功但响应丢失。历史重复提醒返回明确冲突，需核查处理，不自动删旧数据。
+- 同一绝对时刻的不同字符串不会重置事件。改期、清除提醒时间、删除日程与旧提醒失效在同一数据库事务执行；改期后需主动订阅新事件。已经发往微信的请求不能撤回。
+- 消息进入 `pages/reminder/reminder`，参数只有 reminder_id；页面验证会话并读取最新内容，资源删除或其他账号无法访问时明确提示。回到已打开的页面也重新读取。
+- `reminderOffsetMinutes` 默认 480，与后端 `REMINDER_NAIVE_OFFSET_MINUTES` 对齐；新时间携带偏移，展示和今天筛选按该时区。请求超时由 `requestTimeoutMs` 配置。
+- 新客户端必须与本次后端协作代码一起部署。接口说明见 [C3 契约与验收](../docs/c3-subscription.md)。
 
-- 所有请求带 `X-API-Key` 头，由后端校验；401 = Key 无效，503 = 后端未配置 `API_TOKEN`。
-- 课表 `/api/courses`、日程 `/api/tasks`；字段以 `backend/app/schemas.py` 为准。
-- 课表 `weeks` 在后端是 JSON 字符串（如 `"[1,2,3]"`），提交时传数字数组，展示由页面解析。
+## 自动化验证
 
-## 订阅提醒（C3）
+需要 Node 22+ 与安装了 backend/requirements-dev.txt 的 Python 环境。在仓库根目录执行：
 
-- 入口：日程页带提醒时间的任务显示「订阅提醒」按钮，由用户主动点击触发微信一次性订阅授权。
-- 流程： → （会话本地缓存，60s 提前过期，401 自动重登录幂等重试）→ 按任务查找/创建 phone 提醒 →  → （Bearer 会话头）。
-- 结果语义：同意=登记意图；拒绝/取消/失败均如实提示；已订阅过的任务不重复弹框、不重复登记（本地状态跟随服务通知页开关）；微信记住拒绝时给出恢复指引。
-- 应用内提醒补充：到期时后端广播 reminder.due，今日页「今日提醒」区展示 + 弹提示（小程序开着即可见）。
-- 前置： 的 subscribeTemplateId 与  的 WX_* 配置（B3）；真机实收以微信服务通知为准。
-- 验收：逻辑 15 项 + 契约 2 项测试见 tests/；真机五项验收记录见 Issue #11。
+```powershell
+npm ci --prefix miniprogram
+npm run lint --prefix miniprogram
+npm run format:check --prefix miniprogram
+npm test --prefix miniprogram
+python -m pytest -c backend/pytest.ini backend/tests -q
+python scripts/check_c3_integration.py
+```
 
-## 接口约定
+Node 不在 PATH 时可设置 NODE_BINARY。逻辑回归和真实 HTTP 联调分别执行；后者使用真实页面逻辑、FastAPI、SQLite、会话和调度器，仅外部微信使用 MockTransport，数据库及凭据临时生成并清理，不覆盖 config.js。
 
-- 所有请求带 `X-API-Key` 头，由后端校验；401 = Key 无效，503 = 后端未配置 `API_TOKEN`。
-- 课表 `/api/courses`、日程 `/api/tasks`；字段以 `backend/app/schemas.py` 为准。
-- 课表 `weeks` 在后端是 JSON 字符串（如 `"[1,2,3]"`），提交时传数字数组，展示由页面解析。
-
-## 提醒（C3 简化版）
-
-- 入口：日程页带提醒时间的任务显示「开启提醒」按钮；点击即为该任务创建/更新 phone 提醒（服务端为准，幂等：重复点击不重复创建，提醒时间变更时自动更新）。
-- 到期提醒：后端调度器到期广播 reminder.due，小程序收到后在今日页「今日提醒」区展示并弹出提示；无需微信授权弹窗（2026-10-17 用户指示简化）。
-- 微信离线推送仍由后端 B3 支持（docs/b3-wechat.md），本端不再走授权流程；需要时由用户在后端配置微信渠道。
-- 验收：开启提醒 → 到期时小程序内出现提醒（今日页 + 提示）；逻辑 4 项 + 契约 2 项测试见 tests/。
-
-## 接口约定
-
-- 所有请求带 `X-API-Key` 头，由后端校验；401 = Key 无效，503 = 后端未配置 `API_TOKEN`。
-- 课表 `/api/courses`、日程 `/api/tasks`；字段以 `backend/app/schemas.py` 为准。
-- 课表 `weeks` 在后端是 JSON 字符串（如 `"[1,2,3]"`），提交时传数字数组，展示由页面解析。
-
-## 订阅提醒（C3）
-
-- 入口：日程页带提醒时间的任务显示「订阅提醒」按钮；由用户**主动点击**触发微信一次性订阅授权，页面加载不会自动弹窗。
-- 流程（见 `utils/subscribe.js`）：`wx.login` → `POST /api/wechat/login`（会话存本地，60s 提前过期）→ 按任务查找/创建 phone 提醒（`POST /api/reminders`，服务端为准避免重复）→ `wx.requestSubscribeMessage` → `POST /api/wechat/subscribe`（Bearer 会话头）。
-- 结果语义：同意 = 登记意图（平台最终判定），拒绝/封禁/过滤 = 登记 rejected 且**不显示订阅成功**；用户关闭弹窗 = 静默不落库；登记网络失败用**同一 request_id 重试一次**（B3 契约幂等）。
-- 重复订阅：同一任务订阅成功后不再重复弹授权框、不再重复登记（本地状态提示，服务端为准）；服务端 409 视为「已订阅过」的友好提示。
-- 拒绝恢复：如曾勾选「总是保持以上选择」，可在微信「我-设置-个人信息与权限-授权管理」中恢复后重试。
-- 契约：`docs/b3-wechat.md`（B3）；一次性订阅不承诺「点一次必收一条」，后续订阅由用户再次主动触发。
-- 前置阻塞（未配置时的行为）：`config.js` 缺 `subscribeTemplateId` → 点击提示未配置；后端未启用微信渠道 → 503 中文提示；真机链路需 B3 合并 + 模板申请 + `backend/.env` 的 WX_* 配置。
-- 验收：正常授权/拒绝/取消/失败四种路径的客户端逻辑测试见 `tests/subscribe-logic.test.js`（7 项，`node tests/subscribe-logic.test.js` 运行）；真机实收见 Issue #11。
+工作流新增 miniprogram-c3 检查；本地通过不能代表远端 CI 已运行。真实设备上的弹窗、离线实收及原生消息点击需要另行记录，见 [验收记录](../docs/c3-subscription.md)。原测试中“任意 409 等于成功”和“本地 done 后永不访问服务端”的断言已改为状态校验与异常恢复断言。

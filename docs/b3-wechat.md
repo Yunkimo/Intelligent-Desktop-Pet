@@ -57,6 +57,8 @@ python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --
 
 ## 3. C3 接口契约
 
+2026-10-18：C3 新客户端使用带会话的事务创建/复用入口，不再自行 GET 后 POST 管理提醒。新增当前事件字段、本人提醒查询和消息跳转见 [C3 增量契约](c3-subscription.md)。下文保留旧管理接口的兼容用法；同一时刻的格式变化不生成新事件，日程改期/删除与旧提醒失效现已由同一事务处理。订阅登记和历史查询的返回字段新增 event_id，C3 登记时一并提交它以防跨事件重放。
+
 所有以下请求均携带 `X-API-Key`；订阅和订阅查询还需 `Authorization: Bearer <session_token>`。凭证放请求头，不放 URL、截图或日志。
 
 ### 登录

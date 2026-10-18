@@ -5,11 +5,11 @@ const ws = require('../../utils/ws');
 const {
   WEEKDAY_LABELS,
   WEEK_OPTIONS,
-  dateStr,
   todayDow,
   getCurrentWeek,
   setCurrentWeek,
   isActiveWeek,
+  reminderParts,
 } = require('../../utils/datetime');
 
 // 今日页关心的后端事件（WebSocket 推送后 REST 重读，节流由 ws.js 统一处理）
@@ -70,7 +70,7 @@ Page({
         api.getReminders(),
       ]);
       const dow = todayDow();
-      const today = dateStr(new Date());
+      const today = reminderParts(new Date().toISOString()).date;
       this.setData({
         todayLabel: `第${this.data.currentWeek}周 · ${WEEKDAY_LABELS[dow - 1]} · ${today}`,
         courses: courses
@@ -85,10 +85,10 @@ Page({
             overdue: t.due_at.slice(0, 10) < today,
           })),
         reminders: reminders
-          .filter((r) => !r.done && r.remind_at && r.remind_at.slice(0, 10) === today)
+          .filter((r) => !r.done && reminderParts(r.remind_at).date === today)
           .map((r) => ({
             ...r,
-            remindTime: r.remind_at.slice(11, 16),
+            remindTime: reminderParts(r.remind_at).time,
           })),
       });
     } catch (err) {

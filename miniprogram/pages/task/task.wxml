@@ -14,10 +14,11 @@
         <text wx:if="{{item.overdue}}" class="badge-overdue">已逾期</text>
         <text>{{item.dueText}}</text>
         <text wx:if="{{item.remindText}}" class="remind-meta">⏰ {{item.remindText}} 提醒</text>
+        <text wx:if="{{item.subscriptionText}}" class="remind-meta">{{item.subscriptionText}}</text>
       </view>
     </view>
     <view class="task-actions">
-      <button wx:if="{{item.remind_at}}" class="btn btn-subscribe mini" data-task="{{item}}" bindtap="subscribeTask">订阅提醒</button>
+      <button wx:if="{{item.remind_at}}" class="btn btn-subscribe mini" disabled="{{subscribingId !== null}}" loading="{{subscribingId === item.id}}" data-task="{{item}}" bindtap="subscribeTask">订阅提醒</button>
       <button class="btn btn-ghost mini" data-task="{{item}}" bindtap="openEdit">编辑</button>
       <button class="btn btn-danger mini" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="remove">删除</button>
     </view>
@@ -52,6 +53,7 @@
         </picker>
       </view>
       <view class="modal-actions">
+        <button class="btn btn-ghost" bindtap="clearReminder">清除提醒时间</button>
         <button class="btn btn-ghost" bindtap="closeForm">取消</button>
         <button class="btn btn-primary" bindtap="submit">保存</button>
       </view>

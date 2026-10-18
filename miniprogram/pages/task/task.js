@@ -3,7 +3,7 @@
 const api = require('../../utils/api');
 const ws = require('../../utils/ws');
 const subscribe = require('../../utils/subscribe');
-const { dateStr } = require('../../utils/datetime');
+const { dateStr, reminderParts, reminderInput } = require('../../utils/datetime');
 
 // 日程页关心的后端事件
 const WS_EVENTS = ['task.created', 'reminder.due', 'reconnect'];
@@ -23,6 +23,7 @@ Page({
     loading: false,
     error: '',
     editing: false,
+    subscribingId: null,
     form: { ...EMPTY_FORM },
   },
 
@@ -52,11 +53,25 @@ Page({
     this.setData({ loading: true, error: '' });
     try {
       const today = dateStr(new Date());
+      let states = {};
+      let stateError = false;
+      try {
+        states = await subscribe.subscriptionStates();
+      } catch (_) {
+        stateError = true;
+      }
       const tasks = (await api.getTasks()).map((t) => ({
         ...t,
         checked: !!t.done,
+        subscriptionText: t.remind_at
+          ? stateError
+            ? '订阅状态待确认'
+            : states[t.id] || '尚未查询或未订阅'
+          : '',
         dueText: t.due_at ? t.due_at.slice(0, 10) : '无截止日期',
-        remindText: t.remind_at ? t.remind_at.slice(0, 16).replace('T', ' ') : '',
+        remindText: t.remind_at
+          ? reminderParts(t.remind_at).date + ' ' + reminderParts(t.remind_at).time
+          : '',
         overdue: !!t.due_at && !t.done && t.due_at.slice(0, 10) < today,
       }));
       this.setData({ tasks });
@@ -80,14 +95,18 @@ Page({
         title: t.title,
         note: t.note || '',
         due_at: t.due_at ? t.due_at.slice(0, 10) : '',
-        remind_date: t.remind_at ? t.remind_at.slice(0, 10) : '',
-        remind_time: t.remind_at ? t.remind_at.slice(11, 16) : '08:00',
+        remind_date: reminderParts(t.remind_at).date,
+        remind_time: reminderParts(t.remind_at).time || '08:00',
       },
     });
   },
 
   closeForm() {
     this.setData({ editing: false });
+  },
+
+  clearReminder() {
+    this.setData({ 'form.remind_date': '' });
   },
 
   onFormInput(e) {
@@ -105,19 +124,19 @@ Page({
       title: form.title.trim(),
       note: form.note.trim(),
       due_at: form.due_at || null,
-      // 提醒时间：日期+时间合并为 "YYYY-MM-DDTHH:MM"（无时区，后端按 UTC+8 兼容处理）
-      remind_at: form.remind_date ? `${form.remind_date}T${form.remind_time}` : null,
+      remind_at: form.remind_date ? reminderInput(form.remind_date, form.remind_time) : null,
     };
     wx.showLoading({ title: '保存中' });
     try {
       if (form.id) {
         await api.updateTask(form.id, payload);
-        // 编辑后提醒时间可能已变：清除本地订阅标记，允许（且需要）重新订阅
-        wx.removeStorageSync('sub_flag_' + form.id);
+        // 服务端事务处理旧提醒失效；保存成功后仍需主动订阅新事件。
       } else {
         await api.createTask(payload);
       }
       this.setData({ editing: false });
+      wx.hideLoading();
+      wx.showToast({ title: '已保存；改期后请重新订阅', icon: 'none' });
       await this.load();
     } catch (err) {
       wx.showToast({ title: err.message, icon: 'none' });
@@ -148,17 +167,7 @@ Page({
         wx.showLoading({ title: '删除中' });
         try {
           await api.deleteTask(id);
-          // 后端契约：删任务不会级联删提醒，这里清理该任务的孤儿提醒，避免「今日提醒」残留
-          try {
-            const reminders = await api.getReminders();
-            await Promise.all(
-              reminders
-                .filter((r) => r.task_id === id)
-                .map((r) => api.deleteReminder(r.id))
-            );
-          } catch (cleanupErr) {
-            console.warn('[task] 清理孤儿提醒失败（不影响删除）:', cleanupErr);
-          }
+          // 后端在同一事务中删除任务、关联提醒与订阅。
           wx.showToast({ title: '已删除', icon: 'success' });
         } catch (err) {
           // 删除失败（如服务端已不存在该日程）也刷新列表，避免页面残留陈旧卡片
@@ -174,6 +183,10 @@ Page({
   // 订阅提醒（C3）：用户主动点击触发微信一次性订阅授权，流程见 utils/subscribe.js
   async subscribeTask(e) {
     const task = e.currentTarget.dataset.task;
+    if (this.data.subscribingId != null) {
+      return;
+    }
+    this.setData({ subscribingId: task.id });
     wx.showLoading({ title: '处理中', mask: true });
     try {
       const result = await subscribe.subscribeTaskReminder(task);
@@ -182,6 +195,7 @@ Page({
         return; // 用户关闭授权弹窗：静默，不落库不提示
       }
       wx.showToast({ title: result.message || '订阅处理完成', icon: 'none', duration: 3000 });
+      await this.load();
     } catch (err) {
       wx.hideLoading();
       wx.showToast({
@@ -189,6 +203,8 @@ Page({
         icon: 'none',
         duration: 3000,
       });
+    } finally {
+      this.setData({ subscribingId: null });
     }
   },
 

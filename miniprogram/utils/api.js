@@ -26,6 +26,7 @@ function request(path, { method = 'GET', data, headers } = {}) {
       url: baseUrl + path,
       method,
       data,
+      timeout: config.requestTimeoutMs || 15000,
       header: {
         'X-API-Key': apiKey,
         'Content-Type': 'application/json',
@@ -42,7 +43,10 @@ function request(path, { method = 'GET', data, headers } = {}) {
             : typeof res.data === 'string'
               ? res.data
               : '';
-        reject(new Error(`HTTP ${res.statusCode}${detail ? `：${detail}` : ''}`));
+        const error = new Error(`HTTP ${res.statusCode}${detail ? `：${detail}` : ''}`);
+        error.statusCode = res.statusCode;
+        error.code = detail;
+        reject(error);
       },
       fail(err) {
         reject(new Error(`网络请求失败：${err.errMsg || '请检查后端是否启动、baseUrl 是否正确'}`));
@@ -100,7 +104,8 @@ module.exports = {
 
   // 课表图片识别导入
   parseCourseImage: (filePath) => upload('/api/courses/parse-image', { filePath, name: 'image' }),
-  bulkCreateCourses: (courses) => request('/api/courses/bulk', { method: 'POST', data: { courses } }),
+  bulkCreateCourses: (courses) =>
+    request('/api/courses/bulk', { method: 'POST', data: { courses } }),
 
   // 日程/待办
   getTasks: () => request('/api/tasks'),
@@ -116,6 +121,24 @@ module.exports = {
 
   // 微信登录与订阅登记（B3；订阅接口需 Bearer 会话头，见契约）
   wechatLogin: (code) => request('/api/wechat/login', { method: 'POST', data: { code } }),
+  ensurePhoneReminder: (taskId, token) =>
+    request('/api/wechat/reminders', {
+      method: 'POST',
+      data: { task_id: taskId },
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getWechatReminders: (token) =>
+    request('/api/wechat/reminders', {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getWechatReminder: (id, token) =>
+    request(`/api/wechat/reminders/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getSubscriptions: (id, token) =>
+    request(`/api/wechat/subscriptions/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   wechatSubscribe: (data, sessionToken) =>
     request('/api/wechat/subscribe', {
       method: 'POST',

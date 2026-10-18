@@ -153,6 +153,8 @@ class WeChatClient:
             "miniprogram_state": config.WX_MINIPROGRAM_STATE,
             "lang": "zh_CN",
         }
+        if reminder.get("reminder_id"):
+            payload["page"] = f"pages/reminder/reminder?reminder_id={int(reminder['reminder_id'])}"
         token = await self.access_token()
         for attempt in range(2):
             data = await self._request(
