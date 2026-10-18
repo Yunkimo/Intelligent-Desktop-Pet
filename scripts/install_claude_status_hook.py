@@ -34,28 +34,27 @@ EVENTS = (
 
 
 def _command(python_exe: Path, hook_script: Path) -> str:
-    """生成带引号的命令，兼容含空格的安装路径。"""
-    return f'"{python_exe.as_posix()}" "{hook_script.as_posix()}"'
+    """生成带引号的命令，兼容含空格的安装路径。
+
+    脚本文件只在桌宠分支存在；切到 develop 等分支时直接执行会以退出码 2 结束，
+    而 Claude Code 把 PreToolUse 的退出码 2 视为阻止调用。这里先用 Python 判断
+    文件是否存在，缺失时静默以 0 退出，避免切换分支后整个会话被 hook 卡死。
+    """
+    code = (
+        f"import os,runpy; p=r'{hook_script.as_posix()}'; "
+        "os.path.exists(p) and runpy.run_path(p, run_name='__main__')"
+    )
+    return f'"{python_exe.as_posix()}" -c "{code}"'
 
 
 def _normalized(command: str) -> str:
     return command.replace("\\", "/").strip()
 
 
-def _has_handler(groups: list, command: str) -> bool:
-    target = _normalized(command)
-    for group in groups:
-        if not isinstance(group, dict):
-            continue
-        for handler in group.get("hooks") or []:
-            if not isinstance(handler, dict):
-                continue
-            if (
-                handler.get("type") == "command"
-                and _normalized(str(handler.get("command") or "")) == target
-            ):
-                return True
-    return False
+def _handler_uses_script(handler: dict, hook_script: Path) -> bool:
+    """判断已有 handler 是否指向本项目的状态脚本（兼容旧的直接调用格式）。"""
+    command = str(handler.get("command") or "").replace("\\", "/").replace('"', "")
+    return hook_script.as_posix() in command
 
 
 def _atomic_write(path: Path, data: dict) -> None:
@@ -92,14 +91,32 @@ def install(settings_path: Path, python_exe: Path, hook_script: Path) -> list[st
     if not isinstance(hooks, dict):
         raise ValueError(f"{settings_path} 的 hooks 不是 JSON 对象")
 
-    command = _command(Path(python_exe), Path(hook_script))
+    hook_script = Path(hook_script)
+    command = _command(Path(python_exe), hook_script)
     handler = {"type": "command", "command": command, "timeout": 5}
     added: list[str] = []
     for event in EVENTS:
         groups = hooks.setdefault(event, [])
         if not isinstance(groups, list):
             raise ValueError(f"{settings_path} 的 hooks.{event} 不是数组")
-        if not _has_handler(groups, command):
+        matched = False
+        for group in groups:
+            if not isinstance(group, dict):
+                continue
+            for existing in group.get("hooks") or []:
+                if not isinstance(existing, dict):
+                    continue
+                if existing.get("type") != "command":
+                    continue
+                if not _handler_uses_script(existing, hook_script):
+                    continue
+                matched = True
+                if _normalized(str(existing.get("command") or "")) != _normalized(command):
+                    # 旧版直接调用脚本，升级为缺失时静默退出的写法
+                    existing["command"] = command
+                    existing["timeout"] = 5
+                    added.append(event)
+        if not matched:
             groups.append({"hooks": [dict(handler)]})
             added.append(event)
 
