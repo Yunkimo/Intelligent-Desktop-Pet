@@ -3,7 +3,7 @@
 from unittest.mock import Mock
 
 from PyQt6.QtGui import QCloseEvent, QShowEvent
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QMenu, QWidget
 
 from pet.window import PetWindow
 
@@ -33,8 +33,20 @@ def test_show_event_repositions_overlays(qapp):
     assert calls == ["bubble", "badge", "bubble", "badge"]
 
 
+def _stub_close_dependencies(window: PetWindow) -> None:
+    window.hotkey = None
+    window.health = Mock()
+    window.ws = Mock()
+    window.agent_status = Mock()
+    window.memory = Mock()
+    window._cleanup_tts_tmp = Mock()
+    window.status_badge = Mock()
+    window.bubble = Mock()
+    window.tray = Mock()
+
+
 def test_close_event_cleans_up_and_quits(qapp, monkeypatch):
-    """关闭桌宠时必须一并关闭角标与气泡，并显式退出事件循环。
+    """托盘关闭时，关闭桌宠必须一并关闭角标、气泡与托盘，并显式退出事件循环。
 
     两者都是独立顶层浮窗；主窗口又带 Qt.Tool 标志，Qt 不会自动
     quitOnLastWindowClosed，不显式退出时启动脚本的控制台一直不结束。
@@ -45,17 +57,73 @@ def test_close_event_cleans_up_and_quits(qapp, monkeypatch):
     monkeypatch.setattr(window_module, "QApplication", Mock(instance=Mock(return_value=fake_app)))
 
     window = _bare_window()
-    window.hotkey = None
-    window.health = Mock()
-    window.ws = Mock()
-    window.agent_status = Mock()
-    window.memory = Mock()
-    window._cleanup_tts_tmp = Mock()
-    window.status_badge = Mock()
-    window.bubble = Mock()
+    window.settings = Mock(tray_enabled=False)
+    _stub_close_dependencies(window)
 
     window.closeEvent(QCloseEvent())
 
     window.status_badge.close.assert_called_once()
     window.bubble.close.assert_called_once()
+    window.tray.hide.assert_called_once()
     fake_app.quit.assert_called_once()
+
+
+def test_close_with_tray_hides_instead_of_quitting(qapp, monkeypatch):
+    """托盘启用时，关闭窗口只隐藏，不执行收尾也不退出事件循环。"""
+    import pet.window as window_module
+
+    fake_app = Mock()
+    monkeypatch.setattr(window_module, "QApplication", Mock(instance=Mock(return_value=fake_app)))
+    window = _bare_window()
+    window.settings = Mock(tray_enabled=True)
+    window.hide_to_tray = Mock()
+
+    event = QCloseEvent()
+    window.closeEvent(event)
+
+    window.hide_to_tray.assert_called_once()
+    assert event.isAccepted() is False
+    fake_app.quit.assert_not_called()
+
+
+def test_close_with_quitting_flag_tears_down_even_with_tray(qapp, monkeypatch):
+    """托盘「退出」置 _quitting 后，关闭窗口必须真正收尾。"""
+    import pet.window as window_module
+
+    fake_app = Mock()
+    monkeypatch.setattr(window_module, "QApplication", Mock(instance=Mock(return_value=fake_app)))
+    window = _bare_window()
+    window.settings = Mock(tray_enabled=True)
+    window._quitting = True
+    _stub_close_dependencies(window)
+
+    window.closeEvent(QCloseEvent())
+
+    window.status_badge.close.assert_called_once()
+    window.bubble.close.assert_called_once()
+    window.tray.hide.assert_called_once()
+    fake_app.quit.assert_called_once()
+
+
+def test_command_table_puts_hide_to_tray_at_top(qapp):
+    """桌宠右键菜单顶部是「隐藏至托盘」，托盘菜单则复用其余命令。"""
+    window = _bare_window()
+    window.settings = Mock(tray_enabled=True, personas={})
+    window._choose_image = Mock()
+    window._build_persona_menu = Mock(return_value=QMenu())
+    window._set_voice_hotkey = Mock()
+    window._toggle_claude_monitor = Mock()
+    window._debug_backend = Mock()
+    window._quit = Mock()
+
+    commands = window._build_commands()
+
+    assert commands[0].label == "隐藏至托盘"
+    assert commands[0].enabled() is True
+    assert commands[-1].label == "退出"
+    commands[-1].execute()
+    window._quit.assert_called_once()
+
+    window.settings.tray_enabled = False
+    assert commands[0].enabled() is False
+    assert window._build_commands(include_hide_to_tray=False)[0].label == "切换图片…"

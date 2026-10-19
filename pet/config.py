@@ -83,6 +83,9 @@ class Settings:
         # Claude Code 回合状态监控（默认关闭，右键菜单可开）
         self.monitor_claude: bool = bool(data.get("monitor_claude", False))
 
+        # 系统托盘：关闭后右键「隐藏至托盘」置灰，关闭窗口仍直接退出
+        self.tray_enabled: bool = bool(data.get("tray_enabled", True))
+
         # 路径统一解析为绝对路径
         self.assets_dir: Path = BASE_DIR / data.get("assets_dir", "assets")
         self.history_path: Path = BASE_DIR / data.get("history_path", "data/history.json")

@@ -25,6 +25,7 @@ from .persona import build_system_prompt
 from .providers import create_chat_provider
 from .status_badge import StatusBadge
 from .tools import build_tools
+from .tray import TrayIcon
 from .tts import TTSEngine
 from .worker import ASRWorker, ChatWorker, TTSWorker
 
@@ -93,6 +94,10 @@ class PetWindow(QWidget):
         self._init_audio()
         self._init_hotkey()
         self._init_health()
+
+        # 托盘：左键显隐；关闭窗口时按 tray_enabled 决定隐藏还是真正退出
+        self._quitting = False
+        self.tray = TrayIcon(self, settings, parent=self) if settings.tray_enabled else None
 
         # 拖拽/点击状态
         self._press_pos = None
@@ -233,10 +238,18 @@ class PetWindow(QWidget):
         populate_menu(menu, self._build_commands())
         menu.exec(event.globalPos())
 
-    def _build_commands(self) -> list[Command]:
-        """按固定顺序组装右键菜单：命令与子菜单逐项包装。"""
+    def _build_commands(self, include_hide_to_tray: bool = True) -> list[Command]:
+        """按固定顺序组装命令表；托盘菜单复用同表但不含「隐藏至托盘」。"""
         commands: list[Command] = []
 
+        if include_hide_to_tray:
+            commands.append(
+                Command(
+                    "隐藏至托盘",
+                    self.hide_to_tray,
+                    enabled=lambda: self.settings.tray_enabled,
+                )
+            )
         commands.append(Command("切换图片…", self._choose_image))
         commands.append(Submenu(self._build_persona_menu()))
         commands.append(Command("设置语音快捷键…", self._set_voice_hotkey))
@@ -249,7 +262,7 @@ class PetWindow(QWidget):
             )
         )
         commands.append(Command("测试后端连接", self._debug_backend))
-        commands.append(Command("退出", self.close))
+        commands.append(Command("退出", self._quit))
         return commands
 
     def _build_persona_menu(self) -> QMenu:
@@ -595,7 +608,45 @@ class PetWindow(QWidget):
             return
         self.show_hint(f"后端正常～课表 {len(courses)} 条、日程 {len(tasks)} 条")
 
+    def _quit(self) -> None:
+        """真正退出：置标志后走 closeEvent 的收尾路径。"""
+        self._quitting = True
+        self.close()
+
+    def hide_to_tray(self) -> None:
+        """隐藏到托盘；气泡与角标是独立顶层浮窗，需一并隐藏。"""
+        if self.isVisible():
+            # 记录隐藏前的状态，恢复时不要把原本已收起的浮窗强行弹出
+            self._bubble_visible_before_tray = self.bubble.isVisible()
+            self._badge_visible_before_tray = self.status_badge.isVisible()
+        self.bubble.hide()
+        self.status_badge.hide()
+        self.hide()
+
+    def show_from_tray(self) -> None:
+        """从托盘恢复，并还原气泡与角标此前的显隐状态。"""
+        self.show()
+        self.raise_()
+        if getattr(self, "_bubble_visible_before_tray", False):
+            self.bubble.show()
+            self.bubble.raise_()
+        if getattr(self, "_badge_visible_before_tray", False):
+            self.status_badge.show()
+        self._reposition_overlays()
+
+    def toggle_tray_visibility(self) -> None:
+        """托盘左键：可见则隐藏，不可见则恢复。"""
+        if self.isVisible():
+            self.hide_to_tray()
+        else:
+            self.show_from_tray()
+
     def closeEvent(self, event) -> None:  # noqa: N802
+        # 托盘启用时关闭只是隐藏；只有「退出」命令置 _quitting 后才真正收尾
+        if self.settings.tray_enabled and not getattr(self, "_quitting", False):
+            self.hide_to_tray()
+            event.ignore()
+            return
         if self.hotkey is not None:
             self.hotkey.stop()
         self.health.stop()
@@ -606,6 +657,8 @@ class PetWindow(QWidget):
         # 窗口，Qt 不会退出事件循环，启动脚本的控制台也会一直挂着。
         self.status_badge.close()
         self.bubble.close()
+        if getattr(self, "tray", None) is not None:
+            self.tray.hide()
         self.memory.save()
         self._cleanup_tts_tmp()
         super().closeEvent(event)

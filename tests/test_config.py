@@ -36,6 +36,10 @@ def test_llm_generation_params_defaults():
     assert s.llm_max_tokens == 1024
 
 
+def test_tray_enabled_defaults_true():
+    assert Settings().tray_enabled is True
+
+
 def test_update_methods_set_attrs_and_save(monkeypatch):
     saved: dict = {}
     monkeypatch.setattr(Settings, "_save_json", lambda self, **kw: saved.update(kw))
