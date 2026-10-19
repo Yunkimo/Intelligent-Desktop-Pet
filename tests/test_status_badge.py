@@ -19,6 +19,23 @@ def test_badge_shows_state_text(qapp):
     assert "#1a7f37" in badge.styleSheet()
 
 
+def test_badge_stylesheet_parses_without_warning(qapp):
+    """样式表必须能被 Qt 解析；多一个右花括号会在启动时打印解析警告。"""
+    from PyQt6.QtCore import qInstallMessageHandler
+
+    messages: list[str] = []
+    previous = qInstallMessageHandler(lambda mode, context, message: messages.append(message))
+    try:
+        badge = StatusBadge()
+        badge.set_state("working")
+        badge.grab()
+        qapp.processEvents()
+    finally:
+        qInstallMessageHandler(previous)
+
+    assert [m for m in messages if "Could not parse stylesheet" in m] == []
+
+
 def test_badge_hides_on_idle_and_unknown_fallback(qapp):
     badge = StatusBadge()
     badge.set_state("working")
