@@ -49,13 +49,51 @@ def test_close_event_cleans_up_and_quits(qapp, monkeypatch):
     window.health = Mock()
     window.ws = Mock()
     window.agent_status = Mock()
+    window.codex_agent_status = Mock()
     window.memory = Mock()
     window._cleanup_tts_tmp = Mock()
     window.status_badge = Mock()
+    window.codex_status_badge = Mock()
     window.bubble = Mock()
 
     window.closeEvent(QCloseEvent())
 
     window.status_badge.close.assert_called_once()
+    window.codex_status_badge.close.assert_called_once()
+    window.codex_agent_status.stop.assert_called_once()
+    window.agent_status.stop.assert_called_once()
     window.bubble.close.assert_called_once()
     fake_app.quit.assert_called_once()
+
+
+def test_codex_and_dual_badges_avoid_bubble(qapp):
+    from PyQt6.QtCore import QRect
+
+    from pet.status_badge import StatusBadge
+
+    window = _bare_window()
+    window.resize(300, 300)
+    geo = window.screen().availableGeometry()
+    window.move(geo.left() + 30, geo.bottom() - 330)
+    window.status_badge = StatusBadge(window)
+    window.codex_status_badge = StatusBadge(window, agent_name="Codex")
+    window.bubble = QWidget()
+    window.bubble.setGeometry(geo.left() + 30, geo.bottom() - 450, 240, 120)
+    window.bubble.show()
+    try:
+        window.codex_status_badge.set_state("working")
+        window._position_status_badge()
+        codex_rect = QRect(window.codex_status_badge.pos(), window.codex_status_badge.size())
+        assert geo.contains(codex_rect)
+        assert not codex_rect.intersects(window.bubble.geometry())
+        window.status_badge.set_state("waiting")
+        window._position_status_badge()
+        rects = [QRect(b.pos(), b.size()) for b in (window.status_badge, window.codex_status_badge)]
+        assert not rects[0].intersects(rects[1])
+        for rect in rects:
+            assert geo.contains(rect)
+            assert not rect.intersects(window.bubble.geometry())
+    finally:
+        window.status_badge.close()
+        window.codex_status_badge.close()
+        window.bubble.close()
