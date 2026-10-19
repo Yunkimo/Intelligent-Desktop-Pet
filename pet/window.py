@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 
-from PyQt6.QtCore import QPoint, QRect, Qt, QUrl
+from PyQt6.QtCore import QPoint, QRect, Qt, QTimer, QUrl
 from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMenu, QWidget
@@ -552,6 +552,23 @@ class PetWindow(QWidget):
         self._init_hotkey()
 
     # ---------- 其它 ----------
+    def showEvent(self, event) -> None:  # noqa: N802
+        """窗口显示后校正气泡与角标位置。
+
+        启动时状态文件可能残留非 idle 状态，监控器会在窗口 show() 之前同步
+        触发角标显示；而 showEvent 触发时平台窗口也尚未落到最终位置，
+        mapToGlobal 仍返回系统默认坐标，顶层浮窗会停在屏幕中心。这里先摆一次，
+        再在事件循环处理完显示后延迟校正一次，确保用最终几何定位。
+        """
+        super().showEvent(event)
+        self._reposition_overlays()
+        QTimer.singleShot(0, self._reposition_overlays)
+
+    def _reposition_overlays(self) -> None:
+        """按窗口当前几何重摆气泡与角标（两者都是独立顶层浮窗）。"""
+        self._position_bubble()
+        self._position_status_badge()
+
     def show_hint(self, text: str) -> None:
         self.bubble.set_text(text)
 
