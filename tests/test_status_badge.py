@@ -30,6 +30,12 @@ def test_badge_hides_on_idle_and_unknown_fallback(qapp):
     assert badge.text() == "Claude 状态未知"
 
 
+def test_badge_uses_configured_agent_name(qapp):
+    badge = StatusBadge(agent_name="Codex")
+    badge.set_state("waiting")
+    assert badge.text() == "Codex 等你确认"
+
+
 def test_badge_paints_rounded_background(qapp):
     """半透明顶层窗口不会绘制样式表背景，需由 paintEvent 自行画出胶囊底。"""
     badge = StatusBadge()

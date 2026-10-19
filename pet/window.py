@@ -245,6 +245,14 @@ class PetWindow(QWidget):
                 checked=lambda: self.settings.monitor_claude,
             )
         )
+        commands.append(
+            Command(
+                "监控 Codex",
+                self._toggle_codex_monitor,
+                checkable=True,
+                checked=lambda: self.settings.monitor_codex,
+            )
+        )
         commands.append(Command("测试后端连接", self._debug_backend))
         commands.append(Command("退出", self.close))
         return commands
@@ -415,10 +423,16 @@ class PetWindow(QWidget):
     def _init_claude_monitor(self) -> None:
         """创建状态角标与监控器；按配置决定是否立即开始轮询。"""
         self.status_badge = StatusBadge(self)
+        self.codex_status_badge = StatusBadge(self, agent_name="Codex")
         self.agent_status = AgentStatusMonitor(self.settings.agent_status_path, parent=self)
         self.agent_status.state_changed.connect(self._on_agent_status)
+        codex_status_path = self.settings.agent_status_path.with_name("codex-agent-status.json")
+        self.codex_agent_status = AgentStatusMonitor(codex_status_path, parent=self)
+        self.codex_agent_status.state_changed.connect(self._on_codex_status)
         if self.settings.monitor_claude:
             self.agent_status.start()
+        if self.settings.monitor_codex:
+            self.codex_agent_status.start()
 
     def _toggle_claude_monitor(self) -> None:
         """右键菜单开关：开启后轮询 hook 状态文件。"""
@@ -436,6 +450,23 @@ class PetWindow(QWidget):
         self.status_badge.set_state(state)
         self._position_status_badge()
 
+    def _toggle_codex_monitor(self) -> None:
+        """开关独立的 Codex hook 状态轮询。"""
+        enabled = not self.settings.monitor_codex
+        self.settings.update_monitor_codex(enabled)
+        if enabled:
+            self.codex_agent_status.start()
+            self.bubble.set_text("开始监控 Codex 啦～")
+        else:
+            self.codex_agent_status.stop()
+            self.codex_status_badge.set_state("idle")
+            self.bubble.set_text("已关闭 Codex 监控")
+        self._position_status_badge()
+
+    def _on_codex_status(self, state: str) -> None:
+        self.codex_status_badge.set_state(state)
+        self._position_status_badge()
+
     def _position_status_badge(self) -> None:
         """角标是独立浮层，复用气泡的屏幕方位规则贴住桌宠窗口。
 
@@ -448,11 +479,19 @@ class PetWindow(QWidget):
         if geo is None:
             return
         rect = QRect(self.mapToGlobal(QPoint(0, 0)), self.size())
+        badges = [
+            badge for badge in (self.status_badge, self.codex_status_badge) if not badge.isHidden()
+        ]
+        if not badges:
+            return
+        total_height = sum(badge.height() for badge in badges) + _GAP * (len(badges) - 1)
         x, y, _ = bubble_placement(
-            rect, geo, self.status_badge.width(), self.status_badge.height(), _GAP
+            rect, geo, max(badge.width() for badge in badges), total_height, _GAP
         )
-        self.status_badge.move(x, y)
-        self.status_badge.raise_()
+        for badge in badges:
+            badge.move(x, y)
+            badge.raise_()
+            y += badge.height() + _GAP
 
     # ---------- 全局语音快捷键 ----------
     def _init_hotkey(self) -> None:
