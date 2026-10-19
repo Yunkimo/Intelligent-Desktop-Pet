@@ -1,6 +1,8 @@
-"""桌宠窗口显示时的浮层定位测试。"""
+"""桌宠窗口显示/关闭时的状态角标测试。"""
 
-from PyQt6.QtGui import QShowEvent
+from unittest.mock import Mock
+
+from PyQt6.QtGui import QCloseEvent, QShowEvent
 from PyQt6.QtWidgets import QWidget
 
 from pet.window import PetWindow
@@ -29,3 +31,31 @@ def test_show_event_repositions_overlays(qapp):
 
     qapp.processEvents()
     assert calls == ["bubble", "badge", "bubble", "badge"]
+
+
+def test_close_event_cleans_up_and_quits(qapp, monkeypatch):
+    """关闭桌宠时必须一并关闭角标与气泡，并显式退出事件循环。
+
+    两者都是独立顶层浮窗；主窗口又带 Qt.Tool 标志，Qt 不会自动
+    quitOnLastWindowClosed，不显式退出时启动脚本的控制台一直不结束。
+    """
+    import pet.window as window_module
+
+    fake_app = Mock()
+    monkeypatch.setattr(window_module, "QApplication", Mock(instance=Mock(return_value=fake_app)))
+
+    window = _bare_window()
+    window.hotkey = None
+    window.health = Mock()
+    window.ws = Mock()
+    window.agent_status = Mock()
+    window.memory = Mock()
+    window._cleanup_tts_tmp = Mock()
+    window.status_badge = Mock()
+    window.bubble = Mock()
+
+    window.closeEvent(QCloseEvent())
+
+    window.status_badge.close.assert_called_once()
+    window.bubble.close.assert_called_once()
+    fake_app.quit.assert_called_once()

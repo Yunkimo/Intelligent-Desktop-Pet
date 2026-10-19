@@ -6,7 +6,7 @@ from pathlib import Path
 from PyQt6.QtCore import QPoint, QRect, Qt, QTimer, QUrl
 from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
-from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMenu, QWidget
+from PyQt6.QtWidgets import QApplication, QFileDialog, QInputDialog, QMenu, QWidget
 
 from .agent_status import AgentStatusMonitor
 from .asr import ASREngine
@@ -589,6 +589,15 @@ class PetWindow(QWidget):
         self.ws.request_stop()
         self.ws.wait(2000)
         self.agent_status.stop()
+        # 角标与气泡是独立顶层浮窗；不关闭的话，桌宠窗口消失后仍有可见顶层
+        # 窗口，Qt 不会退出事件循环，启动脚本的控制台也会一直挂着。
+        self.status_badge.close()
+        self.bubble.close()
         self.memory.save()
         self._cleanup_tts_tmp()
         super().closeEvent(event)
+        # 主窗口带 Qt.Tool 标志，不计入 quitOnLastWindowClosed，仅靠关闭窗口
+        # 不会结束事件循环；不显式退出的话，启动脚本的控制台会一直挂着。
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
