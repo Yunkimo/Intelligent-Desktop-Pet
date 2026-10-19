@@ -17,6 +17,12 @@ from .commands import Command, Submenu, populate_menu
 from .config import Settings
 from .event_cache import RecentEvents
 from .health import HealthMonitor
+from .hook_install import (
+    claude_code_installed,
+    codex_installed,
+    ensure_claude_hooks,
+    ensure_codex_hooks,
+)
 from .image_utils import normalize_image
 from .input_box import ChatInput
 from .llm import LLMClient
@@ -25,6 +31,7 @@ from .persona import build_system_prompt
 from .providers import create_chat_provider
 from .status_badge import StatusBadge
 from .tools import build_tools
+from .tray import TrayIcon
 from .tts import TTSEngine
 from .worker import ASRWorker, ChatWorker, TTSWorker
 
@@ -93,6 +100,10 @@ class PetWindow(QWidget):
         self._init_audio()
         self._init_hotkey()
         self._init_health()
+
+        # 托盘：左键显隐；关闭窗口时按 tray_enabled 决定隐藏还是真正退出
+        self._quitting = False
+        self.tray = TrayIcon(self, settings, parent=self) if settings.tray_enabled else None
 
         # 拖拽/点击状态
         self._press_pos = None
@@ -233,10 +244,18 @@ class PetWindow(QWidget):
         populate_menu(menu, self._build_commands())
         menu.exec(event.globalPos())
 
-    def _build_commands(self) -> list[Command]:
-        """按固定顺序组装右键菜单：命令与子菜单逐项包装。"""
+    def _build_commands(self, include_hide_to_tray: bool = True) -> list[Command]:
+        """按固定顺序组装命令表；托盘菜单复用同表但不含「隐藏至托盘」。"""
         commands: list[Command] = []
 
+        if include_hide_to_tray:
+            commands.append(
+                Command(
+                    "隐藏至托盘",
+                    self.hide_to_tray,
+                    enabled=lambda: self.settings.tray_enabled,
+                )
+            )
         commands.append(Command("切换图片…", self._choose_image))
         commands.append(Submenu(self._build_persona_menu()))
         commands.append(Command("设置语音快捷键…", self._set_voice_hotkey))
@@ -257,7 +276,7 @@ class PetWindow(QWidget):
             )
         )
         commands.append(Command("测试后端连接", self._debug_backend))
-        commands.append(Command("退出", self.close))
+        commands.append(Command("退出", self._quit))
         return commands
 
     def _build_persona_menu(self) -> QMenu:
@@ -437,30 +456,68 @@ class PetWindow(QWidget):
         if self.settings.monitor_codex:
             self.codex_agent_status.start()
 
+    def _monitor_install_failed(self, tool: str, exc: Exception) -> None:
+        """钩子安装失败：气泡说明原因（截断超长路径），监控保持关闭。"""
+        reason = " ".join(str(exc).split()) or type(exc).__name__
+        if len(reason) > 60:
+            reason = reason[:57] + "…"
+        self.bubble.set_text(f"{tool} 监控开启失败：钩子安装失败（{reason}）")
+
     def _toggle_claude_monitor(self) -> None:
-        """右键菜单开关：开启后轮询 hook 状态文件。"""
+        """右键菜单开关：开启时先确保状态钩子已写入，再轮询状态文件。"""
         enabled = not self.settings.monitor_claude
-        self.settings.update_monitor_claude(enabled)
         if enabled:
+            try:
+                added = ensure_claude_hooks()
+            except (ImportError, OSError, ValueError) as exc:
+                self.settings.update_monitor_claude(False)
+                self._monitor_install_failed("Claude Code", exc)
+                return
+            self.settings.update_monitor_claude(True)
             self.agent_status.start()
-            self.bubble.set_text("开始监控 Claude Code 啦～")
-        else:
-            self.agent_status.stop()
-            self.status_badge.set_state("idle")
-            self.bubble.set_text("已关闭 Claude Code 监控")
+            if added:
+                if claude_code_installed():
+                    self.bubble.set_text("已装好 Claude Code 状态钩子，重启 Claude Code 后生效～")
+                else:
+                    self.bubble.set_text(
+                        "未检测到 Claude Code 安装；钩子已写好，安装后重启即可生效～"
+                    )
+            else:
+                self.bubble.set_text("开始监控 Claude Code 啦～")
+            return
+        self.settings.update_monitor_claude(False)
+        self.agent_status.stop()
+        self.status_badge.set_state("idle")
+        self.bubble.set_text("已关闭 Claude Code 监控")
 
     def _on_agent_status(self, state: str) -> None:
         self.status_badge.set_state(state)
         self._position_status_badge()
 
     def _toggle_codex_monitor(self) -> None:
-        """开关独立的 Codex hook 状态轮询。"""
+        """开关独立的 Codex hook 状态轮询；开启时先确保钩子已写入。"""
         enabled = not self.settings.monitor_codex
-        self.settings.update_monitor_codex(enabled)
         if enabled:
+            try:
+                added = ensure_codex_hooks()
+            except (ImportError, OSError, ValueError) as exc:
+                self.settings.update_monitor_codex(False)
+                self._monitor_install_failed("Codex", exc)
+                self._position_status_badge()
+                return
+            self.settings.update_monitor_codex(True)
             self.codex_agent_status.start()
-            self.bubble.set_text("开始监控 Codex 啦～")
+            if added:
+                if codex_installed():
+                    self.bubble.set_text("已写好 Codex 状态钩子，在 Codex 中信任并重启后生效～")
+                else:
+                    self.bubble.set_text(
+                        "未检测到 Codex 安装；钩子已写好，安装后信任并重启即可生效～"
+                    )
+            else:
+                self.bubble.set_text("开始监控 Codex 啦～")
         else:
+            self.settings.update_monitor_codex(False)
             self.codex_agent_status.stop()
             self.codex_status_badge.set_state("idle")
             self.bubble.set_text("已关闭 Codex 监控")
@@ -632,7 +689,49 @@ class PetWindow(QWidget):
             return
         self.show_hint(f"后端正常～课表 {len(courses)} 条、日程 {len(tasks)} 条")
 
+    def _quit(self) -> None:
+        """真正退出：置标志后走 closeEvent 的收尾路径。"""
+        self._quitting = True
+        self.close()
+
+    def hide_to_tray(self) -> None:
+        """隐藏到托盘；气泡与两个状态角标是独立顶层浮窗，需一并隐藏。"""
+        if self.isVisible():
+            # 记录隐藏前的状态，恢复时不要把原本已收起的浮窗强行弹出
+            self._bubble_visible_before_tray = self.bubble.isVisible()
+            self._badge_visible_before_tray = self.status_badge.isVisible()
+            self._codex_badge_visible_before_tray = self.codex_status_badge.isVisible()
+        self.bubble.hide()
+        self.status_badge.hide()
+        self.codex_status_badge.hide()
+        self.hide()
+
+    def show_from_tray(self) -> None:
+        """从托盘恢复，并还原气泡与两个角标此前的显隐状态。"""
+        self.show()
+        self.raise_()
+        if getattr(self, "_bubble_visible_before_tray", False):
+            self.bubble.show()
+            self.bubble.raise_()
+        if getattr(self, "_badge_visible_before_tray", False):
+            self.status_badge.show()
+        if getattr(self, "_codex_badge_visible_before_tray", False):
+            self.codex_status_badge.show()
+        self._reposition_overlays()
+
+    def toggle_tray_visibility(self) -> None:
+        """托盘左键：可见则隐藏，不可见则恢复。"""
+        if self.isVisible():
+            self.hide_to_tray()
+        else:
+            self.show_from_tray()
+
     def closeEvent(self, event) -> None:  # noqa: N802
+        # 托盘启用时关闭只是隐藏；只有「退出」命令置 _quitting 后才真正收尾
+        if self.settings.tray_enabled and not getattr(self, "_quitting", False):
+            self.hide_to_tray()
+            event.ignore()
+            return
         if self.hotkey is not None:
             self.hotkey.stop()
         self.health.stop()
@@ -645,6 +744,8 @@ class PetWindow(QWidget):
         self.status_badge.close()
         self.codex_status_badge.close()
         self.bubble.close()
+        if getattr(self, "tray", None) is not None:
+            self.tray.hide()
         self.memory.save()
         self._cleanup_tts_tmp()
         super().closeEvent(event)

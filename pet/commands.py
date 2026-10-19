@@ -1,9 +1,8 @@
 """命令模式：把菜单动作封装成可执行的命令对象。
 
-菜单（以及后续 A6 的托盘菜单）是「调用者」，窗口方法是「接收者」：调用者只负责按
+桌宠右键菜单与系统托盘菜单是「调用者」，窗口方法是「接收者」：调用者只负责按
 固定顺序列出 Command / Submenu，触发时通过 populate_menu 转发 execute()，不直接
-操作窗口。checkable / checked / enabled 为托盘菜单的勾选与置灰能力预留，右键菜单
-暂不使用。
+操作窗口。checkable / checked / enabled 提供勾选与置灰能力，两类菜单共用。
 """
 
 from dataclasses import dataclass
