@@ -26,6 +26,15 @@
 
 未闭环项：A4 `reminder.due` 端到端依赖 B2 到期调度器（issue #6）；A3 手动 GUI 气泡经决定跳过（逻辑以 6 例单测覆盖）。不以单测/Mock 替代真实端到端验收。
 
+## A9 增量证据（Issue #46，2026-10-19）
+
+Claude Code 状态监控由 PR #49 合并，启动定位、退出残留与气泡遮挡修复由 PR #51 合并。2026-10-19 修复启动时控制台的两行 `Could not parse stylesheet of object StatusBadge`：
+
+- 根因：`StatusBadge` 的 QSS 由三段拼接，前两段是 f-string（`{{`/`}}` 会转义），最后一段是普通字符串，`}}` 原样输出，导致样式表多一个右花括号、Qt 解析失败。
+- 修正：提交 `2f00cbd`（`fix(pet): 修复状态角标样式表解析警告`）将末尾改为单个 `}`；新增捕获 Qt 消息的回归测试，修正前失败、修正后通过。
+- 验证：ruff check/format 通过；桌宠端 147 条用例通过；真实 `main.py` 运行 8 秒，控制台 0 条解析警告（旧样式表对照为 2 条）。
+- 分支 `fix/status-badge-stylesheet` 已推送，PR 待用户确认；AI 纠错过程见 [测试文档](testing.md) §5.3。
+
 ## B1 后端
 
 关联 [#5](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/5)，PR [#16](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/16)。以下是本议题的证据，不代表项目已完成全部考核。
