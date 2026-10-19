@@ -20,6 +20,15 @@
     <view wx:if="{{item.location}}" class="course-meta">📍 {{item.location}}</view>
   </view>
 
+  <block wx:if="{{reminders.length > 0}}">
+    <view class="section-title">今日提醒</view>
+    <view wx:for="{{reminders}}" wx:key="id" class="card reminder-card">
+      <view class="reminder-title">⏰ {{item.title}}</view>
+      <view wx:if="{{item.body}}" class="reminder-body">{{item.body}}</view>
+      <view class="task-meta">{{item.remindTime}}</view>
+    </view>
+  </block>
+
   <view class="section-title">今日待办</view>
   <view wx:if="{{!loading && tasks.length === 0}}" class="empty">没有到期待办，去「日程」页看看吧</view>
   <view wx:for="{{tasks}}" wx:key="id" class="card task-card">

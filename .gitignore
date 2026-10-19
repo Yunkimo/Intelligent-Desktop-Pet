@@ -6,6 +6,7 @@ data/
 miniprogram/config.js
 # 微信开发者工具的个人项目配置（每台机器不同，不入库）
 miniprogram/project.private.config.json
+node_modules/
 
 # Python
 __pycache__/

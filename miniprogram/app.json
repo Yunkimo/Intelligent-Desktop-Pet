@@ -2,7 +2,8 @@
   "pages": [
     "pages/index/index",
     "pages/schedule/schedule",
-    "pages/task/task"
+    "pages/task/task",
+    "pages/reminder/reminder"
   ],
   "window": {
     "navigationBarBackgroundColor": "#4a90d9",

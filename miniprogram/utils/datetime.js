@@ -1,6 +1,50 @@
 // 日期小工具：各页面共用的日期换算。
 
 const WEEKDAY_LABELS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+let config = {};
+try {
+  config = require('../config');
+} catch (_) {
+  /* 使用契约默认时区 */
+}
+const OFFSET = config.reminderOffsetMinutes == null ? 480 : config.reminderOffsetMinutes;
+const pad = (value) => String(value).padStart(2, '0');
+function offsetText() {
+  return (
+    (OFFSET < 0 ? '-' : '+') +
+    pad(Math.floor(Math.abs(OFFSET) / 60)) +
+    ':' +
+    pad(Math.abs(OFFSET) % 60)
+  );
+}
+function reminderDate(value) {
+  if (!value) {
+    return new Date(NaN);
+  }
+  let text = value.replace(/(\.\d{3})\d+/, '$1');
+  if (!/(Z|[+-]\d{2}:\d{2})$/i.test(text)) {
+    text += offsetText();
+  }
+  return new Date(text);
+}
+function reminderParts(value) {
+  const shifted = new Date(reminderDate(value).getTime() + OFFSET * 60000);
+  if (!Number.isFinite(shifted.getTime())) {
+    return { date: '', time: '' };
+  }
+  return {
+    date:
+      shifted.getUTCFullYear() +
+      '-' +
+      pad(shifted.getUTCMonth() + 1) +
+      '-' +
+      pad(shifted.getUTCDate()),
+    time: pad(shifted.getUTCHours()) + ':' + pad(shifted.getUTCMinutes()),
+  };
+}
+function reminderInput(date, time) {
+  return date + 'T' + time + ':00' + offsetText();
+}
 
 /** Date → "YYYY-MM-DD"。 */
 function dateStr(date) {
@@ -51,6 +95,9 @@ function isActiveWeek(course, week) {
 }
 
 module.exports = {
+  reminderDate,
+  reminderParts,
+  reminderInput,
   WEEKDAY_LABELS,
   WEEK_OPTIONS,
   dateStr,

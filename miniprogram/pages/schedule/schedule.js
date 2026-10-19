@@ -200,16 +200,20 @@ Page({
         });
       });
       const result = await api.parseCourseImage(compressed.tempFilePath);
+      wx.hideLoading(); // 先关遮罩再弹提示：真机上遮罩会盖住 toast
       if (!result.courses || result.courses.length === 0) {
-        wx.showToast({ title: '未能识别出课程', icon: 'none' });
+        wx.showToast({ title: '未能识别出课程', icon: 'none', duration: 3000 });
         return;
       }
       this.setData({ pendingCourses: result.courses });
       this.confirmImport();
     } catch (err) {
-      wx.showToast({ title: err.message, icon: 'none' });
-    } finally {
       wx.hideLoading();
+      wx.showToast({
+        title: (err && err.message) || '识别失败，请重试',
+        icon: 'none',
+        duration: 3000,
+      });
     }
   },
 

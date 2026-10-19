@@ -50,3 +50,19 @@
   line-height: 2;
   margin: 8rpx 0;
 }
+
+/* 订阅提醒按钮（绿色描边，与编辑/删除区分） */
+.btn-subscribe {
+  font-size: 24rpx;
+  padding: 0 24rpx;
+  line-height: 2;
+  margin: 8rpx 0;
+  background: #eefaf1;
+  color: #2f9e44;
+  border: 1rpx solid #bfe8cc;
+}
+
+.remind-meta {
+  margin-left: 12rpx;
+  color: #2f9e44;
+}

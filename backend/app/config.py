@@ -82,11 +82,11 @@ if not isinstance(WX_TEMPLATE_FIELDS, dict) or not all(
     and isinstance(value, str)
     and (
         (re.fullmatch(r"thing[0-9]+", key) and value in {"title", "body"})
-        or (re.fullmatch(r"time[0-9]+", key) and value == "remind_at")
+        or (re.fullmatch(r"(?:time|date)[0-9]+", key) and value == "remind_at")
     )
     for key, value in WX_TEMPLATE_FIELDS.items()
 ):
-    raise ValueError("WX_TEMPLATE_FIELDS 仅支持 thingN 对应 title/body、timeN 对应 remind_at")
+    raise ValueError("WX_TEMPLATE_FIELDS 仅支持 thingN 对应 title/body、timeN/dateN 对应 remind_at")
 WX_DELIVERY_TIMEOUT_SECONDS = WX_TIMEOUT_SECONDS * 4
 WX_DELIVERY_LEASE_SECONDS = WX_DELIVERY_TIMEOUT_SECONDS + 2 * DB_TIMEOUT_SECONDS + 5
 # B4：固定上游主机，调用者只能提供城市或关键词，不能传入目标 URL。

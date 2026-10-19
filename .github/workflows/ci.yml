@@ -10,6 +10,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  miniprogram-c3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: miniprogram/package-lock.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install C3 test dependencies
+        run: |
+          npm ci --prefix miniprogram
+          python -m pip install -r backend/requirements-dev.txt
+      - name: C3 lint, format and logic regression
+        run: |
+          npm run lint --prefix miniprogram
+          npm run format:check --prefix miniprogram
+          npm test --prefix miniprogram
+      - name: C3 real backend recovery regression (mock WeChat only)
+        run: python scripts/check_c3_integration.py
   # 后端：FastAPI + SQLite，轻量，无需系统依赖，单独跑 backend/tests
   backend:
     runs-on: ubuntu-latest
