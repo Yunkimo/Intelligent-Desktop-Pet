@@ -44,7 +44,7 @@ sequenceDiagram
 | `WX_TIMEOUT_SECONDS` | `10` | 单次 HTTP 请求上限，正有限秒数 |
 | `WX_SESSION_TTL_SECONDS` | `7200` | 本地登录会话有效期，60 至 86400 秒 |
 
-字段名必须匹配真实模板。目前支持 `thingN` 对应 `title`/`body`，`timeN` 对应 `remind_at`；文本取前 20 个字符，时间按 `REMINDER_NAIVE_OFFSET_MINUTES` 显示。其他字段类型尚未实现，不能套用示例假装模板兼容。缺少身份配置时微信接口返回 503；缺少模板或映射时订阅返回 503。
+字段名必须匹配真实模板。目前支持 `thingN` 对应 `title`/`body`，`timeN`/`dateN` 对应 `remind_at`；文本取前 20 个字符，时间按 `REMINDER_NAIVE_OFFSET_MINUTES` 显示，`dateN` 字段发送 `YYYY-MM-DD HH:MM` 格式。其他字段类型尚未实现，不能套用示例假装模板兼容。缺少身份配置时微信接口返回 503；缺少模板或映射时订阅返回 503。
 
 在仓库根目录激活后端虚拟环境后运行：
 
