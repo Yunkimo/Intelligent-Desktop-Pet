@@ -48,7 +48,7 @@ class StatusBadge(QLabel):
         self.setStyleSheet(
             f"QLabel {{ color: {fg}; background-color: {bg}; "
             f"border: 1px solid {fg}; border-radius: 9px; "
-            "padding: 2px 8px; font-size: 11px; }}"
+            "padding: 2px 8px; font-size: 11px; }"
         )
         self.adjustSize()
         self.show()
