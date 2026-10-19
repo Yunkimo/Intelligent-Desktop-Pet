@@ -104,11 +104,23 @@ LLM_MODEL=deepseek-chat
 
 ### 系统托盘与开机自启
 
-桌宠默认启用系统托盘。关闭窗口或右键选择「隐藏至托盘」只会收起桌宠，进程与提醒继续运行；左键点击托盘图标可重新显示，气泡和角标会恢复隐藏前的状态。
+桌宠默认启用系统托盘。关闭窗口或右键选择「隐藏至托盘」只会收起桌宠，进程与提醒继续运行；左键点击托盘图标可重新显示，气泡、Claude 角标与 Codex 角标会恢复隐藏前的状态。
 
 托盘右键菜单复用桌宠的右键命令，底部「开机自启动」勾选后，会把 `启动桌宠.bat` 的绝对路径写入当前用户的注册表 Run 键（`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`），取消勾选即移除。该功能仅支持 Windows；随登录启动时会和手动双击一样出现命令行窗口。
 
 不想使用托盘时，可在 `config.json` 设 `"tray_enabled": false`，此时关闭窗口直接退出。
+
+### 监控 Codex 回合状态（可选）
+
+Codex 使用与 Claude 独立的「监控 Codex」右键开关和角标。运行 `setup.bat` 会把 hooks 合并到用户级 `%USERPROFILE%\.codex\hooks.json`（若设置了 `CODEX_HOME`，则使用该目录）；也可手动运行：
+
+```bat
+.venv\Scripts\python scripts\install_codex_status_hook.py
+```
+
+在 Codex 中检查并信任这些 hooks，然后重启 Codex。hook 只把事件名、会话 ID、回合 ID 和时间写入 `data/codex-agent-status.json`，不保存提示词与工具内容。缺少配置、hook 或状态文件不会影响桌宠及 Claude 监控。`PermissionRequest` 显示等待确认，`Stop` 显示本轮完成，超过 5 分钟没有新事件时进行中状态会显示未知。
+
+同时打开多个 Codex 会话时，角标跟随最近提交用户消息的会话；其他会话的后台事件不会抢占显示。本轮完成后，迟到的工具事件不会重新显示“处理中”，下一次提交消息才开始新的监控回合。旧客户端缺少回合 ID 时，只能依靠用户消息和结束事件区分回合，无法完整识别跨回合的乱序事件。
 
 ## 5. 自定义
 
@@ -125,6 +137,7 @@ LLM_MODEL=deepseek-chat
   "whisper_model": "base",        // 识别精度：base/small/medium
   "enable_voice": true,           // 关闭语音播报
   "monitor_claude": false,        // Claude Code 回合状态角标（右键可切换）
+  "monitor_codex": false,         // Codex 回合状态角标（右键可切换）
   "tray_enabled": true,           // 系统托盘；false 时关闭窗口直接退出
   "max_history": 20               // 记忆轮数
 }

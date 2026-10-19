@@ -59,6 +59,19 @@ def test_update_monitor_claude_sets_attr_and_saves(monkeypatch):
     assert saved == {"monitor_claude": True}
 
 
+def test_update_monitor_codex_sets_attr_and_saves(monkeypatch, tmp_path):
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    saved: dict = {}
+    monkeypatch.setattr(Settings, "_save_json", lambda self, **kw: saved.update(kw))
+    s = Settings()
+    assert s.monitor_codex is False
+    s.update_monitor_codex(True)
+    assert s.monitor_codex is True
+    assert saved == {"monitor_codex": True}
+
+
 def test_switch_persona_and_add_persona(monkeypatch):
     monkeypatch.setattr(Settings, "_save_json", lambda self, **kw: None)
     s = Settings()

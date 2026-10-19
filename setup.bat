@@ -28,7 +28,16 @@ if errorlevel 1 (
 )
 
 echo.
+echo Configuring Codex status hooks...
+.venv\Scripts\python scripts\install_codex_status_hook.py
+if errorlevel 1 (
+    echo [WARN] Codex hook setup failed. You can run it manually later:
+    echo        .venv\Scripts\python scripts\install_codex_status_hook.py
+)
+
+echo.
 echo Done. Next steps:
 echo   1. copy .env.example .env  and fill in LLM_API_KEY
 echo   2. Run  启动桌宠.bat
-echo   3. Restart Claude Code so the status hooks take effect
+echo   3. Review and trust the hooks in Codex, then restart it
+echo   4. Restart Claude Code so its status hooks take effect

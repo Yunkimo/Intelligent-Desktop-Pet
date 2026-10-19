@@ -31,10 +31,19 @@
 系统托盘与开机自启由分支 `feat/a6-system-tray` 交付（提交 `a386313` 注册表管理、`ec8805f` 托盘与隐藏，文档随本提交更新）。
 
 - 托盘：`pet/tray.py` 用当前形象生成 16–64 px 多档图标；左键单击显隐桌宠；右键菜单复用 A5 `Command` 表（`_build_commands(include_hide_to_tray=False)`），并在底部追加勾选式「开机自启动」。
-- 隐藏：桌宠右键菜单顶部新增「隐藏至托盘」。气泡与角标是独立顶层浮窗，实测不会随父窗口隐藏，因此 `hide_to_tray()` 显式隐藏两者，恢复时还原隐藏前的显隐状态。
+- 隐藏：桌宠右键菜单顶部新增「隐藏至托盘」。气泡与角标是独立顶层浮窗，实测不会随父窗口隐藏，因此 `hide_to_tray()` 显式隐藏气泡、Claude 角标与 Codex 角标，恢复时还原隐藏前的显隐状态。
 - 退出：A5 的「退出」由 `self.close` 改为 `_quit`，置 `_quitting` 后走原有收尾路径；托盘启用时普通关闭只隐藏，托盘「退出」在窗口隐藏状态下也能正常结束进程。
 - 开机自启：`pet/autostart.py` 读写 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 的 `IntelligentDeskPet` 值，指向带引号的 `启动桌宠.bat`；注册表是唯一事实源，因此未在 `config.json` 增加 `autostart_enabled` 字段（与 Issue 原范围的有意差异）。非 Windows 返回 False。
-- 验证：ruff check/format 通过；pytest 163 条通过；真实窗口确认系统托盘可用、图标非空（15×16 至 60×64 五档）、托盘菜单顺序正确、隐藏/恢复气泡角标、真实注册表 enable→is_enabled→disable 往返成功、隐藏状态下退出返回码 0。失败与修正过程见 [测试文档](testing.md) §5.3。
+- 验证：ruff check/format 通过；合并 develop 的 Codex 双角标后 pytest 182 条通过；真实窗口确认系统托盘可用、图标非空（15×16 至 60×64 五档）、托盘菜单顺序正确、隐藏/恢复气泡角标、真实注册表 enable→is_enabled→disable 往返成功、隐藏状态下退出返回码 0。失败与修正过程见 [测试文档](testing.md) §5.3。
+
+## A9 增量证据（Issue #46，2026-10-19）
+
+Claude Code 状态监控由 PR #49 合并，启动定位、退出残留与气泡遮挡修复由 PR #51 合并。2026-10-19 修复启动时控制台的两行 `Could not parse stylesheet of object StatusBadge`：
+
+- 根因：`StatusBadge` 的 QSS 由三段拼接，前两段是 f-string（`{{`/`}}` 会转义），最后一段是普通字符串，`}}` 原样输出，导致样式表多一个右花括号、Qt 解析失败。
+- 修正：提交 `2f00cbd`（`fix(pet): 修复状态角标样式表解析警告`）将末尾改为单个 `}`；新增捕获 Qt 消息的回归测试，修正前失败、修正后通过。
+- 验证：ruff check/format 通过；桌宠端 147 条用例通过；真实 `main.py` 运行 8 秒，控制台 0 条解析警告（旧样式表对照为 2 条）。
+- 修复提交与文档（`2f00cbd`、`903e97d`）已快进推送至 develop（2026-10-19，CI run 39237613619 全绿）；AI 纠错过程见 [测试文档](testing.md) §5.3。
 
 ## B1 后端
 

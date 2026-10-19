@@ -82,6 +82,8 @@ class Settings:
 
         # Claude Code 回合状态监控（默认关闭，右键菜单可开）
         self.monitor_claude: bool = bool(data.get("monitor_claude", False))
+        # Codex 回合状态监控（默认关闭，独立于 Claude）
+        self.monitor_codex: bool = bool(data.get("monitor_codex", False))
 
         # 系统托盘：关闭后右键「隐藏至托盘」置灰，关闭窗口仍直接退出
         self.tray_enabled: bool = bool(data.get("tray_enabled", True))
@@ -128,6 +130,11 @@ class Settings:
         """更新 Claude Code 状态监控开关并写回 config.json。"""
         self.monitor_claude = bool(enabled)
         self._save_json(monitor_claude=self.monitor_claude)
+
+    def update_monitor_codex(self, enabled: bool) -> None:
+        """更新 Codex 状态监控开关并写回 config.json。"""
+        self.monitor_codex = bool(enabled)
+        self._save_json(monitor_codex=self.monitor_codex)
 
     def switch_persona(self, name: str) -> bool:
         """切换到指定人设（从 personas 预设读取），写回 config.json 并返回是否成功。"""

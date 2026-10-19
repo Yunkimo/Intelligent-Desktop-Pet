@@ -20,8 +20,9 @@ class StatusBadge(QLabel):
     遮住；独立浮层才能随桌宠方位翻到屏幕空闲一侧。
     """
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent=None, agent_name: str = "Claude") -> None:
         super().__init__(parent)
+        self.agent_name = agent_name
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
@@ -41,12 +42,13 @@ class StatusBadge(QLabel):
         if not text:
             self.hide()
             return
+        text = text.replace("Claude", self.agent_name)
         self._fg, self._bg = fg, bg
         self.setText(text)
         self.setStyleSheet(
             f"QLabel {{ color: {fg}; background-color: {bg}; "
             f"border: 1px solid {fg}; border-radius: 9px; "
-            "padding: 2px 8px; font-size: 11px; }}"
+            "padding: 2px 8px; font-size: 11px; }"
         )
         self.adjustSize()
         self.show()
