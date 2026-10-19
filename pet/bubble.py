@@ -56,8 +56,42 @@ def bubble_placement(
     return x, y, not above
 
 
+def badge_placement(
+    anchor: QRect,
+    screen: QRect,
+    badge_w: int,
+    badge_h: int,
+    gap: int,
+    bubble: QRect | None = None,
+) -> tuple[int, int]:
+    """计算状态角标的屏幕坐标，返回 (x, y)。
+
+    默认沿用 bubble_placement 的方位规则贴住桌宠窗口；气泡可见时若与角标
+    相交，就把角标叠到气泡外侧（气泡在上方则继续往上，在下方则继续往下），
+    避免遮住对话文字。屏幕边缘放不下时翻到桌宠另一侧。拆成纯函数便于测试。
+    """
+    x, y, tail_up = bubble_placement(anchor, screen, badge_w, badge_h, gap)
+    if bubble is None or bubble.isEmpty():
+        return x, y
+    if not QRect(x, y, badge_w, badge_h).intersects(bubble):
+        return x, y
+
+    if not tail_up:  # 气泡在桌宠上方：角标叠到气泡上方
+        y = bubble.y() - badge_h - gap
+    else:  # 气泡在桌宠下方：角标叠到气泡下方
+        y = bubble.y() + bubble.height() + gap
+    y = min(max(y, screen.top()), screen.bottom() - badge_h)
+    if not QRect(x, y, badge_w, badge_h).intersects(bubble):
+        return x, y
+
+    # 屏幕边缘空间不足，翻到桌宠另一侧
+    x, y, _ = bubble_placement(anchor, screen, badge_w, badge_h, gap, above=tail_up)
+    return x, y
+
+
 class SpeechBubble(QWidget):
     resized = pyqtSignal()
+    visibility_changed = pyqtSignal(bool)
 
     def __init__(self, timeout_ms: int = 8000, max_width: int = 240, parent=None) -> None:
         super().__init__(parent)
@@ -110,6 +144,11 @@ class SpeechBubble(QWidget):
         # 显示时抬到最前，避免被桌宠窗口盖住尾巴
         super().showEvent(event)
         self.raise_()
+        self.visibility_changed.emit(True)
+
+    def hideEvent(self, event) -> None:  # noqa: N802
+        super().hideEvent(event)
+        self.visibility_changed.emit(False)
 
     def _apply_text(self) -> None:
         self._resize_to_text()
