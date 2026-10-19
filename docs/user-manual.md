@@ -107,7 +107,9 @@ Codex 使用与 Claude 独立的「监控 Codex」右键开关和角标。运行
 .venv\Scripts\python scripts\install_codex_status_hook.py
 ```
 
-在 Codex 中检查并信任这些 hooks，然后重启 Codex。hook 只把事件名、会话 ID 和时间写入 `data/codex-agent-status.json`，不读取或保存提示词与工具内容。缺少配置、hook 或状态文件不会影响桌宠及 Claude 监控。`PermissionRequest` 显示等待确认，`Stop` 显示本轮完成，超过 5 分钟没有新事件时进行中状态会显示未知。
+在 Codex 中检查并信任这些 hooks，然后重启 Codex。hook 只把事件名、会话 ID、回合 ID 和时间写入 `data/codex-agent-status.json`，不保存提示词与工具内容。缺少配置、hook 或状态文件不会影响桌宠及 Claude 监控。`PermissionRequest` 显示等待确认，`Stop` 显示本轮完成，超过 5 分钟没有新事件时进行中状态会显示未知。
+
+同时打开多个 Codex 会话时，角标跟随最近提交用户消息的会话；其他会话的后台事件不会抢占显示。本轮完成后，迟到的工具事件不会重新显示“处理中”，下一次提交消息才开始新的监控回合。旧客户端缺少回合 ID 时，只能依靠用户消息和结束事件区分回合，无法完整识别跨回合的乱序事件。
 
 ## 5. 自定义
 

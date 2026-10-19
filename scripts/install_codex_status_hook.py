@@ -30,9 +30,15 @@ def _command(python_exe: Path, hook_script: Path) -> str:
     script_literal = json.dumps(Path(hook_script).as_posix())
     code = f"import os,runpy; p={script_literal}; os.path.exists(p) and runpy.run_path(p, run_name='__main__')"
     if os.name == "nt":
-        import subprocess
+        import base64
 
-        return subprocess.list2cmdline([str(python_exe), "-c", code])
+        # Encode the PowerShell script so the outer shell cannot reinterpret quotes.
+        def quote(value: str) -> str:
+            return "'" + value.replace("'", "''") + "'"
+
+        script = f"if (Test-Path -LiteralPath {quote(str(hook_script))}) {{ & {quote(str(python_exe))} {quote(str(hook_script))} }}"
+        encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+        return f"powershell.exe -NoProfile -NonInteractive -EncodedCommand {encoded}"
     import shlex
 
     return " ".join(shlex.quote(part) for part in (str(python_exe), "-c", code))
@@ -82,19 +88,32 @@ def install(settings_path: Path, python_exe: Path, hook_script: Path) -> list[st
             if not isinstance(handlers, list):
                 continue
             for handler in handlers:
-                if isinstance(handler, dict) and hook_script.as_posix() in str(
-                    handler.get("command", "")
-                ).replace("\\", "/"):
+                if isinstance(handler, dict) and (
+                    handler.get("statusMessage") == f"IDP Codex monitor: {hook_script.as_posix()}"
+                    or hook_script.as_posix() in str(handler.get("command", "")).replace("\\", "/")
+                ):
                     existing_handler = handler
                     break
             if existing_handler:
                 break
         if existing_handler is None:
-            groups.append({"hooks": [{"type": "command", "command": command, "timeout": 5}]})
+            groups.append(
+                {
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": command,
+                            "timeout": 5,
+                            "statusMessage": f"IDP Codex monitor: {hook_script.as_posix()}",
+                        }
+                    ]
+                }
+            )
             added.append(event)
         elif existing_handler.get("command") != command:
             existing_handler["command"] = command
             existing_handler["timeout"] = 5
+            existing_handler["statusMessage"] = f"IDP Codex monitor: {hook_script.as_posix()}"
             added.append(event)
 
     if added:

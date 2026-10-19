@@ -3,16 +3,16 @@
 import os
 from pathlib import Path
 
-from PyQt6.QtCore import QPoint, QRect, Qt, QUrl
+from PyQt6.QtCore import QPoint, QRect, Qt, QTimer, QUrl
 from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
-from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMenu, QWidget
+from PyQt6.QtWidgets import QApplication, QFileDialog, QInputDialog, QMenu, QWidget
 
 from .agent_status import AgentStatusMonitor
 from .asr import ASREngine
 from .avatar import create_avatar
 from .backend_client import BackendClient, WsListener, build_ws_url
-from .bubble import SpeechBubble, bubble_placement
+from .bubble import SpeechBubble, badge_placement, bubble_placement
 from .commands import Command, Submenu, populate_menu
 from .config import Settings
 from .event_cache import RecentEvents
@@ -124,6 +124,9 @@ class PetWindow(QWidget):
         self.input.submitted.connect(self.send_text)
         self.input.mic_toggled.connect(self.on_mic_toggled)
         self.bubble.resized.connect(self._position_bubble)
+        # 气泡显隐/改变大小都会影响角标可用的空间，需重新摆位以免遮挡
+        self.bubble.resized.connect(self._position_status_badge)
+        self.bubble.visibility_changed.connect(self._position_status_badge)
 
     def _init_audio(self) -> None:
         self.player = QMediaPlayer(self)
@@ -471,8 +474,8 @@ class PetWindow(QWidget):
         """角标是独立浮层，复用气泡的屏幕方位规则贴住桌宠窗口。
 
         窗口在下半屏时角标放上方、上半屏时放下方，水平偏向屏幕中心并夹在可用
-        区域内，避免桌宠靠边时角标被遮住或出屏。父窗口尚未 show() 时角标也
-        不可见，因此不按可见性跳过，否则启动时角标会停在默认位置。
+        区域内，避免桌宠靠边时角标被遮住或出屏。气泡可见时让角标叠到气泡
+        外侧，保证状态文字不遮挡对话内容。
         """
         screen = self.screen() or QGuiApplication.primaryScreen()
         geo = screen.availableGeometry() if screen else None
@@ -485,8 +488,16 @@ class PetWindow(QWidget):
         if not badges:
             return
         total_height = sum(badge.height() for badge in badges) + _GAP * (len(badges) - 1)
-        x, y, _ = bubble_placement(
-            rect, geo, max(badge.width() for badge in badges), total_height, _GAP
+        bubble_rect = (
+            QRect(self.bubble.pos(), self.bubble.size()) if self.bubble.isVisible() else None
+        )
+        x, y = badge_placement(
+            rect,
+            geo,
+            max(badge.width() for badge in badges),
+            total_height,
+            _GAP,
+            bubble_rect,
         )
         for badge in badges:
             badge.move(x, y)
@@ -591,6 +602,23 @@ class PetWindow(QWidget):
         self._init_hotkey()
 
     # ---------- 其它 ----------
+    def showEvent(self, event) -> None:  # noqa: N802
+        """窗口显示后校正气泡与角标位置。
+
+        启动时状态文件可能残留非 idle 状态，监控器会在窗口 show() 之前同步
+        触发角标显示；而 showEvent 触发时平台窗口也尚未落到最终位置，
+        mapToGlobal 仍返回系统默认坐标，顶层浮窗会停在屏幕中心。这里先摆一次，
+        再在事件循环处理完显示后延迟校正一次，确保用最终几何定位。
+        """
+        super().showEvent(event)
+        self._reposition_overlays()
+        QTimer.singleShot(0, self._reposition_overlays)
+
+    def _reposition_overlays(self) -> None:
+        """按窗口当前几何重摆气泡与角标（两者都是独立顶层浮窗）。"""
+        self._position_bubble()
+        self._position_status_badge()
+
     def show_hint(self, text: str) -> None:
         self.bubble.set_text(text)
 
@@ -611,6 +639,17 @@ class PetWindow(QWidget):
         self.ws.request_stop()
         self.ws.wait(2000)
         self.agent_status.stop()
+        self.codex_agent_status.stop()
+        # 角标与气泡是独立顶层浮窗；不关闭的话，桌宠窗口消失后仍有可见顶层
+        # 窗口，Qt 不会退出事件循环，启动脚本的控制台也会一直挂着。
+        self.status_badge.close()
+        self.codex_status_badge.close()
+        self.bubble.close()
         self.memory.save()
         self._cleanup_tts_tmp()
         super().closeEvent(event)
+        # 主窗口带 Qt.Tool 标志，不计入 quitOnLastWindowClosed，仅靠关闭窗口
+        # 不会结束事件循环；不显式退出的话，启动脚本的控制台会一直挂着。
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()

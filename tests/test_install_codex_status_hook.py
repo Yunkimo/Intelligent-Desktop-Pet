@@ -1,6 +1,7 @@
 """Codex hooks.json merge, idempotency, and malformed-file protection."""
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -29,7 +30,10 @@ def test_install_merges_preserves_existing_and_is_idempotent(tmp_path):
     assert result["custom"] == {"keep": True}
     stop_handlers = [item for group in result["hooks"]["Stop"] for item in group["hooks"]]
     assert any(item["command"] == "existing" for item in stop_handlers)
-    assert any(script.as_posix() in item["command"].replace("\\", "/") for item in stop_handlers)
+    assert any(
+        item.get("statusMessage") == f"IDP Codex monitor: {script.as_posix()}"
+        for item in stop_handlers
+    )
     assert install(settings, tmp_path / "python.exe", script) == []
 
 
@@ -42,7 +46,8 @@ def test_malformed_settings_are_not_overwritten(tmp_path, contents):
     assert settings.read_text(encoding="utf-8") == contents
 
 
-def test_generated_command_runs_hook_and_handles_spaces(tmp_path, monkeypatch):
+@pytest.mark.parametrize("outer_shell", ["cmd", "powershell"] if os.name == "nt" else ["sh"])
+def test_generated_command_runs_hook_and_handles_spaces(tmp_path, monkeypatch, outer_shell):
     script = tmp_path / "folder with spaces" / "codex_status_hook.py"
     script.parent.mkdir()
     script.write_text(
@@ -56,10 +61,12 @@ def test_generated_command_runs_hook_and_handles_spaces(tmp_path, monkeypatch):
     monkeypatch.setenv("IDP_CODEX_STATUS_FILE", str(output))
     command = _command(Path(sys.executable), script)
     completed = subprocess.run(
-        command,
+        ["powershell", "-NoProfile", "-Command", command]
+        if outer_shell == "powershell"
+        else command,
         input='{"hook_event_name":"Stop"}',
         text=True,
-        shell=True,
+        shell=outer_shell != "powershell",
         capture_output=True,
         timeout=10,
     )

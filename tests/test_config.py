@@ -55,7 +55,10 @@ def test_update_monitor_claude_sets_attr_and_saves(monkeypatch):
     assert saved == {"monitor_claude": True}
 
 
-def test_update_monitor_codex_sets_attr_and_saves(monkeypatch):
+def test_update_monitor_codex_sets_attr_and_saves(monkeypatch, tmp_path):
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
     saved: dict = {}
     monkeypatch.setattr(Settings, "_save_json", lambda self, **kw: saved.update(kw))
     s = Settings()
