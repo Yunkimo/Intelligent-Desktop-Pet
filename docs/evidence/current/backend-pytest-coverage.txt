@@ -1,0 +1,52 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.5, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\yunkimo\Desktop\Intelligent Desk Pet\backend
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.15.1, cov-7.1.0
+collected 243 items
+
+tests\test_api.py ......                                                 [  2%]
+tests\test_course_import.py ..............                               [  8%]
+tests\test_db_migrations.py ....                                         [  9%]
+tests\test_logging_config.py ............                                [ 14%]
+tests\test_scheduler.py .................................                [ 28%]
+tests\test_vision.py ............................                        [ 39%]
+tests\test_web_query.py ................................................ [ 59%]
+...............                                                          [ 65%]
+tests\test_wechat.py ................................................... [ 86%]
+........                                                                 [ 90%]
+tests\test_ws.py ........................                                [100%]
+
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.14.5-final-0 _______________
+
+Name                           Stmts   Miss  Cover   Missing
+------------------------------------------------------------
+app\__init__.py                    0      0   100%
+app\auth.py                        7      1    86%   11
+app\config.py                     66      6    91%   45, 51, 64, 69, 78, 89
+app\db.py                        124      5    96%   93, 136, 195, 236, 249
+app\logging_config.py             23      0   100%
+app\main.py                       39      0   100%
+app\push_service.py               83      2    98%   49, 86
+app\reminder_store.py             69      2    97%   46, 54
+app\reminder_time.py              14      0   100%
+app\routers\__init__.py            0      0   100%
+app\routers\course_import.py      42      1    98%   23
+app\routers\courses.py            24      2    92%   30, 37
+app\routers\reminders.py          35      4    89%   18, 46, 52-53
+app\routers\tasks.py              24      3    88%   30, 36-37
+app\routers\web_query.py          26      0   100%
+app\routers\wechat.py             51      0   100%
+app\routers\ws.py                 24      3    88%   26, 35-36
+app\scheduler.py                  68      1    99%   63
+app\schemas.py                    51      0   100%
+app\vision.py                    196     37    81%   128, 168, 180, 201-202, 233-234, 278, 286-324, 356, 359
+app\web_query.py                 196      3    98%   63, 144, 255
+app\wechat_client.py             101      0   100%
+app\wechat_dispatcher.py          38      0   100%
+app\wechat_store.py               84      0   100%
+------------------------------------------------------------
+TOTAL                           1385     70    95%
+============================= 243 passed in 8.97s =============================

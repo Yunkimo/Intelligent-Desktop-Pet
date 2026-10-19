@@ -1,6 +1,6 @@
-# 后端实时事件契约（B1 已合并；B2 补充待 A/C 评审）
+# 后端接口与实时事件契约（B1–B4）
 
-关联 [Issue #5](https://github.com/Yunkimo/IDP/issues/5) 与 [Issue #6](https://github.com/Yunkimo/IDP/issues/6)。
+关联 [Issue #5](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/5) 与 [Issue #6](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/6)。
 B1 已由 PR #16 合并；B2 的时间、状态与验收口径补充仍需 A/C 评审，不把本地验证当作三端验收。
 
 ## 连接与鉴权
@@ -66,7 +66,7 @@ B1 已由 PR #16 合并；B2 的时间、状态与验收口径补充仍需 A/C �
 - Uvicorn 的应用日志移除 URL 整个 query。反向代理、监控和客户端日志仍需独立脱敏，
   禁止记录完整连接 URL；调试级第三方协议日志不在本次脱敏保证内。
 
-复现方法见 [后端 WebSocket 验证报告](test-report.md)。实现参考：
+复现方法见 [测试文档](testing.md) §3.3、§5.2 与 `scripts/smoke_backend_ws.py`。实现参考：
 [FastAPI WebSockets 官方文档](https://fastapi.tiangolo.com/advanced/websockets/)。
 
 ## B2：提醒时间与调度状态（待评审补充）
@@ -101,7 +101,7 @@ B1 已由 PR #16 合并；B2 的时间、状态与验收口径补充仍需 A/C �
 | lease_until | UTC Unix 秒；0 表示无领取租约 |
 
 接口使用既有 X-API-Key；未授权 401，ID 不存在 404；不返回内部领取代号。
-恢复、迁移与单 worker 约束见 [B2 说明](b2-scheduler.md)，量化口径见 [quality-baseline](quality-baseline.md)。
+迁移、备份与恢复使用 `scripts/backup_backend_db.py`，调度故障用例见 [测试文档](testing.md) §3.2，量化口径见 [quality-baseline](quality-baseline.md)。单 worker 约束见本文“一致性、失败与兼容”。
 
 ## A4：重复投递处理（2026-10-12 用户授权补全）
 
@@ -115,11 +115,74 @@ B1 已由 PR #16 合并；B2 的时间、状态与验收口径补充仍需 A/C �
 本轮显示延迟从计划到期计算，联调使用 1 秒扫描，30 样本目标均不超过 5 秒；
 默认 30 秒单独报告。决定依据与原条件冲突见 [质量口径](quality-baseline.md)。
 
-## B3 增量契约入口
+## B3：微信登录与订阅消息
 
-C3 修复新增带 Bearer 的本人提醒创建/查询、event_id 校验和消息落地页；日程改期、清除和删除与关联提醒处理在同一事务完成。详情及兼容边界见 [C3 接口与恢复说明](c3-subscription.md)。
+所有请求携带 `X-API-Key`；本人提醒创建/查询、订阅登记与查询另需 `Authorization: Bearer <session_token>`。实现分为 `WeChatClient`（HTTP 适配）、`wechat_store`（事务与状态）、`WeChatDispatcher`（重试决策）与路由四层，微信与桌面扫描各用独立后台循环。
 
-微信登录、订阅登记与查询，以及提醒新增 `wechat_user_id` 的完整契约见 [B3 微信接口](b3-wechat.md)。现有 REST/WS 事件格式保持兼容；`phone`/`both` 必须绑定收件人并登记授权后才发送微信。`both` 的完成状态和双渠道结果须按该文档分别判断。
-## B4 天气与搜索
+C3 修复新增带 Bearer 的本人提醒创建/查询、event_id 校验和消息落地页；日程改期、清除和删除与关联提醒处理在同一事务完成。同一时刻的格式变化不生成新事件。接口清单、恢复规则及兼容边界见 [C3 接口与恢复说明](c3-subscription.md)。现有 REST/WS 事件格式保持兼容。
 
-新增带 X-API-Key 的 `GET /api/tools/weather?city=...` 和 `GET /api/tools/search?q=...&limit=3`。返回摘要文本、来源和查询时间；天气单独保留上游观测时间。输入限制、响应结构和 422/502/503/504 错误语义见 [B4 契约](b4-web-query.md)。现有桌面本地联网工具接入方式待 A/B 评审，本次不修改其调用路径。
+### 登录
+
+`POST /api/wechat/login`，请求 `{"code":"wx.login 获取的新 code"}`；成功返回：
+
+```json
+{"user_id":1,"openid":"微信用户标识","session_token":"服务端随机会话","expires_in":7200}
+```
+
+响应 `Cache-Control: no-store`。同一 AppID/openid 重复登录复用 user_id 并撤销旧会话；本地库只保存 SHA-256 会话摘要，不返回 `session_key`、AppSecret 或微信 access_token。code 失效返回 401，上游不可用或畸形响应返回脱敏 502。
+
+### 提醒归属与订阅登记
+
+管理接口 `POST /api/reminders` 保留可选 `wechat_user_id`，`phone`/`both` 必须绑定收件人并登记授权后才发送微信。C3 小程序使用 `POST /api/wechat/reminders`，提交 `task_id`，由后端从 Bearer 会话确定身份并在事务中创建或复用本人 phone 提醒；不由客户端指定收件人。小程序在用户主动操作后调用：
+
+- `POST /api/wechat/subscribe`，请求 `{"reminder_id","request_id"(UUID),"template_id","result":"accept|reject|ban|filter","event_id"(可选)}`。C3 必传 `event_id`，旧客户端省略时保持原契约；事件已变化返回 409 `reminder_event_changed`。同一网络重试复用原 `request_id`；内容变化或同一事件重复登记返回 409。`accept` 初始为 pending，其余为 rejected 且不发送。
+- `GET /api/wechat/subscriptions/{reminder_id}` 返回本人当前仍拥有的该提醒的订阅历史，记录包含 `event_id`；无记录或非本人时返回空数组。C3 按当前事件匹配，不能用历史 sent 表示当前事件已发送。
+- `GET /api/reminders/{id}/delivery` 在 B2 字段外新增 `wechat` 数组。
+
+| 情况 | HTTP |
+|---|---|
+| 缺失或错误 API Key / Bearer 会话 | 401 |
+| 非本人提醒或不存在 | 404 |
+| 仅 pc 渠道、提醒已完成、request_id 内容冲突 | 409 |
+| 模板不匹配、额外 openid 字段、非 UUID、非法收件人 ID | 422 |
+
+### 状态、重试与完成语义
+
+`pending → sending → sent / retry / failed / uncertain`；`uncertain` 覆盖超时、响应不完整、取消及发送成功但写库失败，可能已消耗订阅机会，不自动重发。43101/40037/47003 等明确拒绝为 failed。token 过期前刷新、并发刷新合并，微信返回 40001/40014/42001 时只刷新重试一次。`pc` 沿用 B2；`phone` 仅微信成功后置 done=1；`both` 的 done 仍由桌面成功驱动，微信状态独立，不能以单一 done 推断双渠道均成功。修改提醒会取消旧待发授权并生成新事件，新事件需重新登记。
+
+### 配置
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| `WX_ENABLED` | false | 显式启用微信渠道 |
+| `WX_APPID`、`WX_SECRET` | 空 | 小程序身份与服务端凭证 |
+| `WX_TEMPLATE_ID` | 空 | 账号实际可用的订阅消息模板 |
+| `WX_TEMPLATE_FIELDS` | {} | JSON 字段映射，如 `{"thing1":"title","time2":"remind_at"}` |
+| `WX_MINIPROGRAM_STATE` | developer | developer / trial / formal |
+| `WX_TIMEOUT_SECONDS` | 10 | 单次 HTTP 请求上限 |
+| `WX_SESSION_TTL_SECONDS` | 7200 | 本地会话有效期，60–86400 秒 |
+
+字段名必须匹配真实模板。目前支持 `thingN` 对应 `title`/`body`，`timeN`/`dateN` 对应 `remind_at`；文本取前 20 个字符，时间按 `REMINDER_NAIVE_OFFSET_MINUTES` 显示，格式为 `YYYY-MM-DD HH:MM`。其他字段类型尚未实现，不能套用示例假装模板兼容。
+
+缺少身份配置时微信接口返回 503；缺少模板或映射时订阅返回 503。启动时幂等创建 `wechat_users`/`wechat_sessions`/`wechat_subscriptions` 并为 reminders 增加可空外键，迁移版本 2；不自动绑定已有提醒，也不生成升级备份。
+
+## B4：天气与搜索
+
+新增 `GET /api/tools/weather?city=...` 与 `GET /api/tools/search?q=...&limit=3`，均需 `X-API-Key`。
+
+| 接口 | 参数约束 |
+|---|---|
+| weather | `city` 必填 1–80 字符，支持中文、字母、空格及地名标点；拒绝 URL、IP、控制字符与 wttr 特殊命令 |
+| search | `q` 必填 1–200 字符，禁止控制/格式字符；`limit` 为 1–5，默认 3 |
+
+统一返回 `{status, query, provider, summary, source_url, fetched_at, observed_at, results}`；`status` 为 `ok`，搜索确实无结果为 `empty`。天气单独保留上游 `observed_at`，搜索为 null；成功响应 `Cache-Control: no-store`，不缓存、不持久化。
+
+| HTTP | 错误或行为 |
+|---|---|
+| 401 | 缺失或错误的 X-API-Key |
+| 422 | 参数不合法，不访问上游 |
+| 502 | 网络失败、非成功 HTTP、结构变化、超大响应、编码或压缩损坏 |
+| 503 | 后端 Key 未配置，或上游 202/403/429、验证码页面 |
+| 504 | 总请求超时（含等待并发槽位与读取响应） |
+
+业务失败体为 `{"detail":"稳定错误码"}`（如 `upstream_timeout`、`search_challenge`），不返回上游正文、异常 URL 或代理凭证。资源与配置：`WEB_QUERY_TIMEOUT_SECONDS` 默认 8、`WEB_QUERY_MAX_BYTES` 默认 262144（原始与解压后分别限制）、`WEB_QUERY_MAX_CONCURRENT` 默认 4。目标地址固定在 config（HTTPS 的 wttr.in 与 html.duckduckgo.com），不跟随重定向、无自动重试；只解码 gzip/deflate/identity 并限制解压输出；丢弃非 HTTP(S)、内网 IP、localhost、带账号口令的链接，不抓取结果页面。现有桌面本地联网工具接入方式待 A/B 评审，本次不修改其调用路径；示例见 `scripts/smoke_backend_web_query.py`。

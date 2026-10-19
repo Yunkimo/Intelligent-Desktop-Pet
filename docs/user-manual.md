@@ -90,7 +90,7 @@ LLM_MODEL=deepseek-chat
 | 想换宠物形象 | 图片放入 `assets/` 并更新 `frames` |
 ## 桌宠端 A1–A4 联调说明
 
-对应 issue [#1](https://github.com/Yunkimo/IDP/issues/1)–[#4](https://github.com/Yunkimo/IDP/issues/4)，PR [#17](https://github.com/Yunkimo/IDP/pull/17)。
+对应 issue [#1](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/1)–[#4](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/4)，PR [#17](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/17)。
 
 ### 后端连接（A1）
 
@@ -135,7 +135,7 @@ cd backend && .venv\Scripts\python run.py   :: 监听 8001
 
 # 后端 B1 实时广播联调
 
-本节对应 [Issue #5](https://github.com/Yunkimo/IDP/issues/5)，契约尚待 A/C 评审。
+本节对应 [Issue #5](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/5)，契约尚待 A/C 评审。
 在 `backend/` 安装 `requirements-dev.txt`，复制 `.env.example` 为 `.env`，填入随机 `API_TOKEN`。
 执行 `python run.py` 启动开发服务（监听 8001，热重载会断开连接）。
 
@@ -158,8 +158,8 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 1 --ws web
 
 排查：握手 403 检查 token 和服务端配置；普通 HTTP GET 404 不表示 WS 不可用；
 断线后重连并重新拉取 REST；慢客户端可能以 1013 关闭。收不到提醒到期事件时，
-检查是否启用 B2、提醒 channel、到期时间及发送状态。B2 使用方法和备份恢复见
-[提醒调度说明](b2-scheduler.md)；`phone` 渠道仍等待 B3。
+检查是否启用 B2、提醒 channel、到期时间及发送状态。备份与恢复使用
+`scripts/backup_backend_db.py`，调度行为与故障恢复用例见 [测试文档](testing.md) §3.2；`phone` 渠道见下文 B3。
 
 ### A4 / B2 提醒联调
 
@@ -178,7 +178,7 @@ Windows 默认允许 `tts_windows_fallback=true`：在线服务失败后使用�
 
 ## B3 微信提醒使用入口
 
-微信功能默认关闭，不影响桌面使用。开发验收可在后端虚拟环境运行 `python scripts/smoke_backend_wechat.py --samples 30`，不需要真实微信凭证。真实使用需要后端配置账号和模板，C3 完成登录、提醒归属绑定及用户主动授权；完整步骤、错误排查和结果不明时的处理见 [B3 使用与部署说明](b3-wechat.md)。当前真机接收和 C3 界面尚待联调。
+微信功能默认关闭，不影响桌面使用。开发验收可在后端虚拟环境运行 `python scripts/smoke_backend_wechat.py --samples 30`，不需要真实微信凭证。真实使用需要后端配置账号和模板，C3 完成登录、提醒归属绑定及用户主动授权；登录、订阅与发送状态的完整契约见 [API 契约](api-contract.md) §微信，故障与安全用例见 [测试文档](testing.md) §3.2 与 [信息安全设计](security.md)。当前真机接收和 C3 界面尚待联调。
 ## B4 天气与搜索入口
 
-后端启动后，可使用带 X-API-Key 的 curl 请求获取天气和搜索摘要，完整示例及错误排查见 [B4 使用说明](b4-web-query.md)。无需天气/搜索上游密钥；无公网条件下运行 `python scripts/smoke_backend_web_query.py` 验证 Mock 链路，显式增加 `--live` 才进行真实上游验收。
+后端启动后，可使用带 X-API-Key 的 curl 请求获取天气和搜索摘要，输入/响应契约与错误语义见 [API 契约](api-contract.md) §天气与搜索。无需天气/搜索上游密钥；无公网条件下运行 `python scripts/smoke_backend_web_query.py` 验证 Mock 链路，显式增加 `--live` 才进行真实上游验收。

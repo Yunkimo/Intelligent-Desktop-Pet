@@ -29,7 +29,7 @@
 
 ## 3. 当前状态与起点
 
-- 仓库：本仓库（`origin = https://github.com/Yunkimo/IDP`），分支模型 `main`（主干）/ `develop`（开发）/ `feat/*`（特性）。
+- 仓库：本仓库（`origin = https://github.com/Yunkimo/Intelligent-Desktop-Pet`），分支模型 `main`（主干）/ `develop`（开发）/ `feat/*`（特性）。
 - 现状：`develop` 上已有 `backend/`（M1 后端骨架，已完成、测试通过）和 `pet/`（桌宠基线，已迁入）。**A0 已完成，直接从 A1 开始。**
 - 桌宠旧代码位置（本机）：`C:\Users\yunkimo\Desktop\Intelligent Desk\`，含 `pet/`、`main.py`、`config.json`、`requirements.txt`、`.env.example`、`assets/` 等。
 - 你的工作分支：从 `develop` 切出 `feat/desktop-agent`。
@@ -73,7 +73,7 @@
 - 依赖：成员 B 的 B1（WebSocket 端点）。
 - 验收（2026-10-12 按用户授权统一）：联调扫描 1 秒，计划到期后 5 秒内显示气泡；
   至少 30 条样本全部限时显示。语音另验证真实合成及播放器开始/结束，故障重发及断线重连只通知一次。
-  原“创建后 10 秒内显示一个 10 秒后才到期的提醒”保留为历史冲突，原因及前后实测见 `docs/b2-acceptance.md`。
+  原“创建后 10 秒内显示一个 10 秒后才到期的提醒”保留为历史冲突，原因及前后实测见 [测试文档](../testing.md) §5.3。
 
 ## 5. 技术约定（必须遵守）
 

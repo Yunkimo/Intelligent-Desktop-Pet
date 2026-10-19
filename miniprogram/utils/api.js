@@ -113,7 +113,7 @@ module.exports = {
   updateTask: (id, data) => request(`/api/tasks/${id}`, { method: 'PUT', data }),
   deleteTask: (id) => request(`/api/tasks/${id}`, { method: 'DELETE' }),
 
-  // 提醒（B2/B3 契约见 docs/b3-wechat.md 与 backend/app/routers/reminders.py）
+  // 提醒（B2/B3 契约见 docs/api-contract.md 与 backend/app/routers/reminders.py）
   getReminders: () => request('/api/reminders'),
   createReminder: (data) => request('/api/reminders', { method: 'POST', data }),
   updateReminder: (id, data) => request(`/api/reminders/${id}`, { method: 'PUT', data }),

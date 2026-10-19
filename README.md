@@ -105,17 +105,13 @@ config.json      桌宠非敏感配置
 
 | 文档 | 说明 |
 |---|---|
-| [设计文档](docs/design.md) | 架构演进、设计模式、重构效果量化 |
+| [设计文档](docs/design.md) | 架构演进、分层与设计模式 |
+| [重构效果量化分析](docs/refactor-report.md) | 设计模式证据、git 可还原的前后对照与边界声明 |
 | [用户手册](docs/user-manual.md) | 安装、运行与操作说明 |
-| [测试文档](docs/testing.md) | 测试策略、用例清单、实验环境与覆盖率 |
+| [测试文档](docs/testing.md) | 测试策略、用例清单、实验环境、覆盖率与分阶段实测 |
 | [信息安全设计](docs/security.md) | 密钥管理、隐私保护、供应链 |
-| [API 契约](docs/api-contract.md) | 后端 REST / WebSocket 实时事件字段 |
-| [B3 微信接口与部署](docs/b3-wechat.md) | 登录、授权归属、发送状态、配置及 C3 联调步骤 |
-| [B3 测试报告](docs/b3-test-report.md) | 双 Python 版本、故障测试、Mock 量化与原始证据 |
-| [B4 天气与搜索](docs/b4-web-query.md) | curl 示例、输入/响应契约、配置与故障处理 |
-| [B4 测试报告](docs/b4-test-report.md) | 双版本回归、真实网络摘要、失败修正与原始证据 |
+| [API 契约](docs/api-contract.md) | REST / WebSocket / 微信 / 天气搜索的字段与错误语义 |
 | [考核证据索引](docs/assessment-evidence.md) | 各评分点对应的代码 / 测试 / 证据 |
-| [AI 辅助开发记录](docs/ai-log.md) | 使用 AI 助手的过程与关键决策 |
 | [第三方依赖说明](THIRD_PARTY_NOTICES.md) | 依赖许可证清单 |
 | [贡献指南](CONTRIBUTING.md) | 分支、提交与代码风格约定 |
 | [任务书 A / B / C](docs/tasks/) | 三人任务分解与验收标准 |
