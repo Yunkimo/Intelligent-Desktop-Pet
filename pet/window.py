@@ -12,7 +12,7 @@ from .agent_status import AgentStatusMonitor
 from .asr import ASREngine
 from .avatar import create_avatar
 from .backend_client import BackendClient, WsListener, build_ws_url
-from .bubble import SpeechBubble, bubble_placement
+from .bubble import SpeechBubble, badge_placement, bubble_placement
 from .commands import Command, Submenu, populate_menu
 from .config import Settings
 from .event_cache import RecentEvents
@@ -124,6 +124,9 @@ class PetWindow(QWidget):
         self.input.submitted.connect(self.send_text)
         self.input.mic_toggled.connect(self.on_mic_toggled)
         self.bubble.resized.connect(self._position_bubble)
+        # 气泡显隐/改变大小都会影响角标可用的空间，需重新摆位以免遮挡
+        self.bubble.resized.connect(self._position_status_badge)
+        self.bubble.visibility_changed.connect(self._position_status_badge)
 
     def _init_audio(self) -> None:
         self.player = QMediaPlayer(self)
@@ -440,16 +443,26 @@ class PetWindow(QWidget):
         """角标是独立浮层，复用气泡的屏幕方位规则贴住桌宠窗口。
 
         窗口在下半屏时角标放上方、上半屏时放下方，水平偏向屏幕中心并夹在可用
-        区域内，避免桌宠靠边时角标被遮住或出屏。父窗口尚未 show() 时角标也
-        不可见，因此不按可见性跳过，否则启动时角标会停在默认位置。
+        区域内，避免桌宠靠边时角标被遮住或出屏。气泡可见时让角标叠到气泡
+        外侧，保证状态文字不遮挡对话内容。
         """
+        if not self.status_badge.isVisible():
+            return
         screen = self.screen() or QGuiApplication.primaryScreen()
         geo = screen.availableGeometry() if screen else None
         if geo is None:
             return
         rect = QRect(self.mapToGlobal(QPoint(0, 0)), self.size())
-        x, y, _ = bubble_placement(
-            rect, geo, self.status_badge.width(), self.status_badge.height(), _GAP
+        bubble_rect = (
+            QRect(self.bubble.pos(), self.bubble.size()) if self.bubble.isVisible() else None
+        )
+        x, y = badge_placement(
+            rect,
+            geo,
+            self.status_badge.width(),
+            self.status_badge.height(),
+            _GAP,
+            bubble_rect,
         )
         self.status_badge.move(x, y)
         self.status_badge.raise_()
