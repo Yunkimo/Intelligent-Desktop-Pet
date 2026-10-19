@@ -8,6 +8,7 @@ from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMenu, QWidget
 
+from .agent_status import AgentStatusMonitor
 from .asr import ASREngine
 from .avatar import create_avatar
 from .backend_client import BackendClient, WsListener, build_ws_url
@@ -22,6 +23,7 @@ from .llm import LLMClient
 from .memory import Memory
 from .persona import build_system_prompt
 from .providers import create_chat_provider
+from .status_badge import StatusBadge
 from .tools import build_tools
 from .tts import TTSEngine
 from .worker import ASRWorker, ChatWorker, TTSWorker
@@ -86,6 +88,7 @@ class PetWindow(QWidget):
 
         self._init_window()
         self._init_children()
+        self._init_claude_monitor()
         self._size_and_position()
         self._init_audio()
         self._init_hotkey()
@@ -156,6 +159,7 @@ class PetWindow(QWidget):
         self.input.move(ix, iy)
 
         self._position_bubble()
+        self._position_status_badge()
 
     def _position_bubble(self) -> None:
         # 气泡随宠物在屏幕上的方位自适应：形象靠下半屏时气泡在形象上方，靠上半屏
@@ -196,9 +200,10 @@ class PetWindow(QWidget):
                 self._moved = True
                 self.move(self.pos() + delta)
                 self._press_pos = event.globalPosition().toPoint()
-                # 气泡是独立浮层：拖拽时同步跟随，并保持在桌宠窗口之上
+                # 气泡与角标都是独立浮层：拖拽时同步跟随，并保持在桌宠窗口之上
                 self._position_bubble()
                 self.bubble.raise_()
+                self._position_status_badge()
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         if event.button() != Qt.MouseButton.LeftButton or self._press_pos is None:
@@ -232,6 +237,14 @@ class PetWindow(QWidget):
         commands.append(Command("切换图片…", self._choose_image))
         commands.append(Submenu(self._build_persona_menu()))
         commands.append(Command("设置语音快捷键…", self._set_voice_hotkey))
+        commands.append(
+            Command(
+                "监控 Claude",
+                self._toggle_claude_monitor,
+                checkable=True,
+                checked=lambda: self.settings.monitor_claude,
+            )
+        )
         commands.append(Command("测试后端连接", self._debug_backend))
         commands.append(Command("退出", self.close))
         return commands
@@ -398,6 +411,49 @@ class PetWindow(QWidget):
         self.input.set_listening(False)
         self.bubble.set_text(f"听不到声音：{msg}")
 
+    # ---------- Claude Code 状态监控 ----------
+    def _init_claude_monitor(self) -> None:
+        """创建状态角标与监控器；按配置决定是否立即开始轮询。"""
+        self.status_badge = StatusBadge(self)
+        self.agent_status = AgentStatusMonitor(self.settings.agent_status_path, parent=self)
+        self.agent_status.state_changed.connect(self._on_agent_status)
+        if self.settings.monitor_claude:
+            self.agent_status.start()
+
+    def _toggle_claude_monitor(self) -> None:
+        """右键菜单开关：开启后轮询 hook 状态文件。"""
+        enabled = not self.settings.monitor_claude
+        self.settings.update_monitor_claude(enabled)
+        if enabled:
+            self.agent_status.start()
+            self.bubble.set_text("开始监控 Claude Code 啦～")
+        else:
+            self.agent_status.stop()
+            self.status_badge.set_state("idle")
+            self.bubble.set_text("已关闭 Claude Code 监控")
+
+    def _on_agent_status(self, state: str) -> None:
+        self.status_badge.set_state(state)
+        self._position_status_badge()
+
+    def _position_status_badge(self) -> None:
+        """角标是独立浮层，复用气泡的屏幕方位规则贴住桌宠窗口。
+
+        窗口在下半屏时角标放上方、上半屏时放下方，水平偏向屏幕中心并夹在可用
+        区域内，避免桌宠靠边时角标被遮住或出屏。父窗口尚未 show() 时角标也
+        不可见，因此不按可见性跳过，否则启动时角标会停在默认位置。
+        """
+        screen = self.screen() or QGuiApplication.primaryScreen()
+        geo = screen.availableGeometry() if screen else None
+        if geo is None:
+            return
+        rect = QRect(self.mapToGlobal(QPoint(0, 0)), self.size())
+        x, y, _ = bubble_placement(
+            rect, geo, self.status_badge.width(), self.status_badge.height(), _GAP
+        )
+        self.status_badge.move(x, y)
+        self.status_badge.raise_()
+
     # ---------- 全局语音快捷键 ----------
     def _init_hotkey(self) -> None:
         """启动全局语音快捷键（长按说话）；pynput 未安装时优雅降级。"""
@@ -515,6 +571,7 @@ class PetWindow(QWidget):
         self.health.stop()
         self.ws.request_stop()
         self.ws.wait(2000)
+        self.agent_status.stop()
         self.memory.save()
         self._cleanup_tts_tmp()
         super().closeEvent(event)
