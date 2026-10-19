@@ -17,6 +17,12 @@ from .commands import Command, Submenu, populate_menu
 from .config import Settings
 from .event_cache import RecentEvents
 from .health import HealthMonitor
+from .hook_install import (
+    claude_code_installed,
+    codex_installed,
+    ensure_claude_hooks,
+    ensure_codex_hooks,
+)
 from .image_utils import normalize_image
 from .input_box import ChatInput
 from .llm import LLMClient
@@ -450,30 +456,68 @@ class PetWindow(QWidget):
         if self.settings.monitor_codex:
             self.codex_agent_status.start()
 
+    def _monitor_install_failed(self, tool: str, exc: Exception) -> None:
+        """钩子安装失败：气泡说明原因（截断超长路径），监控保持关闭。"""
+        reason = " ".join(str(exc).split()) or type(exc).__name__
+        if len(reason) > 60:
+            reason = reason[:57] + "…"
+        self.bubble.set_text(f"{tool} 监控开启失败：钩子安装失败（{reason}）")
+
     def _toggle_claude_monitor(self) -> None:
-        """右键菜单开关：开启后轮询 hook 状态文件。"""
+        """右键菜单开关：开启时先确保状态钩子已写入，再轮询状态文件。"""
         enabled = not self.settings.monitor_claude
-        self.settings.update_monitor_claude(enabled)
         if enabled:
+            try:
+                added = ensure_claude_hooks()
+            except (ImportError, OSError, ValueError) as exc:
+                self.settings.update_monitor_claude(False)
+                self._monitor_install_failed("Claude Code", exc)
+                return
+            self.settings.update_monitor_claude(True)
             self.agent_status.start()
-            self.bubble.set_text("开始监控 Claude Code 啦～")
-        else:
-            self.agent_status.stop()
-            self.status_badge.set_state("idle")
-            self.bubble.set_text("已关闭 Claude Code 监控")
+            if added:
+                if claude_code_installed():
+                    self.bubble.set_text("已装好 Claude Code 状态钩子，重启 Claude Code 后生效～")
+                else:
+                    self.bubble.set_text(
+                        "未检测到 Claude Code 安装；钩子已写好，安装后重启即可生效～"
+                    )
+            else:
+                self.bubble.set_text("开始监控 Claude Code 啦～")
+            return
+        self.settings.update_monitor_claude(False)
+        self.agent_status.stop()
+        self.status_badge.set_state("idle")
+        self.bubble.set_text("已关闭 Claude Code 监控")
 
     def _on_agent_status(self, state: str) -> None:
         self.status_badge.set_state(state)
         self._position_status_badge()
 
     def _toggle_codex_monitor(self) -> None:
-        """开关独立的 Codex hook 状态轮询。"""
+        """开关独立的 Codex hook 状态轮询；开启时先确保钩子已写入。"""
         enabled = not self.settings.monitor_codex
-        self.settings.update_monitor_codex(enabled)
         if enabled:
+            try:
+                added = ensure_codex_hooks()
+            except (ImportError, OSError, ValueError) as exc:
+                self.settings.update_monitor_codex(False)
+                self._monitor_install_failed("Codex", exc)
+                self._position_status_badge()
+                return
+            self.settings.update_monitor_codex(True)
             self.codex_agent_status.start()
-            self.bubble.set_text("开始监控 Codex 啦～")
+            if added:
+                if codex_installed():
+                    self.bubble.set_text("已写好 Codex 状态钩子，在 Codex 中信任并重启后生效～")
+                else:
+                    self.bubble.set_text(
+                        "未检测到 Codex 安装；钩子已写好，安装后信任并重启即可生效～"
+                    )
+            else:
+                self.bubble.set_text("开始监控 Codex 啦～")
         else:
+            self.settings.update_monitor_codex(False)
             self.codex_agent_status.stop()
             self.codex_status_badge.set_state("idle")
             self.bubble.set_text("已关闭 Codex 监控")
