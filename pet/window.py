@@ -651,17 +651,19 @@ class PetWindow(QWidget):
         self.close()
 
     def hide_to_tray(self) -> None:
-        """隐藏到托盘；气泡与角标是独立顶层浮窗，需一并隐藏。"""
+        """隐藏到托盘；气泡与两个状态角标是独立顶层浮窗，需一并隐藏。"""
         if self.isVisible():
             # 记录隐藏前的状态，恢复时不要把原本已收起的浮窗强行弹出
             self._bubble_visible_before_tray = self.bubble.isVisible()
             self._badge_visible_before_tray = self.status_badge.isVisible()
+            self._codex_badge_visible_before_tray = self.codex_status_badge.isVisible()
         self.bubble.hide()
         self.status_badge.hide()
+        self.codex_status_badge.hide()
         self.hide()
 
     def show_from_tray(self) -> None:
-        """从托盘恢复，并还原气泡与角标此前的显隐状态。"""
+        """从托盘恢复，并还原气泡与两个角标此前的显隐状态。"""
         self.show()
         self.raise_()
         if getattr(self, "_bubble_visible_before_tray", False):
@@ -669,6 +671,8 @@ class PetWindow(QWidget):
             self.bubble.raise_()
         if getattr(self, "_badge_visible_before_tray", False):
             self.status_badge.show()
+        if getattr(self, "_codex_badge_visible_before_tray", False):
+            self.codex_status_badge.show()
         self._reposition_overlays()
 
     def toggle_tray_visibility(self) -> None:

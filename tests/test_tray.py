@@ -121,37 +121,44 @@ def test_toggle_autostart_uses_registry_state(tmp_path, qapp, monkeypatch):
 
 
 def test_hide_to_tray_hides_and_restores_overlays(qapp):
-    """气泡与角标是独立顶层浮窗，隐藏到托盘时必须一并隐藏并在恢复时还原。"""
+    """气泡与两个角标是独立顶层浮窗，隐藏到托盘时必须一并隐藏并在恢复时还原。"""
     window = _bare_window()
     bubble = SpeechBubble(timeout_ms=0)
     badge = StatusBadge()
+    codex_badge = StatusBadge(agent_name="Codex")
     window.bubble = bubble
     window.status_badge = badge
+    window.codex_status_badge = codex_badge
     window._reposition_overlays = Mock()
 
     window.show()
     bubble.set_text("你好")
     badge.set_state("working")
+    codex_badge.set_state("waiting")
     qapp.processEvents()
-    assert bubble.isVisible() and badge.isVisible()
+    assert bubble.isVisible() and badge.isVisible() and codex_badge.isVisible()
 
     window.hide_to_tray()
     qapp.processEvents()
     assert not window.isVisible()
-    assert not bubble.isVisible() and not badge.isVisible()
+    assert not bubble.isVisible() and not badge.isVisible() and not codex_badge.isVisible()
 
     window.toggle_tray_visibility()
     qapp.processEvents()
     assert window.isVisible() and bubble.isVisible() and badge.isVisible()
+    assert codex_badge.isVisible()
 
-    # 气泡恢复前已收起时，重新显示桌宠不应把它强行弹出
+    # 浮窗恢复前已收起时，重新显示桌宠不应把它们强行弹出
     bubble.hide()
+    codex_badge.hide()
     window.hide_to_tray()
     window.toggle_tray_visibility()
     qapp.processEvents()
     assert window.isVisible()
     assert not bubble.isVisible()
+    assert not codex_badge.isVisible()
 
     bubble.close()
     badge.close()
+    codex_badge.close()
     window.hide()
