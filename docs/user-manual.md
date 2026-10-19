@@ -58,6 +58,9 @@ LLM_MODEL=deepseek-chat
 | 输入文字后回车 | 发送，宠物流式回复并语音播报 |
 | 点输入框右侧 🎤 | 开始录音（变 ⏹）；再点停止，转写后发送 |
 | 按 Esc | 收起输入框 |
+| 右键宠物 | 弹出命令菜单，顶部为「隐藏至托盘」 |
+| 左键点击托盘图标 | 显示 / 隐藏桌宠 |
+| 右键托盘图标 | 弹出与桌宠一致的命令菜单，底部可勾选「开机自启动」 |
 
 - 回复以气泡流式显示，同时用语音播报。
 - 对话历史保存在 `data/history.json`，重启后仍在。
@@ -99,6 +102,14 @@ LLM_MODEL=deepseek-chat
 
 > 脚本只写入状态名、事件名、会话 ID 与时间戳，不记录对话内容；写入失败或输入非法时静默退出，不影响 Claude Code 本身。
 
+### 系统托盘与开机自启
+
+桌宠默认启用系统托盘。关闭窗口或右键选择「隐藏至托盘」只会收起桌宠，进程与提醒继续运行；左键点击托盘图标可重新显示，气泡和角标会恢复隐藏前的状态。
+
+托盘右键菜单复用桌宠的右键命令，底部「开机自启动」勾选后，会把 `启动桌宠.bat` 的绝对路径写入当前用户的注册表 Run 键（`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`），取消勾选即移除。该功能仅支持 Windows；随登录启动时会和手动双击一样出现命令行窗口。
+
+不想使用托盘时，可在 `config.json` 设 `"tray_enabled": false`，此时关闭窗口直接退出。
+
 ## 5. 自定义
 
 所有非敏感配置在 `config.json`：
@@ -114,6 +125,7 @@ LLM_MODEL=deepseek-chat
   "whisper_model": "base",        // 识别精度：base/small/medium
   "enable_voice": true,           // 关闭语音播报
   "monitor_claude": false,        // Claude Code 回合状态角标（右键可切换）
+  "tray_enabled": true,           // 系统托盘；false 时关闭窗口直接退出
   "max_history": 20               // 记忆轮数
 }
 ```
@@ -126,6 +138,7 @@ LLM_MODEL=deepseek-chat
 | 语音识别没反应 | 确认麦克风权限已允许、whisper 模型已下载 |
 | 回复乱码/报错 | 检查 `.env` 密钥与 base_url 是否可达 |
 | 想换宠物形象 | 图片放入 `assets/` 并更新 `frames` |
+| 找不到托盘图标 | 点击任务栏右下角的 `^` 展开隐藏图标，并确认 `tray_enabled` 未设为 false |
 ## 桌宠端 A1–A4 联调说明
 
 对应 issue [#1](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/1)–[#4](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/4)，PR [#17](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/17)。

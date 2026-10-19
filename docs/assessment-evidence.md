@@ -26,6 +26,16 @@
 
 未闭环项：A4 `reminder.due` 端到端依赖 B2 到期调度器（issue #6）；A3 手动 GUI 气泡经决定跳过（逻辑以 6 例单测覆盖）。不以单测/Mock 替代真实端到端验收。
 
+## A6 增量证据（Issue #32，2026-10-19）
+
+系统托盘与开机自启由分支 `feat/a6-system-tray` 交付（提交 `a386313` 注册表管理、`ec8805f` 托盘与隐藏，文档随本提交更新）。
+
+- 托盘：`pet/tray.py` 用当前形象生成 16–64 px 多档图标；左键单击显隐桌宠；右键菜单复用 A5 `Command` 表（`_build_commands(include_hide_to_tray=False)`），并在底部追加勾选式「开机自启动」。
+- 隐藏：桌宠右键菜单顶部新增「隐藏至托盘」。气泡与角标是独立顶层浮窗，实测不会随父窗口隐藏，因此 `hide_to_tray()` 显式隐藏两者，恢复时还原隐藏前的显隐状态。
+- 退出：A5 的「退出」由 `self.close` 改为 `_quit`，置 `_quitting` 后走原有收尾路径；托盘启用时普通关闭只隐藏，托盘「退出」在窗口隐藏状态下也能正常结束进程。
+- 开机自启：`pet/autostart.py` 读写 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 的 `IntelligentDeskPet` 值，指向带引号的 `启动桌宠.bat`；注册表是唯一事实源，因此未在 `config.json` 增加 `autostart_enabled` 字段（与 Issue 原范围的有意差异）。非 Windows 返回 False。
+- 验证：ruff check/format 通过；pytest 163 条通过；真实窗口确认系统托盘可用、图标非空（15×16 至 60×64 五档）、托盘菜单顺序正确、隐藏/恢复气泡角标、真实注册表 enable→is_enabled→disable 往返成功、隐藏状态下退出返回码 0。失败与修正过程见 [测试文档](testing.md) §5.3。
+
 ## B1 后端
 
 关联 [#5](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/5)，PR [#16](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/16)。以下是本议题的证据，不代表项目已完成全部考核。
