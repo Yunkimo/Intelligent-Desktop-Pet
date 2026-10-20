@@ -1,0 +1,2 @@
+# Windows 批处理必须使用 CRLF；LF-only 可能让 cmd 错误解析括号块。
+*.bat text eol=crlf

@@ -49,7 +49,7 @@ copy .env.example .env     :: 填入 LLM_API_KEY
 启动桌宠.bat                :: 启动（缺 .venv 会自动先跑 setup.bat）
 ```
 
-也可手动运行：`.venv\Scripts\python main.py`。无后端也能纯聊天。
+`启动桌宠.bat` 使用 `pythonw` 隐藏控制台，启动异常写入 `data/pet-error.log`；需要看实时输出时手动运行 `.venv\Scripts\python main.py`。无后端也能纯聊天。
 
 > 首次使用语音识别会自动下载 faster-whisper 模型（约 100~500 MB）；下载慢可先 `set HF_ENDPOINT=https://hf-mirror.com`。
 
