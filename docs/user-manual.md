@@ -39,7 +39,9 @@ LLM_MODEL=deepseek-chat
 
 ## 3. 运行
 
-双击 `启动桌宠.bat`，或在命令行执行：
+双击 `启动桌宠.bat`，脚本会用 `pythonw` 在后台启动并自动关闭控制台；启动异常会追加写入 `data/pet-error.log`。
+
+需要查看实时输出时，在命令行执行：
 
 ```bash
 .venv\Scripts\python main.py
@@ -106,7 +108,7 @@ LLM_MODEL=deepseek-chat
 
 桌宠默认启用系统托盘。关闭窗口或右键选择「隐藏至托盘」只会收起桌宠，进程与提醒继续运行；左键点击托盘图标可重新显示，气泡、Claude 角标与 Codex 角标会恢复隐藏前的状态。
 
-托盘右键菜单复用桌宠的右键命令，底部「开机自启动」勾选后，会把 `启动桌宠.bat` 的绝对路径写入当前用户的注册表 Run 键（`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`），取消勾选即移除。该功能仅支持 Windows；随登录启动时会和手动双击一样出现命令行窗口。
+托盘右键菜单复用桌宠的右键命令，底部「开机自启动」勾选后，会把 `启动桌宠.bat` 的绝对路径写入当前用户的注册表 Run 键（`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`），取消勾选即移除。该功能仅支持 Windows；随登录启动时与手动双击一样不会保留命令行窗口，启动异常写入 `data/pet-error.log`。
 
 不想使用托盘时，可在 `config.json` 设 `"tray_enabled": false`，此时关闭窗口直接退出。
 
@@ -152,6 +154,7 @@ Codex 使用与 Claude 独立的「监控 Codex」右键开关和角标。运行
 | 回复乱码/报错 | 检查 `.env` 密钥与 base_url 是否可达 |
 | 想换宠物形象 | 图片放入 `assets/` 并更新 `frames` |
 | 找不到托盘图标 | 点击任务栏右下角的 `^` 展开隐藏图标，并确认 `tray_enabled` 未设为 false |
+| 启动失败但看不到控制台 | 查看 `data/pet-error.log`；也可执行 `.venv\Scripts\python main.py` 前台启动查看输出 |
 ## 桌宠端 A1–A4 联调说明
 
 对应 issue [#1](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/1)–[#4](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/4)，PR [#17](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/17)。
