@@ -144,6 +144,9 @@ def test_command_table_puts_hide_to_tray_at_top(qapp):
     window.settings.tray_enabled = False
     assert commands[0].enabled() is False
     assert window._build_commands(include_hide_to_tray=False)[0].label == "切换图片…"
+    # 托盘把「退出」留给自己追加，才能让它排在自启勾选项之后
+    tray_commands = window._build_commands(include_hide_to_tray=False, include_quit=False)
+    assert "退出" not in [command.label for command in tray_commands]
 
 
 def test_startup_restores_hidden_badges(qapp, tmp_path):

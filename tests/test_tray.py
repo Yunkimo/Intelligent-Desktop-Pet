@@ -38,9 +38,7 @@ def _make_tray(tmp_path, qapp, monkeypatch, enabled: bool = False) -> tuple[Tray
     settings = _settings_with_icon(tmp_path, qapp)
     window = _bare_window()
     window.settings = settings
-    window._build_commands = Mock(
-        return_value=[Command("切换图片…", lambda: None), Command("退出", lambda: None)]
-    )
+    window._build_commands = Mock(return_value=[Command("切换图片…", lambda: None)])
     monkeypatch.setattr(tray_module.autostart, "is_enabled", lambda: enabled)
     tray = TrayIcon(window, settings, parent=window)
     return tray, window
@@ -57,15 +55,17 @@ def test_icon_built_from_current_sprite(tmp_path, qapp, monkeypatch):
     assert not icon.pixmap(16, 16).isNull()
 
 
-def test_menu_reuses_command_table_with_autostart_last(tmp_path, qapp, monkeypatch):
+def test_menu_pins_quit_to_bottom_after_autostart(tmp_path, qapp, monkeypatch):
+    """托盘菜单在命令表末尾追加自启勾选，但「退出」仍压在最下方。"""
     tray, window = _make_tray(tmp_path, qapp, monkeypatch)
     tray._rebuild_menu()
 
     actions = tray._menu.actions()
-    assert [action.text() for action in actions] == ["切换图片…", "退出", "开机自启动"]
-    assert actions[-1].isCheckable()
-    assert actions[-1].isChecked() is False
-    window._build_commands.assert_called_once_with(include_hide_to_tray=False)
+    assert [action.text() for action in actions] == ["切换图片…", "开机自启动", "退出"]
+    assert actions[1].isCheckable()
+    assert actions[1].isChecked() is False
+    assert not actions[-1].isCheckable()
+    window._build_commands.assert_called_once_with(include_hide_to_tray=False, include_quit=False)
 
 
 def test_about_to_show_refreshes_checked_state(tmp_path, qapp, monkeypatch):
@@ -75,12 +75,15 @@ def test_about_to_show_refreshes_checked_state(tmp_path, qapp, monkeypatch):
     state = {"enabled": False}
     monkeypatch.setattr(tray_module.autostart, "is_enabled", lambda: state["enabled"])
 
+    def autostart_action():
+        return next(a for a in tray._menu.actions() if a.text() == "开机自启动")
+
     tray._menu.aboutToShow.emit()
-    assert tray._menu.actions()[-1].isChecked() is False
+    assert autostart_action().isChecked() is False
 
     state["enabled"] = True
     tray._menu.aboutToShow.emit()
-    assert tray._menu.actions()[-1].isChecked() is True
+    assert autostart_action().isChecked() is True
 
 
 def test_left_click_toggles_window_only_once(tmp_path, qapp, monkeypatch):

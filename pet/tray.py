@@ -63,9 +63,9 @@ class TrayIcon(QObject):
             self._window.toggle_tray_visibility()
 
     def _rebuild_menu(self) -> None:
-        """复用桌宠右键命令表，并在底部追加开机自启勾选项。"""
+        """复用桌宠右键命令表，追加开机自启勾选项，「退出」固定在菜单最下方。"""
         self._menu.clear()
-        commands = self._window._build_commands(include_hide_to_tray=False)
+        commands = self._window._build_commands(include_hide_to_tray=False, include_quit=False)
         commands.append(
             Command(
                 "开机自启动",
@@ -74,6 +74,8 @@ class TrayIcon(QObject):
                 checked=autostart.is_enabled,
             )
         )
+        # 「退出」压轴：Windows 用户的习惯位置，也避免误点后与自启勾选混在一起
+        commands.append(self._window._quit_command())
         populate_menu(self._menu, commands)
 
     def _toggle_autostart(self) -> None:

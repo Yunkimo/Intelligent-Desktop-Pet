@@ -244,8 +244,14 @@ class PetWindow(QWidget):
         populate_menu(menu, self._build_commands())
         menu.exec(event.globalPos())
 
-    def _build_commands(self, include_hide_to_tray: bool = True) -> list[Command]:
-        """按固定顺序组装命令表；托盘菜单复用同表但不含「隐藏至托盘」。"""
+    def _build_commands(
+        self, include_hide_to_tray: bool = True, include_quit: bool = True
+    ) -> list[Command]:
+        """按固定顺序组装命令表；托盘菜单复用同表，但不含「隐藏至托盘」。
+
+        include_quit 为 False 时把「退出」留给调用者追加，供托盘把自启勾选项排在
+        它之前、让「退出」始终落在菜单最下方。
+        """
         commands: list[Command] = []
 
         if include_hide_to_tray:
@@ -284,8 +290,13 @@ class PetWindow(QWidget):
             )
         )
         commands.append(Command("测试后端连接", self._debug_backend))
-        commands.append(Command("退出", self._quit))
+        if include_quit:
+            commands.append(self._quit_command())
         return commands
+
+    def _quit_command(self) -> Command:
+        """「退出」命令：桌宠与托盘共用同一定义，且始终排在菜单最下方。"""
+        return Command("退出", self._quit)
 
     def _build_persona_menu(self) -> QMenu:
         """组装「切换人设」子菜单：逐项包装人设切换调用。"""

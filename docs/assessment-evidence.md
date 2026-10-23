@@ -30,7 +30,7 @@
 
 系统托盘与开机自启由分支 `feat/a6-system-tray` 交付（提交 `a386313` 注册表管理、`ec8805f` 托盘与隐藏，文档随本提交更新）。
 
-- 托盘：`pet/tray.py` 用当前形象生成 16–64 px 多档图标；左键单击显隐桌宠；右键菜单复用 A5 `Command` 表（`_build_commands(include_hide_to_tray=False)`），并在底部追加勾选式「开机自启动」。
+- 托盘：`pet/tray.py` 用当前形象生成 16–64 px 多档图标；左键单击显隐桌宠；右键菜单复用 A5 `Command` 表（`_build_commands(include_hide_to_tray=False)`），追加勾选式「开机自启动」。**2026-10-24 调整：菜单里的「退出」移到最下方**——`_build_commands` 增加 `include_quit` 开关，托盘以 `include_quit=False` 取表后先追加自启、再追加窗口提供的 `_quit_command()`，桌面菜单默认仍以「退出」结尾；新增/更新 `test_tray.py` 的顺序断言与 `test_window_status_badge.py` 的剔除断言。
 - 隐藏：桌宠右键菜单顶部新增「隐藏至托盘」。气泡与角标是独立顶层浮窗，实测不会随父窗口隐藏，因此 A6 交付时 `hide_to_tray()` 显式隐藏气泡、Claude 角标与 Codex 角标，恢复时还原隐藏前的显隐状态。**该角标行为已于 2026-10-23 被「角标独立显隐」取代（见下文同名增量证据）：隐藏桌宠后角标按自身开关继续显示。**
 - 退出：A5 的「退出」由 `self.close` 改为 `_quit`，置 `_quitting` 后走原有收尾路径；托盘启用时普通关闭只隐藏，托盘「退出」在窗口隐藏状态下也能正常结束进程。
 - 开机自启：`pet/autostart.py` 读写 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 的 `IntelligentDeskPet` 值，指向带引号的 `启动桌宠.bat`；注册表是唯一事实源，因此未在 `config.json` 增加 `autostart_enabled` 字段（与 Issue 原范围的有意差异）。非 Windows 返回 False。
