@@ -15,7 +15,7 @@ ruff format .           # 格式化
 
 ## 提交规范（Conventional Commits）
 
-提交信息统一为 `type(scope): 中文祈使句`，一个提交只做一件事。Issue、PR 说明和项目文档使用中文。
+提交信息统一为 `type(scope): 中文 + 英文专业词`：标题用中文描述改动，技术名词保留英文（如 hook、WebSocket、CI、JSON），不强行翻译。一个提交只做一件事。Issue、PR 说明和项目文档使用中文。
 
 | type | 用途 |
 |---|---|
