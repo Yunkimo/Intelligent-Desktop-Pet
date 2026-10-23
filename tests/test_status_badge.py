@@ -53,6 +53,27 @@ def test_badge_uses_configured_agent_name(qapp):
     assert badge.text() == "Codex 等你确认"
 
 
+def test_user_visible_switch_keeps_state(qapp):
+    """用户关闭角标后状态更新不弹出，重开时恢复当前状态。"""
+    badge = StatusBadge()
+    badge.set_state("working")
+    assert not badge.isHidden()
+
+    badge.set_user_visible(False)
+    assert badge.isHidden()
+    badge.set_state("done")
+    assert badge.isHidden()  # 关闭期间状态更新也不强行弹出
+    assert badge.text() == "Claude 本轮完成"
+
+    badge.set_user_visible(True)
+    assert not badge.isHidden()
+    assert badge.text() == "Claude 本轮完成"
+
+    badge.set_state("idle")
+    badge.set_user_visible(True)
+    assert badge.isHidden()  # 空闲状态即使开关打开也隐藏
+
+
 def test_badge_paints_rounded_background(qapp):
     """半透明顶层窗口不会绘制样式表背景，需由 paintEvent 自行画出胶囊底。"""
     badge = StatusBadge()

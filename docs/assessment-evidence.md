@@ -31,10 +31,10 @@
 系统托盘与开机自启由分支 `feat/a6-system-tray` 交付（提交 `a386313` 注册表管理、`ec8805f` 托盘与隐藏，文档随本提交更新）。
 
 - 托盘：`pet/tray.py` 用当前形象生成 16–64 px 多档图标；左键单击显隐桌宠；右键菜单复用 A5 `Command` 表（`_build_commands(include_hide_to_tray=False)`），并在底部追加勾选式「开机自启动」。
-- 隐藏：桌宠右键菜单顶部新增「隐藏至托盘」。气泡与角标是独立顶层浮窗，实测不会随父窗口隐藏，因此 `hide_to_tray()` 显式隐藏气泡、Claude 角标与 Codex 角标，恢复时还原隐藏前的显隐状态。
+- 隐藏：桌宠右键菜单顶部新增「隐藏至托盘」。气泡与角标是独立顶层浮窗，实测不会随父窗口隐藏，因此 A6 交付时 `hide_to_tray()` 显式隐藏气泡、Claude 角标与 Codex 角标，恢复时还原隐藏前的显隐状态。**该角标行为已于 2026-10-23 被「角标独立显隐」取代（见下文同名增量证据）：隐藏桌宠后角标按自身开关继续显示。**
 - 退出：A5 的「退出」由 `self.close` 改为 `_quit`，置 `_quitting` 后走原有收尾路径；托盘启用时普通关闭只隐藏，托盘「退出」在窗口隐藏状态下也能正常结束进程。
 - 开机自启：`pet/autostart.py` 读写 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 的 `IntelligentDeskPet` 值，指向带引号的 `启动桌宠.bat`；注册表是唯一事实源，因此未在 `config.json` 增加 `autostart_enabled` 字段（与 Issue 原范围的有意差异）。非 Windows 返回 False。
-- 验证：ruff check/format 通过；合并 develop 的 Codex 双角标后 pytest 182 条通过；真实窗口确认系统托盘可用、图标非空（15×16 至 60×64 五档）、托盘菜单顺序正确、隐藏/恢复气泡角标、真实注册表 enable→is_enabled→disable 往返成功、隐藏状态下退出返回码 0。失败与修正过程见 [测试文档](testing.md) §5.3。
+- 验证：ruff check/format 通过；合并 develop 的 Codex 双角标后 pytest 182 条通过；真实窗口确认系统托盘可用、图标非空（15×16 至 60×64 五档）、托盘菜单顺序正确、隐藏/恢复气泡角标、真实注册表 enable→is_enabled→disable 往返成功、隐藏状态下退出返回码 0。失败与修正过程见 [测试文档](testing.md) §5.3。上述「隐藏/恢复气泡角标」记录的是 A6 交付时行为，角标部分自 2026-10-23 起改由独立开关控制。
 
 ## A9 增量证据（Issue #46，2026-10-19）
 
@@ -45,6 +45,15 @@ Claude Code 状态监控由 PR #49 合并，启动定位、退出残留与气泡
 - 验证：ruff check/format 通过；桌宠端 147 条用例通过；真实 `main.py` 运行 8 秒，控制台 0 条解析警告（旧样式表对照为 2 条）。
 - 修复提交与文档（`2f00cbd`、`903e97d`）已快进推送至 develop（2026-10-19，CI run 39237613619 全绿）；AI 纠错过程见 [测试文档](testing.md) §5.3。
 
+## 角标独立显隐增量证据（2026-10-23）
+
+分支 `feat/badge-independent-visibility`，提交 `2760f72`。
+
+- 行为：`hide_to_tray()` 只隐藏桌宠与气泡，不再连带隐藏 Claude / Codex 角标；新增右键与托盘共用的「显示状态角标」勾选项，写入 `config.json` 的 `status_badges_visible`。
+- 实现：`StatusBadge.set_user_visible()` 与状态驱动的 `set_state()` 取交集决定显隐；关闭期间状态继续更新，重开时按当前状态恢复。沿用 `_build_commands()` 命令表，托盘菜单自动复用新命令。
+- 测试：新增 `test_badge_visibility.py`（开关持久化与双向切换）、`test_status_badge.py::test_user_visible_switch_keeps_state` 与 `test_config.py` 三项（默认值隔离、持久化往返、更新保存）；另补启动时恢复隐藏状态与菜单未勾选态断言。原 A6 托盘回归用例改为断言角标不随桌宠隐藏。桌宠端 208 条用例、ruff check/format 通过；测试补强与文档修正见 PR #55 追加提交。
+- 待办：真实窗口人工验收（隐藏桌宠后角标保留、勾选开关即时生效）。Issue #54 / PR #55 已于 2026-10-23 创建并分配成员 A，待人工验收后合并。
+
 ## 角标自由移动增量证据（Issue #56，2026-10-23）
 
 Claude/Codex 状态角标由分支 `feat/badge-draggable` 交付（PR #57），在既有自动摆位之上增加「手动拖拽 + 双击复位」：
@@ -52,7 +61,7 @@ Claude/Codex 状态角标由分支 `feat/badge-draggable` 交付（PR #57），�
 - 可交互：移除角标的 `WA_TransparentForMouseEvents`，按下左键拖动超过 4px 阈值即移动并标记手动位置；`_position_status_badge()` 跳过手动角标，其余角标仍正常跟随桌宠自动摆位。
 - 复位：双击角标清空手动标记并发 `position_reset` 信号，窗口重新执行自动摆位。
 - 边界：角标位置夹在屏幕可用区域内，避免拖出屏幕后无法再双击复位；手动位置仅本次运行有效，不持久化（与会话性定位一致）。
-- 验证：ruff check/format 通过；桌宠端 pytest 206 项全过（此前 201 项 + 新增 5 项拖拽/复位用例）。未改变既有自动摆位规则，仅在其上叠加手动覆盖，不涉及后端与小程序。
+- 验证：ruff check/format 通过；桌宠端 pytest 213 项全过（合并 #55 的 208 项后 + 新增 5 项拖拽/复位用例）。未改变既有自动摆位规则，仅在其上叠加手动覆盖，不涉及后端与小程序。
 
 ## B1 后端
 

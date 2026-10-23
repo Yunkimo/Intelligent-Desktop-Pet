@@ -40,6 +40,42 @@ def test_tray_enabled_defaults_true():
     assert Settings().tray_enabled is True
 
 
+def test_status_badges_visible_defaults_true(monkeypatch, tmp_path):
+    import pet.config as config
+
+    # 仓库根的 config.json 会被运行时开关改写，默认值断言必须在空目录里做
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    assert Settings().status_badges_visible is True
+
+
+def test_status_badges_visible_round_trip(monkeypatch, tmp_path):
+    import json
+
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    (tmp_path / "config.json").write_text(
+        json.dumps({"status_badges_visible": False}), encoding="utf-8"
+    )
+    assert Settings().status_badges_visible is False
+
+    s = Settings()
+    s.update_status_badges_visible(True)
+    assert Settings().status_badges_visible is True
+
+
+def test_update_status_badges_visible_sets_attr_and_saves(monkeypatch, tmp_path):
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    saved: dict = {}
+    monkeypatch.setattr(Settings, "_save_json", lambda self, **kw: saved.update(kw))
+    s = Settings()
+    s.update_status_badges_visible(False)
+    assert s.status_badges_visible is False
+    assert saved == {"status_badges_visible": False}
+
+
 def test_update_methods_set_attrs_and_save(monkeypatch):
     saved: dict = {}
     monkeypatch.setattr(Settings, "_save_json", lambda self, **kw: saved.update(kw))
