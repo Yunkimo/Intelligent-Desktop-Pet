@@ -54,6 +54,15 @@ Claude Code 状态监控由 PR #49 合并，启动定位、退出残留与气泡
 - 测试：新增 `test_badge_visibility.py`（开关持久化与双向切换）、`test_status_badge.py::test_user_visible_switch_keeps_state` 与 `test_config.py` 三项（默认值隔离、持久化往返、更新保存）；另补启动时恢复隐藏状态与菜单未勾选态断言。原 A6 托盘回归用例改为断言角标不随桌宠隐藏。桌宠端 208 条用例、ruff check/format 通过；测试补强与文档修正见 PR #55 追加提交。
 - 待办：真实窗口人工验收（隐藏桌宠后角标保留、勾选开关即时生效）。Issue #54 / PR #55 已于 2026-10-23 创建并分配成员 A，待人工验收后合并。
 
+## 角标自由移动增量证据（Issue #56，2026-10-23）
+
+Claude/Codex 状态角标由分支 `feat/badge-draggable` 交付（PR #57），在既有自动摆位之上增加「手动拖拽 + 双击复位」：
+
+- 可交互：移除角标的 `WA_TransparentForMouseEvents`，按下左键拖动超过 4px 阈值即移动并标记手动位置；`_position_status_badge()` 跳过手动角标，其余角标仍正常跟随桌宠自动摆位。
+- 复位：双击角标清空手动标记并发 `position_reset` 信号，窗口重新执行自动摆位。
+- 边界：角标位置夹在屏幕可用区域内，避免拖出屏幕后无法再双击复位；手动位置仅本次运行有效，不持久化（与会话性定位一致）。
+- 验证：ruff check/format 通过；桌宠端 pytest 213 项全过（合并 #55 的 208 项后 + 新增 5 项拖拽/复位用例）。未改变既有自动摆位规则，仅在其上叠加手动覆盖，不涉及后端与小程序。
+
 ## B1 后端
 
 关联 [#5](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/5)，PR [#16](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/16)。以下是本议题的证据，不代表项目已完成全部考核。
