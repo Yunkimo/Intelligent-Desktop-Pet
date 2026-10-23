@@ -40,7 +40,7 @@ CI（GitHub Actions）在 main/develop 的 push 和 PR 时执行上述步骤，�
 
 ## 3. 测试用例清单（当前仓库口径）
 
-### 3.1 桌宠端（`tests/`，116 个用例）
+### 3.1 桌宠端（`tests/`，116 个用例，2026-10-17 快照）
 
 | 文件 | 覆盖点 | 用例数 |
 |---|---|---:|
@@ -61,7 +61,9 @@ CI（GitHub Actions）在 main/develop 的 push 和 PR 时执行上述步骤，�
 | `test_tts.py` | TTS 文本切分、音色参数、离线回退 | 6 |
 | `test_ws_listener.py` | WebSocket 消息解析、重连、事件分发 | 6 |
 
-合计 **116 个用例**（pytest 收集口径，含参数化展开），全部通过。
+合计 **116 个用例**（pytest 收集口径，含参数化展开），为 2026-10-17 的清单快照，全部通过。
+
+> 该表之后新增了 `test_tray.py`、`test_status_badge.py`、`test_monitor_toggle.py`、`test_badge_visibility.py` 等文件；当前 develop 共 201 项、本分支 208 项。最新清单与数量以 `pytest --collect-only` 为准，不在本表逐行回填。
 
 ### 3.2 后端（`backend/tests/`，243 个用例）
 
@@ -126,7 +128,7 @@ CI（GitHub Actions）在 main/develop 的 push 和 PR 时执行上述步骤，�
 
 B3/B4 为并行分支上的独立测量，编号不同源于分支代码范围不同，不能直接相减比较。当前 develop 的原始输出见 `docs/evidence/current/backend-pytest-coverage.txt`。
 
-桌宠端当前 116 项通过，行覆盖率 56%（`pet/` 1489 语句、829 覆盖，2026-10-17；B1 阶段为 50%），原始输出见 `docs/evidence/a-desktop/desktop-pytest-coverage.txt`。界面层 `window`/`sprite`/`hotkey_dialog` 覆盖较低，原因见 §5.4。
+桌宠端 2026-10-17 测量时为 116 项通过，行覆盖率 56%（`pet/` 1489 语句、829 覆盖；B1 阶段为 50%），原始输出见 `docs/evidence/a-desktop/desktop-pytest-coverage.txt`。此后 A6/A9/A10 继续增加用例，桌宠端现为 develop 201 项、本分支 208 项，覆盖率尚未重新测量。界面层 `window`/`sprite`/`hotkey_dialog` 覆盖较低，原因见 §5.4。
 
 后端高覆盖模块：`scheduler`/`schemas`/`main`/`logging_config`/`reminder_time` 100%、`push_service` 99%、`course_import` 98%、`db` 96%。桌宠端：`tts` 98%、`event_cache` 94%、`backend_client` 93%、`tools` 93%、`memory` 93%、`agent` 91%、`llm`/`providers` 89–97%。
 
@@ -140,8 +142,8 @@ B3/B4 为并行分支上的独立测量，编号不同源于分支代码范围�
 | B3（微信 + 实时） | 168 | 106 | 30 次发送只取 1 次 token、重复发送 0；真实 WS 到期 30/30、p95 369 ms；新增 59 项用例 | `docs/evidence/b3/` |
 | B4（天气/搜索） | 172 | 106 | 63 项新增用例；真实 curl 天气 2308 ms、搜索 1707 ms；压缩边界 80/80；日志修正后 184 项 | `docs/evidence/b4/` |
 | A1–A4 端到端（2026-10-17） | — | 116 | 真实后端 health 200；真实天气摘要 + 日程落库；LLM 工具循环调用 2 个工具、9.5 s；真实 WS 收到 `task.created` | `docs/evidence/a-desktop/` |
-| 当前 develop | 243 | 116 | B3+B4 合并后 168 + 63 + 12 = 243；桌宠端新增命令与摆位用例 106 → 116 | 本地 pytest 收集 |
-| 角标独立显隐（2026-10-23） | — | 206 | 新增/调整 5 项角标显隐用例；隐藏桌宠后角标保持显示，用户开关持久化 | 本地 pytest 收集 |
+| 当前 develop（2026-10-23） | 243 | 201 | 后端为 B3+B4 合并后的 168 + 63 + 12 = 243；桌宠端经 A6/A9 由 106 增至 201（2026-10-17 时点为 116） | 本地 pytest 收集 |
+| 角标独立显隐（2026-10-23） | — | 208 | 新增/调整 7 项角标显隐用例（开关切换、持久化往返、启动恢复、菜单勾选态、托盘独立）；隐藏桌宠后角标保持显示 | 本地 pytest 收集 |
 
 B3 的 token 缓存「少 29 次、96.67%」是相对「每条发送前取一次」的理论计算值，不是旧版本实测；B2 的 30 秒组不满足五秒目标，按实际分布报告，不套用理想阈值。所有真实网络样本均注明为单轮功能实测，不作为重构性能对比或 p95 承诺。
 
@@ -160,7 +162,7 @@ B3 的 token 缓存「少 29 次、96.67%」是相对「每条发送前取一次
 - **B4 终端日志缺陷**：人工验收发现 Uvicorn 进程号显示为 `%d`、访问日志报错；新增 12 项回归（修正前 9 失败 3 通过），修正后 184 项全通过。
 - **A6 托盘隐藏未连带浮窗**：初版假设气泡与角标作为顶层子窗会随桌宠窗口一起隐藏，离屏用例实测二者仍可见。改为 `hide_to_tray()` 显式隐藏气泡、Claude 角标与 Codex 角标，恢复时按隐藏前状态还原，并用回归用例锁定该行为。另确认托盘「退出」在窗口已隐藏时仍能触发 `closeEvent` 并结束事件循环。
 - **A9 角标样式表解析警告**：启动桌宠时控制台打印两行 `Could not parse stylesheet of object StatusBadge`。初判为 QSS 与半透明顶层窗不兼容，且本机未能复现；改用 `qInstallMessageHandler` 捕获 Qt 消息后确认根因是样式表最后一段为普通字符串，`}}` 未按 f-string 转义，实际多输出一个右花括号。修正为单个 `}`，并新增捕获 Qt 消息的回归测试（修正前失败、修正后通过）；ruff 与 147 条桌宠端用例通过，真实 `main.py` 运行 8 秒控制台 0 条解析警告（旧样式表对照为 2 条）。
-- **角标与桌宠独立显隐（2026-10-23）**：原 A6 行为把 Claude / Codex 角标与桌宠绑定在同一显隐状态，隐藏桌宠会连带隐藏角标。改为 `hide_to_tray()` 只隐藏桌宠与气泡，角标由用户开关与状态驱动共同决定；右键与托盘新增「显示状态角标」开关并持久化 `status_badges_visible`。实现时避免把方法命名为 `set_enabled`（会覆盖 `QWidget.setEnabled` 的控件禁用语义），改用 `set_user_visible`；原 A6 回归用例随之改为断言「隐藏桌宠后角标仍显示」。ruff check/format 与本分支 206 条桌宠端用例通过（develop 基线 201 + 新增 5）。
+- **角标与桌宠独立显隐（2026-10-23）**：原 A6 行为把 Claude / Codex 角标与桌宠绑定在同一显隐状态，隐藏桌宠会连带隐藏角标。改为 `hide_to_tray()` 只隐藏桌宠与气泡，角标由用户开关与状态驱动共同决定；右键与托盘新增「显示状态角标」开关并持久化 `status_badges_visible`。实现时避免把方法命名为 `set_enabled`（会覆盖 `QWidget.setEnabled` 的控件禁用语义），改用 `set_user_visible`；原 A6 回归用例随之改为断言「隐藏桌宠后角标仍显示」。ruff check/format 与本分支 208 条桌宠端用例通过（develop 基线 201 + 新增 7）。自查复盘另修正新增默认值用例直接读取仓库 `config.json` 的隔离缺陷：改为 monkeypatch `pet.config.BASE_DIR` 到 tmp_path，并补持久化往返与启动恢复用例，避免用户关闭角标后本地测试变红。
 
 ### 5.4 已知局限
 
