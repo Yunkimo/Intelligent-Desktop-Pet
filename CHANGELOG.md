@@ -11,6 +11,7 @@
   - Agent 工具调用：大模型 function calling + 工具循环（≤3 次）+ 联网查询（天气/搜索）。
   - 健康关怀：久坐检测（按连续在座时长）+ 喝水/休息提醒。
   - 实时接收：WebSocket 监听后端广播事件。
+  - 状态角标自由移动：Claude/Codex 角标可拖拽到任意位置，双击复位回自动跟随。
 - **后端（成员 B）**
   - 鉴权 WebSocket 广播：`/ws` 端点 + `push_service.broadcast()`。
   - 到期提醒调度器：后台循环每 30s 查到期 reminder → 广播 → 标记完成。

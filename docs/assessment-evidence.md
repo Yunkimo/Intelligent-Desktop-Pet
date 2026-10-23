@@ -45,6 +45,15 @@ Claude Code 状态监控由 PR #49 合并，启动定位、退出残留与气泡
 - 验证：ruff check/format 通过；桌宠端 147 条用例通过；真实 `main.py` 运行 8 秒，控制台 0 条解析警告（旧样式表对照为 2 条）。
 - 修复提交与文档（`2f00cbd`、`903e97d`）已快进推送至 develop（2026-10-19，CI run 39237613619 全绿）；AI 纠错过程见 [测试文档](testing.md) §5.3。
 
+## 角标自由移动增量证据（Issue #56，2026-10-23）
+
+Claude/Codex 状态角标由分支 `feat/badge-draggable` 交付（PR #57），在既有自动摆位之上增加「手动拖拽 + 双击复位」：
+
+- 可交互：移除角标的 `WA_TransparentForMouseEvents`，按下左键拖动超过 4px 阈值即移动并标记手动位置；`_position_status_badge()` 跳过手动角标，其余角标仍正常跟随桌宠自动摆位。
+- 复位：双击角标清空手动标记并发 `position_reset` 信号，窗口重新执行自动摆位。
+- 边界：角标位置夹在屏幕可用区域内，避免拖出屏幕后无法再双击复位；手动位置仅本次运行有效，不持久化（与会话性定位一致）。
+- 验证：ruff check/format 通过；桌宠端 pytest 206 项全过（此前 201 项 + 新增 5 项拖拽/复位用例）。未改变既有自动摆位规则，仅在其上叠加手动覆盖，不涉及后端与小程序。
+
 ## B1 后端
 
 关联 [#5](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/5)，PR [#16](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/16)。以下是本议题的证据，不代表项目已完成全部考核。

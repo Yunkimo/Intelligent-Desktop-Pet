@@ -446,6 +446,9 @@ class PetWindow(QWidget):
         """创建状态角标与监控器；按配置决定是否立即开始轮询。"""
         self.status_badge = StatusBadge(self)
         self.codex_status_badge = StatusBadge(self, agent_name="Codex")
+        # 双击角标复位其手动位置，回到自动摆位
+        self.status_badge.position_reset.connect(self._position_status_badge)
+        self.codex_status_badge.position_reset.connect(self._position_status_badge)
         self.agent_status = AgentStatusMonitor(self.settings.agent_status_path, parent=self)
         self.agent_status.state_changed.connect(self._on_agent_status)
         codex_status_path = self.settings.agent_status_path.with_name("codex-agent-status.json")
@@ -540,7 +543,9 @@ class PetWindow(QWidget):
             return
         rect = QRect(self.mapToGlobal(QPoint(0, 0)), self.size())
         badges = [
-            badge for badge in (self.status_badge, self.codex_status_badge) if not badge.isHidden()
+            badge
+            for badge in (self.status_badge, self.codex_status_badge)
+            if not badge.isHidden() and not badge.is_manually_positioned
         ]
         if not badges:
             return
