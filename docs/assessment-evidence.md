@@ -45,7 +45,7 @@ Claude Code 状态监控由 PR #49 合并，启动定位、退出残留与气泡
 - 验证：ruff check/format 通过；桌宠端 147 条用例通过；真实 `main.py` 运行 8 秒，控制台 0 条解析警告（旧样式表对照为 2 条）。
 - 修复提交与文档（`2f00cbd`、`903e97d`）已快进推送至 develop（2026-10-19，CI run 39237613619 全绿）；AI 纠错过程见 [测试文档](testing.md) §5.3。
 
-## 角标独立显隐增量证据（2026-10-23）
+## A10 增量证据（Issue #54，2026-10-23）
 
 分支 `feat/badge-independent-visibility`，提交 `2760f72`。
 
@@ -54,7 +54,7 @@ Claude Code 状态监控由 PR #49 合并，启动定位、退出残留与气泡
 - 测试：新增 `test_badge_visibility.py`（开关持久化与双向切换）、`test_status_badge.py::test_user_visible_switch_keeps_state` 与 `test_config.py` 三项（默认值隔离、持久化往返、更新保存）；另补启动时恢复隐藏状态与菜单未勾选态断言。原 A6 托盘回归用例改为断言角标不随桌宠隐藏。桌宠端 208 条用例、ruff check/format 通过；测试补强与文档修正见 PR #55 追加提交。
 - 待办：真实窗口人工验收（隐藏桌宠后角标保留、勾选开关即时生效）。Issue #54 / PR #55 已于 2026-10-23 创建并分配成员 A，待人工验收后合并。
 
-## 角标自由移动增量证据（Issue #56，2026-10-23）
+## A11 增量证据（Issue #56，2026-10-23）
 
 Claude/Codex 状态角标由分支 `feat/badge-draggable` 交付（PR #57），在既有自动摆位之上增加「手动拖拽 + 双击复位」：
 
