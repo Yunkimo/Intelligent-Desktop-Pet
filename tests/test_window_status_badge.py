@@ -129,6 +129,12 @@ def test_command_table_puts_hide_to_tray_at_top(qapp):
     badge_command = next(c for c in commands if c.label == "显示状态角标")
     assert badge_command.checkable is True
     assert badge_command.checked() is True
+
+    # 保存的开关为关闭时，菜单必须显示未勾选，而不是走 getattr 的 True 兜底
+    window._status_badges_visible = False
+    unchecked = next(c for c in window._build_commands() if c.label == "显示状态角标")
+    assert unchecked.checked() is False
+
     assert commands[0].label == "隐藏至托盘"
     assert commands[0].enabled() is True
     assert commands[-1].label == "退出"
@@ -138,6 +144,29 @@ def test_command_table_puts_hide_to_tray_at_top(qapp):
     window.settings.tray_enabled = False
     assert commands[0].enabled() is False
     assert window._build_commands(include_hide_to_tray=False)[0].label == "切换图片…"
+
+
+def test_startup_restores_hidden_badges(qapp, tmp_path):
+    """保存了「不显示角标」时，启动后状态变化也不能把角标弹出来。"""
+    window = _bare_window()
+    window.settings = Mock(
+        status_badges_visible=False,
+        monitor_claude=True,
+        monitor_codex=False,
+        agent_status_path=tmp_path / "agent-status.json",
+    )
+    window._position_status_badge = Mock()
+    window._init_claude_monitor()
+    try:
+        window.status_badge.set_state("working")
+        window.codex_status_badge.set_state("waiting")
+        assert window.status_badge.isHidden() is True
+        assert window.codex_status_badge.isHidden() is True
+    finally:
+        window.agent_status.stop()
+        window.codex_agent_status.stop()
+        window.status_badge.close()
+        window.codex_status_badge.close()
 
 
 def test_codex_and_dual_badges_avoid_bubble(qapp):
