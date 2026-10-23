@@ -45,6 +45,15 @@ Claude Code 状态监控由 PR #49 合并，启动定位、退出残留与气泡
 - 验证：ruff check/format 通过；桌宠端 147 条用例通过；真实 `main.py` 运行 8 秒，控制台 0 条解析警告（旧样式表对照为 2 条）。
 - 修复提交与文档（`2f00cbd`、`903e97d`）已快进推送至 develop（2026-10-19，CI run 39237613619 全绿）；AI 纠错过程见 [测试文档](testing.md) §5.3。
 
+## 角标独立显隐增量证据（2026-10-23）
+
+分支 `feat/badge-independent-visibility`，提交 `2760f72`。
+
+- 行为：`hide_to_tray()` 只隐藏桌宠与气泡，不再连带隐藏 Claude / Codex 角标；新增右键与托盘共用的「显示状态角标」勾选项，写入 `config.json` 的 `status_badges_visible`。
+- 实现：`StatusBadge.set_user_visible()` 与状态驱动的 `set_state()` 取交集决定显隐；关闭期间状态继续更新，重开时按当前状态恢复。沿用 `_build_commands()` 命令表，托盘菜单自动复用新命令。
+- 测试：新增 `test_badge_visibility.py`（开关持久化与双向切换）、`test_status_badge.py::test_user_visible_switch_keeps_state` 与 `test_config.py` 两项；原 A6 托盘回归用例改为断言角标不随桌宠隐藏。桌宠端 206 条用例、ruff check/format 通过。
+- 待办：真实窗口人工验收（隐藏桌宠后角标保留、勾选开关即时生效）与 Issue/PR 开单需用户确认。
+
 ## B1 后端
 
 关联 [#5](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/5)，PR [#16](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/16)。以下是本议题的证据，不代表项目已完成全部考核。
