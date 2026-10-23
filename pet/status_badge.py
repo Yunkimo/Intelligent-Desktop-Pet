@@ -34,11 +34,14 @@ class StatusBadge(QLabel):
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._fg, self._bg = _STYLES["unknown"][1:]
+        self._state = "idle"
+        self._user_visible = True
         self.hide()
 
     def set_state(self, state: str) -> None:
         """按状态更新文案与配色；未知状态按 unknown 显示。"""
         text, fg, bg = _STYLES.get(state, _STYLES["unknown"])
+        self._state = state if text else "idle"
         if not text:
             self.hide()
             return
@@ -51,6 +54,18 @@ class StatusBadge(QLabel):
             "padding: 2px 8px; font-size: 11px; }"
         )
         self.adjustSize()
+        self._apply_visibility()
+
+    def set_user_visible(self, visible: bool) -> None:
+        """用户级显隐开关：关闭后状态更新也不弹出，重开时按当前状态恢复。"""
+        self._user_visible = bool(visible)
+        self._apply_visibility()
+
+    def _apply_visibility(self) -> None:
+        """用户开关与当前状态都允许时才显示。"""
+        if not self._user_visible or self._state == "idle":
+            self.hide()
+            return
         self.show()
         self.raise_()
 

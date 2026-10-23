@@ -84,6 +84,8 @@ class Settings:
         self.monitor_claude: bool = bool(data.get("monitor_claude", False))
         # Codex 回合状态监控（默认关闭，独立于 Claude）
         self.monitor_codex: bool = bool(data.get("monitor_codex", False))
+        # 状态角标显隐（默认显示；关闭后监控照常运行，只是不弹角标）
+        self.status_badges_visible: bool = bool(data.get("status_badges_visible", True))
 
         # 系统托盘：关闭后右键「隐藏至托盘」置灰，关闭窗口仍直接退出
         self.tray_enabled: bool = bool(data.get("tray_enabled", True))
@@ -135,6 +137,11 @@ class Settings:
         """更新 Codex 状态监控开关并写回 config.json。"""
         self.monitor_codex = bool(enabled)
         self._save_json(monitor_codex=self.monitor_codex)
+
+    def update_status_badges_visible(self, visible: bool) -> None:
+        """更新状态角标显隐开关并写回 config.json。"""
+        self.status_badges_visible = bool(visible)
+        self._save_json(status_badges_visible=self.status_badges_visible)
 
     def switch_persona(self, name: str) -> bool:
         """切换到指定人设（从 personas 预设读取），写回 config.json 并返回是否成功。"""

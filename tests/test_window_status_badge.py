@@ -126,6 +126,9 @@ def test_command_table_puts_hide_to_tray_at_top(qapp):
 
     commands = window._build_commands()
 
+    badge_command = next(c for c in commands if c.label == "显示状态角标")
+    assert badge_command.checkable is True
+    assert badge_command.checked() is True
     assert commands[0].label == "隐藏至托盘"
     assert commands[0].enabled() is True
     assert commands[-1].label == "退出"

@@ -275,6 +275,14 @@ class PetWindow(QWidget):
                 checked=lambda: self.settings.monitor_codex,
             )
         )
+        commands.append(
+            Command(
+                "显示状态角标",
+                self._toggle_status_badges,
+                checkable=True,
+                checked=lambda: getattr(self, "_status_badges_visible", True),
+            )
+        )
         commands.append(Command("测试后端连接", self._debug_backend))
         commands.append(Command("退出", self._quit))
         return commands
@@ -446,6 +454,10 @@ class PetWindow(QWidget):
         """创建状态角标与监控器；按配置决定是否立即开始轮询。"""
         self.status_badge = StatusBadge(self)
         self.codex_status_badge = StatusBadge(self, agent_name="Codex")
+        # 角标显隐是独立于桌宠的用户开关：启动时按配置恢复
+        self._status_badges_visible = self.settings.status_badges_visible
+        self.status_badge.set_user_visible(self._status_badges_visible)
+        self.codex_status_badge.set_user_visible(self._status_badges_visible)
         self.agent_status = AgentStatusMonitor(self.settings.agent_status_path, parent=self)
         self.agent_status.state_changed.connect(self._on_agent_status)
         codex_status_path = self.settings.agent_status_path.with_name("codex-agent-status.json")
@@ -521,6 +533,15 @@ class PetWindow(QWidget):
             self.codex_agent_status.stop()
             self.codex_status_badge.set_state("idle")
             self.bubble.set_text("已关闭 Codex 监控")
+        self._position_status_badge()
+
+    def _toggle_status_badges(self) -> None:
+        """用户级开关：独立于桌宠与监控，控制两个状态角标是否显示。"""
+        enabled = not getattr(self, "_status_badges_visible", True)
+        self._status_badges_visible = enabled
+        self.settings.update_status_badges_visible(enabled)
+        self.status_badge.set_user_visible(enabled)
+        self.codex_status_badge.set_user_visible(enabled)
         self._position_status_badge()
 
     def _on_codex_status(self, state: str) -> None:
@@ -695,28 +716,20 @@ class PetWindow(QWidget):
         self.close()
 
     def hide_to_tray(self) -> None:
-        """隐藏到托盘；气泡与两个状态角标是独立顶层浮窗，需一并隐藏。"""
+        """隐藏桌宠与气泡；状态角标由独立开关控制，不随桌宠隐藏。"""
         if self.isVisible():
-            # 记录隐藏前的状态，恢复时不要把原本已收起的浮窗强行弹出
+            # 记录气泡隐藏前的状态，恢复时不要把原本已收起的气泡强行弹出
             self._bubble_visible_before_tray = self.bubble.isVisible()
-            self._badge_visible_before_tray = self.status_badge.isVisible()
-            self._codex_badge_visible_before_tray = self.codex_status_badge.isVisible()
         self.bubble.hide()
-        self.status_badge.hide()
-        self.codex_status_badge.hide()
         self.hide()
 
     def show_from_tray(self) -> None:
-        """从托盘恢复，并还原气泡与两个角标此前的显隐状态。"""
+        """从托盘恢复桌宠与气泡；角标按自身状态与用户开关独立显示。"""
         self.show()
         self.raise_()
         if getattr(self, "_bubble_visible_before_tray", False):
             self.bubble.show()
             self.bubble.raise_()
-        if getattr(self, "_badge_visible_before_tray", False):
-            self.status_badge.show()
-        if getattr(self, "_codex_badge_visible_before_tray", False):
-            self.codex_status_badge.show()
         self._reposition_overlays()
 
     def toggle_tray_visibility(self) -> None:

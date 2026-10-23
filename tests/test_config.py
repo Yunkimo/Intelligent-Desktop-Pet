@@ -40,6 +40,19 @@ def test_tray_enabled_defaults_true():
     assert Settings().tray_enabled is True
 
 
+def test_status_badges_visible_defaults_true():
+    assert Settings().status_badges_visible is True
+
+
+def test_update_status_badges_visible_sets_attr_and_saves(monkeypatch):
+    saved: dict = {}
+    monkeypatch.setattr(Settings, "_save_json", lambda self, **kw: saved.update(kw))
+    s = Settings()
+    s.update_status_badges_visible(False)
+    assert s.status_badges_visible is False
+    assert saved == {"status_badges_visible": False}
+
+
 def test_update_methods_set_attrs_and_save(monkeypatch):
     saved: dict = {}
     monkeypatch.setattr(Settings, "_save_json", lambda self, **kw: saved.update(kw))
