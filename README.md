@@ -32,7 +32,7 @@ HTTP REST + WebSocket                  HTTP REST + WebSocket
 | **后端 B3**：微信登录、订阅登记与离线推送 | 实现及 Mock 验证完成，[PR #29](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/29) 待评审；真机待 C3 联调 |
 | **小程序 C1**：骨架 + api.js（查改课表/日程、拍照识别课表、周次设置） | ✅ 已完成 |
 | **小程序 C2–C3**：实时刷新 / 订阅消息授权 | ⬜ 待开发 |
-| **小程序 C4–C5**：部署 / 文档与演示 | ⬜ 待开发 |
+| **小程序 C4–C5**：部署 / 阶段文档、CI 与依赖安全说明 | ⬜ 待开发 |
 | **工程基建**：CI 双 job、ruff、`main` 分支保护 | ✅ 已完成 |
 
 > B4 已按用户要求实施为后端天气 / 搜索接口（Issue #8），真实 curl 验收通过，待评审；桌宠原有本地工具继续可用，接入方式由 A/B 评审确认。
