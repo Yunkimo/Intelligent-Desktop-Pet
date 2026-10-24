@@ -77,7 +77,7 @@ def test_missing_account_key_shows_hint_and_disables_button(tmp_path, qapp):
     assert dialog._refresh_button.isEnabled() is False
 
 
-def test_balance_success_updates_label(tmp_path, qapp, monkeypatch):
+def test_balance_fields_show_all_details(tmp_path, qapp, monkeypatch):
     monkeypatch.setattr(dialog_module, "fetch_balance", lambda target, timeout: _balance())
     dialog = UsageDialog(_settings(), _store(tmp_path))
 
@@ -86,10 +86,78 @@ def test_balance_success_updates_label(tmp_path, qapp, monkeypatch):
     assert worker.wait(3000)
     qapp.processEvents()
 
-    text = dialog._balance_label.text()
-    assert "¥12.34" in text
-    assert "赠送" in text and "充值" in text
-    assert "可用" in text
+    fields = dialog._balance_fields
+    assert fields["provider"].text() == "DeepSeek"
+    assert fields["currency"].text() == "CNY"
+    assert fields["total"].text() == "¥12.34"
+    assert fields["breakdown"].text() == "赠送 ¥2.00 · 充值 ¥10.34"
+    assert fields["status"].text() == "可用"
+    assert fields["checked_at"].text()  # 查询时间已填
+    assert "已更新" in dialog._balance_label.text()
+
+
+def test_balance_fields_default_to_placeholder(tmp_path, qapp):
+    dialog = UsageDialog(_settings(), UsageStore(tmp_path / "usage.json"))
+
+    for key, field in dialog._balance_fields.items():
+        assert field.text() == "—", key
+
+
+def test_balance_unavailable_is_flagged(tmp_path, qapp, monkeypatch):
+    empty = Balance(
+        provider="DeepSeek",
+        currency="CNY",
+        total=Decimal("0"),
+        granted=Decimal("0"),
+        topped_up=Decimal("0"),
+        available=False,
+    )
+    monkeypatch.setattr(dialog_module, "fetch_balance", lambda target, timeout: empty)
+    dialog = UsageDialog(_settings(), _store(tmp_path))
+
+    dialog.refresh_balance()
+    worker = next(iter(dialog._workers))
+    assert worker.wait(3000)
+    qapp.processEvents()
+
+    assert dialog._balance_fields["status"].text() == "不可用"
+    assert "#c0392b" in dialog._balance_fields["status"].styleSheet()
+    assert "余额不足" in dialog._balance_label.text()
+
+
+def test_balance_failure_keeps_previous_values(tmp_path, qapp, monkeypatch):
+    """先成功再失败：数值不能被抹成「—」，否则会让人以为查不到。"""
+    monkeypatch.setattr(dialog_module, "fetch_balance", lambda target, timeout: _balance())
+    dialog = UsageDialog(_settings(), _store(tmp_path))
+    dialog.refresh_balance()
+    assert next(iter(dialog._workers)).wait(3000)
+    qapp.processEvents()
+
+    def boom(_target, _timeout):
+        raise BalanceError("余额查询超时，请检查网络后重试")
+
+    monkeypatch.setattr(dialog_module, "fetch_balance", boom)
+    dialog.refresh_balance()
+    assert next(iter(dialog._workers)).wait(3000)
+    qapp.processEvents()
+
+    assert dialog._balance_fields["total"].text() == "¥12.34"
+    assert "超时" in dialog._balance_label.text()
+
+
+def test_balance_note_explains_missing_usage_api(tmp_path, qapp, monkeypatch):
+    monkeypatch.setattr(dialog_module, "fetch_balance", lambda target, timeout: _balance())
+    dialog = UsageDialog(_settings(), _store(tmp_path))
+
+    note = dialog._usage_note.text()
+    assert "未提供账户用量查询接口" in note
+    assert "上方" in note
+
+    dialog.refresh_balance()
+    assert next(iter(dialog._workers)).wait(3000)
+    qapp.processEvents()
+    # 查到后说明里换成实际服务商名，措辞仍需说明拿不到用量
+    assert "DeepSeek 未提供账户用量查询接口" in dialog._usage_note.text()
 
 
 def test_balance_failure_shows_readable_message(tmp_path, qapp, monkeypatch):

@@ -6,6 +6,7 @@
 """
 
 import threading
+from datetime import datetime
 from decimal import Decimal
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
@@ -14,7 +15,6 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QGridLayout,
     QGroupBox,
-    QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -36,6 +36,15 @@ _FOOTNOTE = (
     "费用按 DeepSeek 官方价目估算（价格表更新于 {date}）：空闲价为高峰价的一半，"
     "高峰为北京时间工作日 9:00-12:00、14:00-18:00；法定节假日与调休未建模，节假日会高估。"
     "余额为账户级数据，口径与本地记账不同，均不代表官方账单。"
+)
+# 账户侧的「近七天用量」确实拿不到：官方只开放余额查询，没有历史用量接口
+_USAGE_API_NOTE = (
+    "{provider} 未提供账户用量查询接口，账户侧近七天用量无法获取；"
+    "桌宠自己的消耗见上方「桌宠本地用量」表格。"
+)
+_USAGE_API_NOTE_INITIAL = (
+    "当前服务商未提供账户用量查询接口，账户侧近七天用量无法获取；"
+    "桌宠自己的消耗见上方「桌宠本地用量」表格。"
 )
 
 
@@ -134,15 +143,7 @@ class UsageDialog(QDialog):
         self._grid.addWidget(self._unpriced_label, len(_PERIODS) + 1, 0, 1, len(_HEADERS) + 1)
         layout.addWidget(usage_box)
 
-        balance_box = QGroupBox("账户余额")
-        balance_layout = QHBoxLayout(balance_box)
-        self._balance_label = QLabel("")
-        self._balance_label.setWordWrap(True)
-        self._refresh_button = QPushButton("刷新余额")
-        self._refresh_button.clicked.connect(self.refresh_balance)
-        balance_layout.addWidget(self._balance_label, 1)
-        balance_layout.addWidget(self._refresh_button, 0)
-        layout.addWidget(balance_box)
+        layout.addWidget(self._build_balance_box())
 
         layout.addWidget(self._build_key_box())
 
@@ -157,6 +158,43 @@ class UsageDialog(QDialog):
         layout.addWidget(buttons)
 
         self._apply_initial_balance_hint()
+
+    def _build_balance_box(self) -> QGroupBox:
+        """账户余额：分行列出服务商返回的每个字段，并说明用量接口的可得性。"""
+        box = QGroupBox("账户余额")
+        grid = QGridLayout(box)
+        self._balance_fields: dict[str, QLabel] = {}
+        rows = (
+            ("provider", "服务商"),
+            ("currency", "币种"),
+            ("total", "总余额"),
+            ("breakdown", "余额构成"),
+            ("status", "状态"),
+            ("checked_at", "查询时间"),
+        )
+        for row, (key, title) in enumerate(rows):
+            caption = QLabel(title)
+            caption.setStyleSheet("color: #666;")
+            value = QLabel("—")
+            value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            grid.addWidget(caption, row, 0)
+            grid.addWidget(value, row, 1)
+            self._balance_fields[key] = value
+
+        self._refresh_button = QPushButton("刷新余额")
+        self._refresh_button.clicked.connect(self.refresh_balance)
+        grid.addWidget(self._refresh_button, 0, 2, 3, 1, Qt.AlignmentFlag.AlignTop)
+
+        self._balance_label = QLabel("")
+        self._balance_label.setWordWrap(True)
+        grid.addWidget(self._balance_label, len(rows), 0, 1, 3)
+
+        self._usage_note = QLabel(_USAGE_API_NOTE_INITIAL)
+        self._usage_note.setWordWrap(True)
+        self._usage_note.setStyleSheet("color: #777; font-size: 11px;")
+        grid.addWidget(self._usage_note, len(rows) + 1, 0, 1, 3)
+        return box
 
     def _build_key_box(self) -> QGroupBox:
         """窗口下方的 API 配置入口：新用户不碰 .env 也能接入自己的 API。"""
@@ -324,14 +362,26 @@ class UsageDialog(QDialog):
             spare.append(f"赠送 ¥{balance.granted:.2f}")
         if balance.topped_up is not None:
             spare.append(f"充值 ¥{balance.topped_up:.2f}")
-        suffix = f"（{'、'.join(spare)}）" if spare else ""
-        state = "可用" if balance.available else "不可用"
-        text = (
-            f"{balance.provider} 账户余额 ¥{balance.total:.2f} {balance.currency}{suffix}，{state}"
+        fields = self._balance_fields
+        fields["provider"].setText(balance.provider)
+        fields["currency"].setText(balance.currency or "—")
+        fields["total"].setText(f"¥{balance.total:.2f}")
+        fields["total"].setStyleSheet("font-size: 15px; font-weight: 600;")
+        fields["breakdown"].setText(" · ".join(spare) or "—")
+        fields["status"].setText("可用" if balance.available else "不可用")
+        fields["status"].setStyleSheet(
+            "" if balance.available else "color: #c0392b; font-weight: 600;"
         )
-        self._balance_label.setText(text)
+        checked = datetime.now().strftime("%m-%d %H:%M")
+        fields["checked_at"].setText(checked)
+        self._usage_note.setText(_USAGE_API_NOTE.format(provider=balance.provider))
+        if balance.available:
+            self._balance_label.setText(f"已更新（{checked}）")
+        else:
+            self._balance_label.setText(f"已更新（{checked}），余额不足，请充值后再使用")
 
     def _on_balance_failed(self, message: str) -> None:
+        # 失败时保留上次的有效数值，只更新状态行，避免把数据抹成「—」误导判断
         self._balance_label.setText(message)
 
     # ---------- 生命周期 ----------
