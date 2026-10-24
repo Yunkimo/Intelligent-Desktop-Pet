@@ -188,3 +188,19 @@ def test_badge_drag_clamps_to_screen(qapp):
     assert clamped.x() <= geo.right()
     assert clamped.y() <= geo.bottom()
     badge.close()
+
+
+def test_badge_emits_context_menu_request_with_global_pos(qapp):
+    """右键角标只发信号，菜单由窗口统一弹出，角标不持有命令表。"""
+    from PyQt6.QtCore import QPoint
+    from PyQt6.QtGui import QContextMenuEvent
+
+    badge = StatusBadge()
+    received = []
+    badge.context_menu_requested.connect(received.append)
+
+    event = QContextMenuEvent(QContextMenuEvent.Reason.Mouse, QPoint(5, 5), QPoint(100, 200))
+    badge.contextMenuEvent(event)
+
+    assert received == [QPoint(100, 200)]
+    assert event.isAccepted()
