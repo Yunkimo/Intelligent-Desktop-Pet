@@ -63,6 +63,18 @@ Claude/Codex 状态角标由分支 `feat/badge-draggable` 交付（PR #57），�
 - 边界：角标位置夹在屏幕可用区域内，避免拖出屏幕后无法再双击复位；手动位置仅本次运行有效，不持久化（与会话性定位一致）。
 - 验证：ruff check/format 通过；桌宠端 pytest 213 项全过（合并 #55 的 208 项后 + 新增 5 项拖拽/复位用例）。未改变既有自动摆位规则，仅在其上叠加手动覆盖，不涉及后端与小程序。
 
+## Token 用量查看增量证据（2026-10-24）
+
+分支 `feat/token-usage`，把 LLM 消耗从「完全不可见」变成可自查的三块信息。
+
+- 采集：`pet/providers.py` 新增可选 `on_usage` 回调，流式在最后一个 chunk 上采集（实测 DeepSeek 的 usage 帧 `choices` 长度为 1、`delta` 为空，标准 OpenAI 则在 `choices=[]` 的独立帧上，两种都在判断 `choices` 之前读取）；非流式读 `resp.usage`。上报异常一律吞掉，旁路统计不影响对话；`chat_with_tools` 返回结构保持 `{content, tool_calls}` 不变。服务商不认 `stream_options` 时，仅在尚未收到任何帧时降级重试一次并记住，避免重复计费。
+- 记账：`pet/usage.py` 的 `UsageStore` 把 usage 归一为 prompt/completion/cached（优先 `prompt_cache_hit_tokens`，回退 `prompt_tokens_details.cached_tokens`），按北京时间分天聚合写入 `data/usage.json`；线程锁 + 临时文件 `os.replace` 原子写，坏 JSON 归零重建，按天明细按 `usage_retention_days` 裁剪而总计不裁剪，金额用 `Decimal` 存字符串。
+- 费用：`pet/pricing.py` 内置 DeepSeek 价目（2026-10-24 抓取，只存高峰价、空闲价乘 0.5），`deepseek-chat` 等旧名按别名归一到现役模型；高峰按北京时间工作日 9–12、14–18 判定，法定节假日未建模、会高估，界面与手册均写明。
+- 余额：`pet/balance.py` 只对接官方余额接口（DeepSeek `GET /user/balance`、Moonshot `/v1/users/me/balance`），base_url 归一后忽略 path，禁止跟随重定向以免 `Authorization` 被带到其他 host，401/超时/坏 JSON 各给可读文案且不含 key；`BalanceTarget.api_key` 用 `repr=False`。
+- 入口：`pet/rice_button.py` 的米饭图标是桌宠窗口的子控件，随窗口移动不可分离；图标设 `WA_TransparentForMouseEvents`，点击与拖拽统一由 `PetWindow` 的命中测试分流（点图标开窗口、点头像唤输入框、从图标按下仍可拖动桌宠），悬停时切换手型光标；素材缺失降级为文字块。
+- 线程：`BalanceWorker(QThread)` 的 parent 是桌宠窗口而非对话框，对话框持注册表并在 `finished` 时 `deleteLater`；关闭窗口只 `request_stop` 不阻塞，应用退出时 `shutdown()` 有限等待 1.5 秒。
+- 验证：ruff check/format 全过；桌宠端 pytest 277 项全过（213 + 新增 64 项：价目边界、归一化、聚合/裁剪/并发、余额解析与错误映射、图标几何与点击分流、对话框汇总与线程收敛）。真实链路实测：真实 API 一次流式 + 一次工具调用后 `data/usage.json` 记录 2 条、费用非 0、重新加载一致；真实余额接口返回 200 并在窗口显示「DeepSeek 账户余额 ¥… CNY（赠送…、充值…），可用」，该接口在测试网络下约 8 秒返回。
+
 ## B1 后端
 
 关联 [#5](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/5)，PR [#16](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/16)。以下是本议题的证据，不代表项目已完成全部考核。

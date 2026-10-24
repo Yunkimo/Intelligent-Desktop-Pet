@@ -62,6 +62,7 @@ LLM_MODEL=deepseek-chat
 | 右键勾选「显示状态角标」 | 独立控制 Claude / Codex 角标是否显示；桌宠隐藏至托盘时角标不受影响 |
 | 左键点击托盘图标 | 显示 / 隐藏桌宠 |
 | 右键托盘图标 | 弹出与桌宠一致的命令菜单，可勾选「开机自启动」；「退出」固定在菜单最下方 |
+| 点击右下角米饭图标 | 打开「Token 用量」窗口；图标跟随桌宠移动，从图标上按下也能直接拖动桌宠 |
 
 - 回复以气泡流式显示，同时用语音播报。
 - 对话历史保存在 `data/history.json`，重启后仍在。
@@ -113,6 +114,16 @@ LLM_MODEL=deepseek-chat
 
 不想使用托盘时，可在 `config.json` 设 `"tray_enabled": false`，此时关闭窗口直接退出。
 
+### Token 用量与账户余额
+
+点击桌宠右下角的米饭图标打开用量窗口，分三块：
+
+- **本地记账**：今日 / 近 7 天 / 总计的请求数、输入 token、其中缓存命中、输出 token 与估算费用。每完成一次模型调用（含工具循环里的每一轮）记一条，写入 `data/usage.json`，按天明细默认保留 90 天，总计不受裁剪影响。
+- **账户余额**：点「刷新余额」联网查询服务商账户余额，显示总余额、赠送与充值余额。查询在后台线程执行，不会卡住界面；DeepSeek 的余额接口在部分网络下需要约 8 秒才返回，此时保持「正在查询」即可。
+- **费用估算**：按 DeepSeek 官方价目（更新于 2026-10-24）折算人民币。空闲价为高峰价的一半，高峰是北京时间工作日 9:00-12:00 与 14:00-18:00。**法定节假日与调休没有建模**，节假日会按高峰价高估；未收录的模型只记 token 不算钱。费用仅为自查参考，不替代官方账单。
+
+账户余额用的是独立凭据：在 `.env` 里设置 `ACCOUNT_API_KEY`（留空则回退 `LLM_API_KEY`），`ACCOUNT_BASE_URL` 留空则回退 `LLM_BASE_URL`，因此可以用 A 家的 key 推理、查 B 家账户余额。当前只支持提供官方余额接口的 DeepSeek 与 Moonshot，其余服务商如实提示「未提供余额查询接口」，本地记账照常可用。
+
 ### 监控 Codex 回合状态（可选）
 
 Codex 使用与 Claude 独立的「监控 Codex」右键开关和角标。运行 `setup.bat` 会把 hooks 合并到用户级 `%USERPROFILE%\.codex\hooks.json`（若设置了 `CODEX_HOME`，则使用该目录）；也可手动运行：
@@ -143,6 +154,9 @@ Codex 使用与 Claude 独立的「监控 Codex」右键开关和角标。运行
   "monitor_codex": false,         // Codex 回合状态角标（右键可切换）
   "status_badges_visible": true,  // 状态角标总开关；false 时不显示角标，监控仍运行
   "tray_enabled": true,           // 系统托盘；false 时关闭窗口直接退出
+  "usage_retention_days": 90,     // token 记账按天明细保留天数；总计不裁剪
+  "balance_timeout_seconds": 10,  // 账户余额查询超时（秒）
+  "rice_icon": "Rice.png",        // 右下角用量入口图标（相对 assets/）
   "max_history": 20               // 记忆轮数
 }
 ```
