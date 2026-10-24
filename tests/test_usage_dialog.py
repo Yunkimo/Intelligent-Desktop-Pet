@@ -16,6 +16,8 @@ _PEAK = datetime(2026, 10, 26, 10, 0)
 
 def _settings(with_key: bool = True):
     return SimpleNamespace(
+        llm_api_key="sk-llm-key-123456" if with_key else "",
+        llm_base_url="https://api.deepseek.com",
         account_api_key="sk-test" if with_key else "",
         account_base_url="https://api.deepseek.com",
         balance_timeout_seconds=2,
@@ -71,7 +73,7 @@ def test_unpriced_tokens_are_reported(tmp_path, qapp):
 def test_missing_account_key_shows_hint_and_disables_button(tmp_path, qapp):
     dialog = UsageDialog(_settings(with_key=False), UsageStore(tmp_path / "usage.json"))
 
-    assert "未配置账户 key" in dialog._balance_label.text()
+    assert "未配置 API Key" in dialog._balance_label.text()
     assert dialog._refresh_button.isEnabled() is False
 
 
@@ -132,46 +134,108 @@ def test_unknown_price_model_does_not_break_snapshot(tmp_path, qapp, value):
 
 
 # ---------- 窗口下方的 API Key 填写入口 ----------
-def test_save_key_writes_env_and_refreshes_balance(tmp_path, qapp, monkeypatch):
+
+
+def _fill(dialog, llm="", base="", account=""):
+    dialog._llm_key_input.setText(llm)
+    dialog._base_url_input.setText(base)
+    dialog._account_key_input.setText(account)
+
+
+def test_save_llm_key_writes_env_and_emits_change(tmp_path, qapp, monkeypatch):
     import pet.config as config
 
     monkeypatch.setattr(config, "BASE_DIR", tmp_path)
     settings = _settings(with_key=False)
     dialog = UsageDialog(settings, UsageStore(tmp_path / "usage.json"))
-    dialog.refresh_balance = lambda: calls.append(True)
-    calls: list[bool] = []
+    changed = []
+    dialog.llm_config_changed.connect(lambda: changed.append(True))
+    dialog.refresh_balance = lambda: None
 
-    dialog._key_input.setText("sk-user-provided-key-123")
-    dialog._save_account_key()
+    _fill(dialog, llm="sk-user-llm-key-123")
+    dialog._save_api_config()
 
     env = (tmp_path / ".env").read_text(encoding="utf-8")
-    assert "ACCOUNT_API_KEY=sk-user-provided-key-123" in env
-    assert settings.account_api_key == "sk-user-provided-key-123"
-    assert dialog._key_input.text() == ""  # 保存后清空，不留明文
-    assert "已保存" in dialog._key_hint.text()
-    assert "sk-user-provided-key-123" not in dialog._key_hint.text()  # 只回显头尾
+    assert "LLM_API_KEY=sk-user-llm-key-123" in env
+    assert settings.llm_api_key == "sk-user-llm-key-123"
+    assert dialog._llm_key_input.text() == ""  # 保存后清空，不留明文
+    assert changed == [True]  # 推理 key 变了要通知窗口重建客户端
+
+
+def test_account_key_falls_back_to_llm_key_when_blank(tmp_path, qapp, monkeypatch):
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    settings = _settings(with_key=False)
+    dialog = UsageDialog(settings, UsageStore(tmp_path / "usage.json"))
+    dialog.refresh_balance = lambda: None
+
+    _fill(dialog, llm="sk-user-llm-key-123")
+    dialog._save_api_config()
+
+    # 账户 key 留空时沿用推理 key，账户余额立刻可用
+    assert settings.account_api_key == "sk-user-llm-key-123"
     assert dialog._refresh_button.isEnabled() is True
+
+
+def test_account_key_only_does_not_touch_llm_config(tmp_path, qapp, monkeypatch):
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    settings = _settings(with_key=True)
+    dialog = UsageDialog(settings, UsageStore(tmp_path / "usage.json"))
+    changed = []
+    dialog.llm_config_changed.connect(lambda: changed.append(True))
+    calls = []
+    dialog.refresh_balance = lambda: calls.append(True)
+
+    _fill(dialog, account="sk-account-only-999")
+    dialog._save_api_config()
+
+    env = (tmp_path / ".env").read_text(encoding="utf-8")
+    assert "ACCOUNT_API_KEY=sk-account-only-999" in env
+    assert "LLM_API_KEY" not in env  # 没填的项不写
+    assert settings.account_api_key == "sk-account-only-999"
+    assert changed == []  # 推理配置没变，不需要重建客户端
     assert calls == [True]
 
 
-def test_save_key_with_empty_input_only_hints(tmp_path, qapp, monkeypatch):
+def test_base_url_is_normalized_and_applied(tmp_path, qapp, monkeypatch):
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    settings = _settings(with_key=True)
+    dialog = UsageDialog(settings, UsageStore(tmp_path / "usage.json"))
+    dialog.refresh_balance = lambda: None
+
+    _fill(dialog, base="api.example.com/v1/")
+    dialog._save_api_config()
+
+    env = (tmp_path / ".env").read_text(encoding="utf-8")
+    assert "LLM_BASE_URL=https://api.example.com/v1" in env
+    assert settings.llm_base_url == "https://api.example.com/v1"
+    # 账户地址原本跟随推理地址，应一起改
+    assert settings.account_base_url == "https://api.example.com/v1"
+
+
+def test_save_with_all_fields_empty_only_hints(tmp_path, qapp, monkeypatch):
     import pet.config as config
 
     monkeypatch.setattr(config, "BASE_DIR", tmp_path)
     dialog = UsageDialog(_settings(with_key=False), UsageStore(tmp_path / "usage.json"))
 
-    dialog._save_account_key()
+    dialog._save_api_config()
 
-    assert "请先填入" in dialog._key_hint.text()
+    assert "至少填写一项" in dialog._key_hint.text()
     assert not (tmp_path / ".env").exists()
 
 
-def test_key_hint_shows_masked_key_when_configured(tmp_path, qapp):
+def test_key_hint_masks_keys(tmp_path, qapp):
     settings = _settings(with_key=True)
-    settings.account_api_key = "sk-abcdefghijklmnop"
+    settings.llm_api_key = "sk-abcdefghijklmnop"
     dialog = UsageDialog(settings, UsageStore(tmp_path / "usage.json"))
 
-    assert "已配置" in dialog._key_hint.text()
+    assert "已接入" in dialog._key_hint.text()
     assert "sk-abcdefghijklmnop" not in dialog._key_hint.text()
 
 

@@ -85,8 +85,19 @@ def _mask_key(key: str) -> str:
     return f"{key[:6]}…{key[-4:]}"
 
 
+def _normalize_base_url(text: str) -> str:
+    """接口地址留空返回空串；没写协议时补 https，尾斜杠去掉。"""
+    value = text.strip().rstrip("/")
+    if not value:
+        return ""
+    return value if "://" in value else f"https://{value}"
+
+
 class UsageDialog(QDialog):
     """展示用量与余额；构造不产生网络副作用，首次查询在 showEvent 触发。"""
+
+    # 接推理用的 key 或地址变了，窗口据此重建 LLM 客户端
+    llm_config_changed = pyqtSignal()
 
     def __init__(self, settings, store: UsageStore, parent=None) -> None:
         super().__init__(parent)
@@ -148,54 +159,107 @@ class UsageDialog(QDialog):
         self._apply_initial_balance_hint()
 
     def _build_key_box(self) -> QGroupBox:
-        """窗口下方的 API Key 填写入口：供新用户直接补上账户 key。"""
-        box = QGroupBox("配置 API Key")
+        """窗口下方的 API 配置入口：新用户不碰 .env 也能接入自己的 API。"""
+        box = QGroupBox("配置 API")
         grid = QGridLayout(box)
-        self._key_input = QLineEdit()
-        self._key_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self._key_input.setPlaceholderText("sk-…")
-        self._key_input.returnPressed.connect(self._save_account_key)
+
+        self._llm_key_input = self._secret_input("桌宠对话用，必填即接入")
+        self._base_url_input = QLineEdit()
+        current_url = getattr(self._settings, "llm_base_url", "") or "默认地址"
+        self._base_url_input.setPlaceholderText(f"留空沿用 {current_url}")
+        self._account_key_input = self._secret_input("可留空，默认沿用上面的 Key")
+
         self._key_save = QPushButton("保存")
-        self._key_save.clicked.connect(self._save_account_key)
+        self._key_save.clicked.connect(self._save_api_config)
+        for entry in (self._llm_key_input, self._base_url_input, self._account_key_input):
+            entry.returnPressed.connect(self._save_api_config)
+
         self._key_hint = QLabel("")
         self._key_hint.setWordWrap(True)
         self._key_hint.setStyleSheet("color: #777; font-size: 11px;")
-        grid.addWidget(QLabel("账户 API Key"), 0, 0)
-        grid.addWidget(self._key_input, 0, 1)
-        grid.addWidget(self._key_save, 0, 2)
-        grid.addWidget(self._key_hint, 1, 0, 1, 3)
+
+        grid.addWidget(QLabel("API Key"), 0, 0)
+        grid.addWidget(self._llm_key_input, 0, 1)
+        grid.addWidget(self._key_save, 0, 2, 3, 1)
+        grid.addWidget(QLabel("API 地址"), 1, 0)
+        grid.addWidget(self._base_url_input, 1, 1)
+        grid.addWidget(QLabel("账户查询 Key"), 2, 0)
+        grid.addWidget(self._account_key_input, 2, 1)
+        grid.addWidget(self._key_hint, 3, 0, 1, 3)
         self._refresh_key_hint()
         return box
 
-    def _refresh_key_hint(self) -> None:
-        key = getattr(self._settings, "account_api_key", "")
-        if key:
-            self._key_hint.setText(f"已配置（{_mask_key(key)}），留空保存则保持不变")
-        else:
-            self._key_hint.setText(
-                "还没有 key？粘贴到这里保存即可，仅写入本机 .env，不会提交到仓库"
-            )
+    @staticmethod
+    def _secret_input(placeholder: str) -> QLineEdit:
+        entry = QLineEdit()
+        entry.setEchoMode(QLineEdit.EchoMode.Password)
+        entry.setPlaceholderText(placeholder)
+        return entry
 
-    def _save_account_key(self) -> None:
-        """把输入的 key 写入 .env 并立即生效，不把明文回填到输入框。"""
-        value = self._key_input.text().strip()
-        if not value:
-            self._key_hint.setText("请先填入 API Key 再保存")
+    def _refresh_key_hint(self) -> None:
+        llm_key = getattr(self._settings, "llm_api_key", "")
+        account_key = getattr(self._settings, "account_api_key", "")
+        if llm_key:
+            text = f"已接入 {_mask_key(llm_key)}"
+            text += (
+                f"，账户查询用 {_mask_key(account_key)}"
+                if account_key
+                else "，账户查询沿用同一把 key"
+            )
+        else:
+            text = "还没配置？粘贴自己的 API Key 保存即可"
+        self._key_hint.setText(text + "；只写入本机 .env，不会提交到仓库")
+
+    def _save_api_config(self) -> None:
+        """把填写的项写入 .env 并立即生效；留空的项保持不变，明文不回填。"""
+        llm_key = self._llm_key_input.text().strip()
+        base_url = _normalize_base_url(self._base_url_input.text())
+        account_key = self._account_key_input.text().strip()
+        if not any((llm_key, base_url, account_key)):
+            self._key_hint.setText("请至少填写一项再保存")
             return
+
+        values: dict[str, str] = {}
+        if llm_key:
+            values["LLM_API_KEY"] = llm_key
+        if base_url:
+            values["LLM_BASE_URL"] = base_url
+        if account_key:
+            values["ACCOUNT_API_KEY"] = account_key
         try:
-            save_env_values(ACCOUNT_API_KEY=value)
+            save_env_values(**values)
         except OSError as exc:
             self._key_hint.setText(f"保存失败：{exc}")
             return
-        self._settings.account_api_key = value
-        self._key_input.clear()
-        self._key_hint.setText(f"已保存（{_mask_key(value)}），正在刷新余额…")
-        self._refresh_button.setEnabled(True)
-        self.refresh_balance()
+
+        old_base_url = getattr(self._settings, "llm_base_url", "")
+        llm_changed = bool(llm_key or base_url)
+        if llm_key:
+            self._settings.llm_api_key = llm_key
+            if not account_key:
+                # 账户 key 留空时按 .env 的回退规则沿用推理 key
+                self._settings.account_api_key = llm_key
+        if base_url:
+            self._settings.llm_base_url = base_url
+            if self._settings.account_base_url == old_base_url:
+                self._settings.account_base_url = base_url
+        if account_key:
+            self._settings.account_api_key = account_key
+
+        for entry in (self._llm_key_input, self._base_url_input, self._account_key_input):
+            entry.clear()
+        self._refresh_key_hint()
+        if llm_changed:
+            self.llm_config_changed.emit()
+        has_key = bool(getattr(self._settings, "account_api_key", ""))
+        self._refresh_button.setEnabled(has_key)
+        if has_key:
+            self._balance_label.setText("已更新配置，正在查询账户余额…")
+            self.refresh_balance()
 
     def _apply_initial_balance_hint(self) -> None:
         if not getattr(self._settings, "account_api_key", ""):
-            self._balance_label.setText("未配置账户 key：在下方填入自己的 API Key 即可查询余额")
+            self._balance_label.setText("未配置 API Key：在下方填入自己的 Key 即可查询余额")
             self._refresh_button.setEnabled(False)
         else:
             self._balance_label.setText("尚未查询，点击右侧按钮获取账户余额")

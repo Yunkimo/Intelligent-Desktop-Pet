@@ -267,10 +267,17 @@ class PetWindow(QWidget):
         if dialog is not None:
             dialog.close()
         self._usage_dialog = UsageDialog(self.settings, self.usage_store, self)
+        self._usage_dialog.llm_config_changed.connect(self._rebuild_llm)
         try:
             self._usage_dialog.exec()
         finally:
             self._usage_dialog = None
+
+    def _rebuild_llm(self) -> None:
+        """用户改了推理用的 key 或地址后重建客户端；进行中的对话仍用旧客户端跑完。"""
+        self.llm = LLMClient(
+            create_chat_provider(self.settings, on_usage=self.usage_store.record_usage)
+        )
 
     def toggle_input(self) -> None:
         if self.input.isVisible():

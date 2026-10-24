@@ -124,7 +124,15 @@ LLM_MODEL=deepseek-chat
 
 账户余额用的是独立凭据：在 `.env` 里设置 `ACCOUNT_API_KEY`（留空则回退 `LLM_API_KEY`），`ACCOUNT_BASE_URL` 留空则回退 `LLM_BASE_URL`，因此可以用 A 家的 key 推理、查 B 家账户余额。当前只支持提供官方余额接口的 DeepSeek 与 Moonshot，其余服务商如实提示「未提供余额查询接口」，本地记账照常可用。
 
-还没有 key 的新用户不用改文件：窗口最下方有「配置 API Key」，粘贴自己的 key 点「保存」即可，保存后立即生效并自动刷新余额。key 只写入本机 `.env` 的 `ACCOUNT_API_KEY`（该文件已被 git 忽略，不会提交），输入框为密码模式，保存后只回显头尾几位，不留明文。
+还没有 key 的新用户不用改文件：窗口最下方有「配置 API」三栏，粘贴后点「保存」即可，**留空的栏位保持不变**。
+
+| 栏位 | 写入 `.env` | 作用 |
+|---|---|---|
+| API Key | `LLM_API_KEY` | 桌宠对话接入用的 key；保存后立即重建客户端，无需重启 |
+| API 地址 | `LLM_BASE_URL` | 可选；留空沿用当前地址，没写协议会自动补 `https://` |
+| 账户查询 Key | `ACCOUNT_API_KEY` | 可选；留空则沿用上面的 API Key |
+
+key 只写入本机 `.env`（已被 git 忽略，不会提交），不会进 `config.json`。输入框是密码模式，保存后立即清空，提示里只回显头尾几位，界面和截图都不留明文。改了 API Key 或地址后，账户余额会用新配置自动刷新。
 
 ### 监控 Codex 回合状态（可选）
 

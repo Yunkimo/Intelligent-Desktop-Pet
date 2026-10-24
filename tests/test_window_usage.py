@@ -145,3 +145,20 @@ def test_missing_rice_asset_keeps_entry_usable(tmp_path, qapp):
     assert window.rice.text() == "米"
     window._layout_children()
     assert window.rice.geometry().width() > 0
+
+
+def test_rebuild_llm_swaps_client_after_key_change(tmp_path, qapp, monkeypatch):
+    """用量窗口里改了推理 key/地址后，窗口要重建 LLM 客户端才会生效。"""
+    import pet.window as window_module
+
+    window = _bare_window(tmp_path)
+    window.settings = Mock()
+    window.usage_store = Mock()
+    monkeypatch.setattr(
+        window_module, "create_chat_provider", lambda settings, on_usage=None: Mock()
+    )
+    before = window.llm = Mock()
+
+    window._rebuild_llm()
+
+    assert window.llm is not before
