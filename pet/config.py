@@ -25,6 +25,10 @@ class Settings:
         self.llm_base_url: str = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").strip()
         self.llm_model: str = os.getenv("LLM_MODEL", "deepseek-chat").strip()
 
+        # 账户余额查询用的独立凭据；留空时回退到推理用的 key 与地址
+        self.account_api_key: str = os.getenv("ACCOUNT_API_KEY", "").strip() or self.llm_api_key
+        self.account_base_url: str = os.getenv("ACCOUNT_BASE_URL", "").strip() or self.llm_base_url
+
         # —— 后端服务配置（API_TOKEN 是后端侧密钥，桌宠端填同一值以通过 X-API-Key 鉴权）——
         self.backend_url: str = os.getenv("BACKEND_URL", "http://127.0.0.1:8001").strip()
         self.api_token: str = os.getenv("API_TOKEN", "").strip()
@@ -90,12 +94,47 @@ class Settings:
         # 系统托盘：关闭后右键「隐藏至托盘」置灰，关闭窗口仍直接退出
         self.tray_enabled: bool = bool(data.get("tray_enabled", True))
 
+        # Token 用量：本地记账文件与按天明细保留天数（总计不受裁剪影响）
+        self.usage_retention_days: int = self._bounded_int(
+            data.get("usage_retention_days", 90), "usage_retention_days", 1, 3650
+        )
+        # 余额查询超时（秒）。实测部分网络下 DeepSeek 余额接口要 8 秒才返回，
+        # 默认 10 秒；上限 30 秒，避免 UI 侧无限等待
+        self.balance_timeout_seconds: float = self._bounded_float(
+            data.get("balance_timeout_seconds", 10), "balance_timeout_seconds", 0.5, 30
+        )
+        # 桌宠右下角的用量入口图标（相对 assets_dir）
+        self.rice_icon: str = data.get("rice_icon", "Rice.png")
+
         # 路径统一解析为绝对路径
         self.assets_dir: Path = BASE_DIR / data.get("assets_dir", "assets")
         self.history_path: Path = BASE_DIR / data.get("history_path", "data/history.json")
         self.agent_status_path: Path = BASE_DIR / data.get(
             "agent_status_path", "data/agent-status.json"
         )
+        self.usage_path: Path = BASE_DIR / data.get("usage_path", "data/usage.json")
+
+    @staticmethod
+    def _bounded_int(value: object, name: str, low: int, high: int) -> int:
+        """读取整数配置并夹在 [low, high]；非法值直接报错，避免静默用错口径。"""
+        try:
+            number = int(value)  # type: ignore[arg-type]
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{name} 必须是整数：{value!r}") from exc
+        if not low <= number <= high:
+            raise ValueError(f"{name} 必须在 {low}-{high} 之间：{number}")
+        return number
+
+    @staticmethod
+    def _bounded_float(value: object, name: str, low: float, high: float) -> float:
+        """读取浮点配置并夹在 [low, high]；非法值直接报错。"""
+        try:
+            number = float(value)  # type: ignore[arg-type]
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{name} 必须是数字：{value!r}") from exc
+        if not low <= number <= high:
+            raise ValueError(f"{name} 必须在 {low}-{high} 之间：{number}")
+        return number
 
     def _save_json(self, **updates: object) -> None:
         """把给定字段合并写回 config.json，保留其余字段。"""
