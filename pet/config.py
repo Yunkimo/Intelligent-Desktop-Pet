@@ -137,6 +137,8 @@ class Settings:
         )
         # 桌宠右下角的用量入口图标（相对 assets_dir）
         self.rice_icon: str = data.get("rice_icon", "Rice.png")
+        # 「跳转至 API 网站」的目标地址；留空则按 API 地址推出站点根
+        self.api_website: str = str(data.get("api_website", "")).strip()
 
         # 路径统一解析为绝对路径
         self.assets_dir: Path = BASE_DIR / data.get("assets_dir", "assets")

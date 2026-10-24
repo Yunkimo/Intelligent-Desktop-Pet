@@ -73,9 +73,10 @@ Claude/Codex 状态角标由分支 `feat/badge-draggable` 交付（PR #57），�
 - 余额：`pet/balance.py` 只对接官方余额接口（DeepSeek `GET /user/balance`、Moonshot `/v1/users/me/balance`），base_url 归一后忽略 path，禁止跟随重定向以免 `Authorization` 被带到其他 host，401/超时/坏 JSON 各给可读文案且不含 key；`BalanceTarget.api_key` 用 `repr=False`。
 - 入口：`pet/rice_button.py` 的米饭图标是桌宠窗口的子控件，随窗口移动不可分离；图标设 `WA_TransparentForMouseEvents`，点击与拖拽统一由 `PetWindow` 的命中测试分流（点图标开窗口、点头像唤输入框、从图标按下仍可拖动桌宠），悬停时切换手型光标；素材缺失降级为文字块。
 - 线程：`BalanceWorker(QThread)` 的 parent 是桌宠窗口而非对话框，对话框持注册表并在 `finished` 时 `deleteLater`；关闭窗口只 `request_stop` 不阻塞，应用退出时 `shutdown()` 有限等待 1.5 秒。
+- 跳转 API 网站：余额区「刷新余额」下方新增「跳转至API网站」，用 `QDesktopServices.openUrl` 在系统默认浏览器打开；目标优先取 `config.json` 的 `api_website`；未配置时由 `pet/balance.py::console_url` 按服务商给控制台用量页（DeepSeek → `https://platform.deepseek.com/usage`），未收录的服务商退回接口站点根（`website_url` 只保留 scheme+host）；地址为空时按钮置灰并给出提示，改完「API 地址」即时刷新提示。
 - 余额详情：账户余额改为分行字段（服务商 / 币种 / 总余额 / 赠送·充值 / 状态 / 查询时间），失败时保留上次数值只更新状态行；因 DeepSeek、Moonshot 均未开放历史用量接口，界面常驻一行说明「账户侧近七天用量无法获取」，不拿本地数字冒充账户用量。
 - 新用户入口：用量窗口下方提供「配置 API」三栏——API Key（`LLM_API_KEY`，桌宠接入用）、API 地址（`LLM_BASE_URL`，可留空）、账户查询 Key（`ACCOUNT_API_KEY`，可留空回退）。`pet/config.py::save_env_values` 按行合并 `.env`（保留注释与既有键、同名原地替换、缺失追加），保存后立即更新内存配置：改了推理 key/地址发 `llm_config_changed` 信号，窗口据此重建 `LLMClient`；账户 key 留空时沿用推理 key。输入框密码模式、保存后清空、只回显头尾，界面与截图不留明文；`config.json` 会被提交，密钥一律不进该文件。
-- 验证：ruff check/format 全过；桌宠端 pytest 293 项全过（213 + 新增 80 项：价目边界、归一化、聚合/裁剪/并发、余额解析与错误映射、图标几何与点击分流、对话框汇总与线程收敛、`.env` 写入与窗口内接入配置、余额详情字段化、UTC 时区分桶）。真实链路实测：真实 API 一次流式 + 一次工具调用后 `data/usage.json` 记录 2 条、费用非 0、重新加载一致；真实余额接口返回 200 并在窗口分行填出服务商 DeepSeek、币种 CNY、总余额、赠送/充值、状态「可用」与查询时间，该接口在测试网络下约 8 秒返回。
+- 验证：ruff check/format 全过；桌宠端 pytest 301 项全过（213 + 新增 88 项：价目边界、归一化、聚合/裁剪/并发、余额解析与错误映射、图标几何与点击分流、对话框汇总与线程收敛、`.env` 写入与窗口内接入配置、余额详情字段化、UTC 时区分桶、跳转 API 网站）。真实链路实测：真实 API 一次流式 + 一次工具调用后 `data/usage.json` 记录 2 条、费用非 0、重新加载一致；真实余额接口返回 200 并在窗口分行填出服务商 DeepSeek、币种 CNY、总余额、赠送/充值、状态「可用」与查询时间，该接口在测试网络下约 8 秒返回。
 
 ## B1 后端
 

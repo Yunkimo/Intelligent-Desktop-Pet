@@ -15,6 +15,11 @@ import httpx
 
 DEFAULT_TIMEOUT_SECONDS = 5.0
 
+# 已核实服务商的控制台用量页；未收录的按接口地址推出站点根
+CONSOLE_URLS: tuple[tuple[str, str], ...] = (
+    ("deepseek.com", "https://platform.deepseek.com/usage"),
+)
+
 
 class BalanceError(Exception):
     """余额查询失败；消息可直接展示给用户，且绝不包含 key。"""
@@ -51,6 +56,37 @@ def _endpoint(base_url: str) -> tuple[str, str]:
     if "moonshot" in host:
         return "Moonshot", f"{root}/v1/users/me/balance"
     raise BalanceError("当前服务商未提供余额查询接口，仅显示本地用量记账")
+
+
+def console_url(base_url: str) -> str:
+    """服务商控制台的用量页，供「跳转至 API 网站」使用。
+
+    已收录的服务商直接给控制台地址；未收录的退回接口站点根，至少不跳错站点。
+    地址为空或无法解析时返回空串，由调用方决定提示还是禁用按钮。
+    """
+    raw = (base_url or "").strip()
+    if not raw:
+        return ""
+    host = (urlsplit(raw if "://" in raw else f"https://{raw}").hostname or "").lower()
+    for suffix, url in CONSOLE_URLS:
+        if host == suffix or host.endswith("." + suffix):
+            return url
+    return website_url(raw)
+
+
+def website_url(base_url: str) -> str:
+    """由配置的接口地址推出服务商站点根（未收录服务商时的兜底）。
+
+    只保留 scheme + host，用户填 `https://api.deepseek.com/v1` 也指向站点根；
+    地址为空或无法解析时返回空串。
+    """
+    raw = (base_url or "").strip()
+    if not raw:
+        return ""
+    parts = urlsplit(raw if "://" in raw else f"https://{raw}")
+    if not parts.netloc:
+        return ""
+    return f"{parts.scheme or 'https'}://{parts.netloc}/"
 
 
 def _decimal(value: object) -> Decimal | None:

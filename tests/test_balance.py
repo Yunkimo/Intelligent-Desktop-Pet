@@ -154,3 +154,35 @@ def test_missing_key_is_rejected_before_request():
 
 def test_target_repr_hides_key():
     assert _KEY not in repr(_target())
+
+
+# ---------- 站点地址推导 ----------
+def test_website_url_keeps_only_scheme_and_host():
+    from pet.balance import website_url
+
+    assert website_url("https://api.deepseek.com") == "https://api.deepseek.com/"
+    assert website_url("https://api.deepseek.com/v1") == "https://api.deepseek.com/"
+    assert website_url("api.deepseek.com") == "https://api.deepseek.com/"
+    assert website_url("https://api.moonshot.cn:8443/v1") == "https://api.moonshot.cn:8443/"
+
+
+def test_website_url_returns_empty_for_blank_input():
+    from pet.balance import website_url
+
+    assert website_url("") == ""
+    assert website_url("   ") == ""
+
+
+def test_console_url_points_to_provider_usage_page():
+    from pet.balance import console_url
+
+    assert console_url("https://api.deepseek.com") == "https://platform.deepseek.com/usage"
+    assert console_url("https://api.deepseek.com/v1") == "https://platform.deepseek.com/usage"
+    assert console_url("api.deepseek.com") == "https://platform.deepseek.com/usage"
+
+
+def test_console_url_falls_back_to_site_root_for_unknown_provider():
+    from pet.balance import console_url
+
+    assert console_url("https://api.example.com/v1") == "https://api.example.com/"
+    assert console_url("") == ""

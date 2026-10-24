@@ -311,3 +311,59 @@ def test_missing_key_hint_points_to_the_entry_below(tmp_path, qapp):
     dialog = UsageDialog(_settings(with_key=False), UsageStore(tmp_path / "usage.json"))
 
     assert "下方" in dialog._balance_label.text()
+
+
+# ---------- 跳转至 API 网站 ----------
+def test_website_button_opens_configured_site(tmp_path, qapp, monkeypatch):
+    opened = []
+    monkeypatch.setattr(
+        dialog_module,
+        "QDesktopServices",
+        SimpleNamespace(openUrl=lambda url: opened.append(url.toString())),
+    )
+    dialog = UsageDialog(_settings(), UsageStore(tmp_path / "usage.json"))
+
+    dialog._website_button.click()
+    qapp.processEvents()
+
+    assert opened == ["https://platform.deepseek.com/usage"]  # 控制台用量页，不是接口根
+
+
+def test_website_override_wins_over_base_url(tmp_path, qapp, monkeypatch):
+    opened = []
+    monkeypatch.setattr(
+        dialog_module,
+        "QDesktopServices",
+        SimpleNamespace(openUrl=lambda url: opened.append(url.toString())),
+    )
+    settings = _settings()
+    settings.api_website = "platform.deepseek.com"
+    dialog = UsageDialog(settings, UsageStore(tmp_path / "usage.json"))
+
+    dialog._website_button.click()
+
+    assert opened == ["https://platform.deepseek.com"]  # 没写协议时补 https
+
+
+def test_website_button_disabled_without_address(tmp_path, qapp):
+    settings = _settings()
+    settings.account_base_url = ""
+    dialog = UsageDialog(settings, UsageStore(tmp_path / "usage.json"))
+
+    assert dialog._website_button.isEnabled() is False
+    assert "未配置" in dialog._website_button.toolTip()
+
+
+def test_website_hint_follows_saved_base_url(tmp_path, qapp, monkeypatch):
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    settings = _settings()
+    dialog = UsageDialog(settings, UsageStore(tmp_path / "usage.json"))
+    dialog.refresh_balance = lambda: None
+
+    _fill(dialog, base="api.example.com/v1")
+    dialog._save_api_config()
+
+    # 未收录的服务商退回站点根
+    assert "https://api.example.com/" in dialog._website_button.toolTip()

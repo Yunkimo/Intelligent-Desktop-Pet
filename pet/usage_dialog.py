@@ -9,7 +9,8 @@ import threading
 from datetime import datetime
 from decimal import Decimal
 
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, QUrl, pyqtSignal
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -21,7 +22,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from .balance import Balance, BalanceError, BalanceTarget, fetch_balance
+from .balance import Balance, BalanceError, BalanceTarget, console_url, fetch_balance
 from .config import save_env_values
 from .pricing import PRICE_AS_OF
 from .usage import Totals, UsageStore
@@ -92,6 +93,14 @@ def _mask_key(key: str) -> str:
     if len(key) <= 10:
         return "已保存"
     return f"{key[:6]}…{key[-4:]}"
+
+
+def _website_target(settings) -> str:
+    """跳转目标：优先用显式配置的 api_website，否则取服务商控制台的用量页。"""
+    override = str(getattr(settings, "api_website", "") or "").strip()
+    if override:
+        return override if "://" in override else f"https://{override}"
+    return console_url(getattr(settings, "account_base_url", ""))
 
 
 def _normalize_base_url(text: str) -> str:
@@ -184,7 +193,15 @@ class UsageDialog(QDialog):
 
         self._refresh_button = QPushButton("刷新余额")
         self._refresh_button.clicked.connect(self.refresh_balance)
-        grid.addWidget(self._refresh_button, 0, 2, 3, 1, Qt.AlignmentFlag.AlignTop)
+        self._website_button = QPushButton("跳转至API网站")
+        self._website_button.clicked.connect(self._open_api_website)
+        actions = QVBoxLayout()
+        actions.setContentsMargins(0, 0, 0, 0)
+        actions.addWidget(self._refresh_button)
+        actions.addWidget(self._website_button)
+        actions.addStretch(1)
+        grid.addLayout(actions, 0, 2, 3, 1)
+        self._refresh_website_hint()
 
         self._balance_label = QLabel("")
         self._balance_label.setWordWrap(True)
@@ -287,6 +304,7 @@ class UsageDialog(QDialog):
         for entry in (self._llm_key_input, self._base_url_input, self._account_key_input):
             entry.clear()
         self._refresh_key_hint()
+        self._refresh_website_hint()
         if llm_changed:
             self.llm_config_changed.emit()
         has_key = bool(getattr(self._settings, "account_api_key", ""))
@@ -294,6 +312,22 @@ class UsageDialog(QDialog):
         if has_key:
             self._balance_label.setText("已更新配置，正在查询账户余额…")
             self.refresh_balance()
+
+    def _refresh_website_hint(self) -> None:
+        """按钮可用性与提示跟随当前配置的地址，改完地址即时更新。"""
+        target = _website_target(self._settings)
+        self._website_button.setEnabled(bool(target))
+        self._website_button.setToolTip(
+            f"用默认浏览器打开 {target}" if target else "未配置 API 地址，无法跳转"
+        )
+
+    def _open_api_website(self) -> None:
+        """在系统默认浏览器中打开配置的 API 网站。"""
+        target = _website_target(self._settings)
+        if not target:
+            self._balance_label.setText("未配置 API 地址，无法跳转")
+            return
+        QDesktopServices.openUrl(QUrl(target))
 
     def _apply_initial_balance_hint(self) -> None:
         if not getattr(self._settings, "account_api_key", ""):
