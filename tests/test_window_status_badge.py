@@ -157,6 +157,7 @@ def test_startup_restores_hidden_badges(qapp, tmp_path):
         monitor_claude=True,
         monitor_codex=False,
         agent_status_path=tmp_path / "agent-status.json",
+        assets_dir=tmp_path,
     )
     window._position_status_badge = Mock()
     window._init_claude_monitor()

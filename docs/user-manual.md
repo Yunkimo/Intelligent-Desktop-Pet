@@ -63,6 +63,7 @@ LLM_MODEL=deepseek-chat
 | 左键点击托盘图标 | 显示 / 隐藏桌宠 |
 | 右键托盘图标 | 弹出与桌宠一致的命令菜单，可勾选「开机自启动」；「退出」固定在菜单最下方 |
 | 点击右下角米饭图标 | 打开「Token 用量」窗口；图标跟随桌宠移动，从图标上按下也能直接拖动桌宠 |
+| 右键状态角标 | 弹出监控相关命令：监控 Claude / 监控 Codex / 显示状态角标 / 查看余额 / 退出 |
 
 - 回复以气泡流式显示，同时用语音播报。
 - 对话历史保存在 `data/history.json`，重启后仍在。
@@ -79,6 +80,10 @@ LLM_MODEL=deepseek-chat
 | Claude 等你确认 | Claude 正在等待你确认权限 |
 | Claude 本轮完成 | 当前回合的最后一条回复已输出 |
 | Claude 状态未知 | 处理中/等你确认超过 5 分钟没有新事件（可能被中断或异常退出） |
+
+**声音提醒**：状态切到「等你确认」时播放 `assets/assets_Pending confirmation.wav`，切到「本轮完成」时播放 `assets/assets_Completed.wav`，只在实际状态变化时响一次，不会重复；Claude 与 Codex 共用这两段音效。素材文件缺失时静默跳过，不影响角标与对话。音效走独立的 QSoundEffect，不会打断正在播报的回复。
+
+**右键角标**可弹出命令菜单，顺序为：监控 Claude / 监控 Codex / 显示状态角标 / 查看余额 / 退出。其中「查看余额」打开的是米饭图标那个用量窗口，两个角标都支持右键。
 
 状态由 Claude Code hooks 写入 `data/agent-status.json`。运行过 `setup.bat` 的话，hooks 已自动写入 `.claude/settings.local.json`，可跳过下面的手工配置；需要手动生成时执行：
 
