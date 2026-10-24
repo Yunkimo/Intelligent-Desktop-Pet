@@ -124,6 +124,8 @@ LLM_MODEL=deepseek-chat
 
 账户余额用的是独立凭据：在 `.env` 里设置 `ACCOUNT_API_KEY`（留空则回退 `LLM_API_KEY`），`ACCOUNT_BASE_URL` 留空则回退 `LLM_BASE_URL`，因此可以用 A 家的 key 推理、查 B 家账户余额。当前只支持提供官方余额接口的 DeepSeek 与 Moonshot，其余服务商如实提示「未提供余额查询接口」，本地记账照常可用。
 
+还没有 key 的新用户不用改文件：窗口最下方有「配置 API Key」，粘贴自己的 key 点「保存」即可，保存后立即生效并自动刷新余额。key 只写入本机 `.env` 的 `ACCOUNT_API_KEY`（该文件已被 git 忽略，不会提交），输入框为密码模式，保存后只回显头尾几位，不留明文。
+
 ### 监控 Codex 回合状态（可选）
 
 Codex 使用与 Claude 独立的「监控 Codex」右键开关和角标。运行 `setup.bat` 会把 hooks 合并到用户级 `%USERPROFILE%\.codex\hooks.json`（若设置了 `CODEX_HOME`，则使用该目录）；也可手动运行：

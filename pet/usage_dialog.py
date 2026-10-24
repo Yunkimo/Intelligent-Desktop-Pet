@@ -16,11 +16,13 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QVBoxLayout,
 )
 
 from .balance import Balance, BalanceError, BalanceTarget, fetch_balance
+from .config import save_env_values
 from .pricing import PRICE_AS_OF
 from .usage import Totals, UsageStore
 
@@ -76,6 +78,13 @@ def _fmt_money(value: Decimal) -> str:
     return f"¥{value:.4f}"
 
 
+def _mask_key(key: str) -> str:
+    """密钥只回显头尾，避免整串明文出现在界面上或截图里。"""
+    if len(key) <= 10:
+        return "已保存"
+    return f"{key[:6]}…{key[-4:]}"
+
+
 class UsageDialog(QDialog):
     """展示用量与余额；构造不产生网络副作用，首次查询在 showEvent 触发。"""
 
@@ -124,6 +133,8 @@ class UsageDialog(QDialog):
         balance_layout.addWidget(self._refresh_button, 0)
         layout.addWidget(balance_box)
 
+        layout.addWidget(self._build_key_box())
+
         footnote = QLabel(_FOOTNOTE.format(date=PRICE_AS_OF.isoformat()))
         footnote.setWordWrap(True)
         footnote.setStyleSheet("color: #777; font-size: 11px;")
@@ -136,9 +147,55 @@ class UsageDialog(QDialog):
 
         self._apply_initial_balance_hint()
 
+    def _build_key_box(self) -> QGroupBox:
+        """窗口下方的 API Key 填写入口：供新用户直接补上账户 key。"""
+        box = QGroupBox("配置 API Key")
+        grid = QGridLayout(box)
+        self._key_input = QLineEdit()
+        self._key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self._key_input.setPlaceholderText("sk-…")
+        self._key_input.returnPressed.connect(self._save_account_key)
+        self._key_save = QPushButton("保存")
+        self._key_save.clicked.connect(self._save_account_key)
+        self._key_hint = QLabel("")
+        self._key_hint.setWordWrap(True)
+        self._key_hint.setStyleSheet("color: #777; font-size: 11px;")
+        grid.addWidget(QLabel("账户 API Key"), 0, 0)
+        grid.addWidget(self._key_input, 0, 1)
+        grid.addWidget(self._key_save, 0, 2)
+        grid.addWidget(self._key_hint, 1, 0, 1, 3)
+        self._refresh_key_hint()
+        return box
+
+    def _refresh_key_hint(self) -> None:
+        key = getattr(self._settings, "account_api_key", "")
+        if key:
+            self._key_hint.setText(f"已配置（{_mask_key(key)}），留空保存则保持不变")
+        else:
+            self._key_hint.setText(
+                "还没有 key？粘贴到这里保存即可，仅写入本机 .env，不会提交到仓库"
+            )
+
+    def _save_account_key(self) -> None:
+        """把输入的 key 写入 .env 并立即生效，不把明文回填到输入框。"""
+        value = self._key_input.text().strip()
+        if not value:
+            self._key_hint.setText("请先填入 API Key 再保存")
+            return
+        try:
+            save_env_values(ACCOUNT_API_KEY=value)
+        except OSError as exc:
+            self._key_hint.setText(f"保存失败：{exc}")
+            return
+        self._settings.account_api_key = value
+        self._key_input.clear()
+        self._key_hint.setText(f"已保存（{_mask_key(value)}），正在刷新余额…")
+        self._refresh_button.setEnabled(True)
+        self.refresh_balance()
+
     def _apply_initial_balance_hint(self) -> None:
-        if not self._settings.account_api_key:
-            self._balance_label.setText("未配置账户 key：在 .env 设置 ACCOUNT_API_KEY 后可查询余额")
+        if not getattr(self._settings, "account_api_key", ""):
+            self._balance_label.setText("未配置账户 key：在下方填入自己的 API Key 即可查询余额")
             self._refresh_button.setEnabled(False)
         else:
             self._balance_label.setText("尚未查询，点击右侧按钮获取账户余额")

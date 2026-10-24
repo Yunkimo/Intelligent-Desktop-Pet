@@ -14,6 +14,38 @@ DEFAULT_TTS_VOICE = "zh-CN-XiaoxiaoNeural"
 DEFAULT_TTS_TIMEOUT_SECONDS = 30
 
 
+def save_env_values(**values: str) -> Path:
+    """把键值合并写入 .env：保留注释与既有顺序，同名键原地替换，缺失则追加。
+
+    .env 被 .gitignore 排除，因此可以安全地存密钥；config.json 会被提交，不能存。
+    返回写入的文件路径，便于调用方提示。
+    """
+    path = BASE_DIR / ".env"
+    try:
+        original = path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        original = []
+
+    pending = dict(values)
+    lines: list[str] = []
+    for line in original:
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and "=" in stripped:
+            key = stripped.split("=", 1)[0].strip()
+            if key in pending:
+                lines.append(f"{key}={pending.pop(key)}")
+                continue
+        lines.append(line)
+    for key, value in pending.items():
+        lines.append(f"{key}={value}")
+
+    tmp = path.with_suffix(".env.tmp")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+    return path
+
+
 class Settings:
     """应用配置的统一入口，各模块从这里取值。"""
 

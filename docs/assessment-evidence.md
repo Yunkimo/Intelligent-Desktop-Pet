@@ -73,7 +73,8 @@ Claude/Codex 状态角标由分支 `feat/badge-draggable` 交付（PR #57），�
 - 余额：`pet/balance.py` 只对接官方余额接口（DeepSeek `GET /user/balance`、Moonshot `/v1/users/me/balance`），base_url 归一后忽略 path，禁止跟随重定向以免 `Authorization` 被带到其他 host，401/超时/坏 JSON 各给可读文案且不含 key；`BalanceTarget.api_key` 用 `repr=False`。
 - 入口：`pet/rice_button.py` 的米饭图标是桌宠窗口的子控件，随窗口移动不可分离；图标设 `WA_TransparentForMouseEvents`，点击与拖拽统一由 `PetWindow` 的命中测试分流（点图标开窗口、点头像唤输入框、从图标按下仍可拖动桌宠），悬停时切换手型光标；素材缺失降级为文字块。
 - 线程：`BalanceWorker(QThread)` 的 parent 是桌宠窗口而非对话框，对话框持注册表并在 `finished` 时 `deleteLater`；关闭窗口只 `request_stop` 不阻塞，应用退出时 `shutdown()` 有限等待 1.5 秒。
-- 验证：ruff check/format 全过；桌宠端 pytest 277 项全过（213 + 新增 64 项：价目边界、归一化、聚合/裁剪/并发、余额解析与错误映射、图标几何与点击分流、对话框汇总与线程收敛）。真实链路实测：真实 API 一次流式 + 一次工具调用后 `data/usage.json` 记录 2 条、费用非 0、重新加载一致；真实余额接口返回 200 并在窗口显示「DeepSeek 账户余额 ¥… CNY（赠送…、充值…），可用」，该接口在测试网络下约 8 秒返回。
+- 新用户入口：用量窗口下方提供「配置 API Key」，直接把 key 写入本机 `.env` 的 `ACCOUNT_API_KEY`（`pet/config.py::save_env_values` 按行合并，保留注释与既有键、同名原地替换、缺失追加），保存后立即更新内存配置并自动刷新余额；输入框为密码模式，保存后清空并只回显头尾，界面与截图里不留明文。`config.json` 会被提交，因此密钥一律不进该文件。
+- 验证：ruff check/format 全过；桌宠端 pytest 284 项全过（213 + 新增 71 项：价目边界、归一化、聚合/裁剪/并发、余额解析与错误映射、图标几何与点击分流、对话框汇总与线程收敛、`.env` 写入与填写入入口）。真实链路实测：真实 API 一次流式 + 一次工具调用后 `data/usage.json` 记录 2 条、费用非 0、重新加载一致；真实余额接口返回 200 并在窗口显示「DeepSeek 账户余额 ¥… CNY（赠送…、充值…），可用」，该接口在测试网络下约 8 秒返回。
 
 ## B1 后端
 

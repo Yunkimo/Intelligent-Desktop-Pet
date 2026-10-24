@@ -71,7 +71,7 @@ def test_unpriced_tokens_are_reported(tmp_path, qapp):
 def test_missing_account_key_shows_hint_and_disables_button(tmp_path, qapp):
     dialog = UsageDialog(_settings(with_key=False), UsageStore(tmp_path / "usage.json"))
 
-    assert "ACCOUNT_API_KEY" in dialog._balance_label.text()
+    assert "未配置账户 key" in dialog._balance_label.text()
     assert dialog._refresh_button.isEnabled() is False
 
 
@@ -129,3 +129,53 @@ def test_unknown_price_model_does_not_break_snapshot(tmp_path, qapp, value):
 
     dialog = UsageDialog(_settings(), store)
     assert dialog._rows["today"][0].text() == "1"
+
+
+# ---------- 窗口下方的 API Key 填写入口 ----------
+def test_save_key_writes_env_and_refreshes_balance(tmp_path, qapp, monkeypatch):
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    settings = _settings(with_key=False)
+    dialog = UsageDialog(settings, UsageStore(tmp_path / "usage.json"))
+    dialog.refresh_balance = lambda: calls.append(True)
+    calls: list[bool] = []
+
+    dialog._key_input.setText("sk-user-provided-key-123")
+    dialog._save_account_key()
+
+    env = (tmp_path / ".env").read_text(encoding="utf-8")
+    assert "ACCOUNT_API_KEY=sk-user-provided-key-123" in env
+    assert settings.account_api_key == "sk-user-provided-key-123"
+    assert dialog._key_input.text() == ""  # 保存后清空，不留明文
+    assert "已保存" in dialog._key_hint.text()
+    assert "sk-user-provided-key-123" not in dialog._key_hint.text()  # 只回显头尾
+    assert dialog._refresh_button.isEnabled() is True
+    assert calls == [True]
+
+
+def test_save_key_with_empty_input_only_hints(tmp_path, qapp, monkeypatch):
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    dialog = UsageDialog(_settings(with_key=False), UsageStore(tmp_path / "usage.json"))
+
+    dialog._save_account_key()
+
+    assert "请先填入" in dialog._key_hint.text()
+    assert not (tmp_path / ".env").exists()
+
+
+def test_key_hint_shows_masked_key_when_configured(tmp_path, qapp):
+    settings = _settings(with_key=True)
+    settings.account_api_key = "sk-abcdefghijklmnop"
+    dialog = UsageDialog(settings, UsageStore(tmp_path / "usage.json"))
+
+    assert "已配置" in dialog._key_hint.text()
+    assert "sk-abcdefghijklmnop" not in dialog._key_hint.text()
+
+
+def test_missing_key_hint_points_to_the_entry_below(tmp_path, qapp):
+    dialog = UsageDialog(_settings(with_key=False), UsageStore(tmp_path / "usage.json"))
+
+    assert "下方" in dialog._balance_label.text()
