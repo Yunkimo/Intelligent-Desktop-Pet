@@ -29,14 +29,17 @@ from .llm import LLMClient
 from .memory import Memory
 from .persona import build_system_prompt
 from .providers import create_chat_provider
+from .rice_button import RiceButton
 from .status_badge import StatusBadge
 from .tools import build_tools
 from .tray import TrayIcon
 from .tts import TTSEngine
+from .usage import UsageStore
 from .worker import ASRWorker, ChatWorker, TTSWorker
 
 _GAP = 8
 _INPUT_H = 36
+_RICE_MARGIN = 4
 
 # 回复里出现这些词，通常表示宠物没听懂 / 需要用户澄清，此时做「疑惑」表情
 _DOUBT_KEYWORDS = (
@@ -67,7 +70,9 @@ class PetWindow(QWidget):
         self.settings = settings
 
         # —— 引擎 ——
-        self.llm = LLMClient(create_chat_provider(settings))
+        # 用量记账是旁路：provider 每次调用回来顺手记一笔，失败不影响对话
+        self.usage_store = UsageStore(settings.usage_path, settings.usage_retention_days)
+        self.llm = LLMClient(create_chat_provider(settings, on_usage=self.usage_store.record_usage))
         self.asr_engine = ASREngine(settings.whisper_model)
         self.tts_engine = TTSEngine(
             settings.tts_voice,
@@ -125,12 +130,15 @@ class PetWindow(QWidget):
             | Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        # 需要无按键的 move 事件，用于在米饭图标上给出可点击光标提示
+        self.setMouseTracking(True)
 
     def _init_children(self) -> None:
         self.avatar = create_avatar(self.settings, parent=self)
         self.bubble = SpeechBubble(self.settings.bubble_timeout_ms, parent=self)
         self.input = ChatInput(parent=self)
         self.input.hide()
+        self.rice = RiceButton(self.settings.assets_dir / self.settings.rice_icon, parent=self)
 
         self.input.submitted.connect(self.send_text)
         self.input.mic_toggled.connect(self.on_mic_toggled)
@@ -172,6 +180,12 @@ class PetWindow(QWidget):
         iy = sy + sh + _GAP
         self.input.move(ix, iy)
 
+        # 用量入口贴头像右下角内侧；子控件随窗口移动，天然不会与桌宠分离
+        rx = sx + sw - self.rice.width() - _RICE_MARGIN
+        ry = sy + sh - self.rice.height() - _RICE_MARGIN
+        self.rice.move(rx, ry)
+        self.rice.raise_()
+
         self._position_bubble()
         self._position_status_badge()
 
@@ -199,10 +213,18 @@ class PetWindow(QWidget):
         """判断给定窗口坐标是否落在形象区域内，避免透明空白区误触。"""
         return self.avatar.widget.geometry().contains(pos)
 
+    def _hit_rice(self, pos) -> bool:
+        """是否落在右下角的用量入口图标上。"""
+        return getattr(self, "rice", None) is not None and self.rice.geometry().contains(pos)
+
+    def _hit_drag_area(self, pos) -> bool:
+        """可拖拽区域：形象与米饭图标，从图标上按下也能拖动整个桌宠。"""
+        return self._hit_avatar(pos) or self._hit_rice(pos)
+
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() != Qt.MouseButton.LeftButton:
             return
-        if not self._hit_avatar(event.position().toPoint()):
+        if not self._hit_drag_area(event.position().toPoint()):
             return
         self._press_pos = event.globalPosition().toPoint()
         self._moved = False
@@ -218,14 +240,37 @@ class PetWindow(QWidget):
                 self._position_bubble()
                 self.bubble.raise_()
                 self._position_status_badge()
+            return
+        # 悬停在用量入口上时换成手型，弥补图标接收不到鼠标事件、无法用 tooltip 的不足
+        over_rice = self._hit_rice(event.position().toPoint())
+        self.setCursor(
+            Qt.CursorShape.PointingHandCursor if over_rice else Qt.CursorShape.ArrowCursor
+        )
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         if event.button() != Qt.MouseButton.LeftButton or self._press_pos is None:
             return
         if not self._moved:
-            self.toggle_input()
+            pos = event.position().toPoint()
+            if self._hit_rice(pos):
+                self._show_usage_dialog()
+            elif self._hit_avatar(pos):
+                self.toggle_input()
         self._press_pos = None
         self._moved = False
+
+    def _show_usage_dialog(self) -> None:
+        """打开用量窗口；延迟导入避免启动时加载未用到的对话框模块。"""
+        from .usage_dialog import UsageDialog
+
+        dialog = getattr(self, "_usage_dialog", None)
+        if dialog is not None:
+            dialog.close()
+        self._usage_dialog = UsageDialog(self.settings, self.usage_store, self)
+        try:
+            self._usage_dialog.exec()
+        finally:
+            self._usage_dialog = None
 
     def toggle_input(self) -> None:
         if self.input.isVisible():
@@ -731,6 +776,14 @@ class PetWindow(QWidget):
         self._quitting = True
         self.close()
 
+    def _shutdown_usage(self) -> None:
+        """退出时收敛用量窗口与余额线程，避免残留顶层窗口或线程随进程销毁。"""
+        dialog = getattr(self, "_usage_dialog", None)
+        if dialog is not None:
+            # 模态窗口还开着时先关掉，否则嵌套事件循环不会随 closeEvent 结束
+            dialog.close()
+            dialog.shutdown()
+
     def hide_to_tray(self) -> None:
         """隐藏桌宠与气泡；状态角标由独立开关控制，不随桌宠隐藏。"""
         if self.isVisible():
@@ -775,6 +828,7 @@ class PetWindow(QWidget):
         self.bubble.close()
         if getattr(self, "tray", None) is not None:
             self.tray.hide()
+        self._shutdown_usage()
         self.memory.save()
         self._cleanup_tts_tmp()
         super().closeEvent(event)
