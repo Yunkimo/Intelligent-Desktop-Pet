@@ -5,10 +5,18 @@ DeepSeek / 通义 / 智谱 / Moonshot 等任意 OpenAI 兼容服务。
 """
 
 from abc import ABC, abstractmethod
+from typing import Callable
 
-from openai import OpenAI
+from openai import BadRequestError, OpenAI
 
 from .config import Settings
+
+# 服务商拒绝 stream_options 时抛出的内部信号，用于降级重试且不重复计费
+_STREAM_USAGE_UNSUPPORTED = (TypeError, BadRequestError)
+
+
+class _UnsupportedStreamOptions(Exception):
+    """当前服务商不接受 stream_options；仍需重新请求不带该参数的版本。"""
 
 
 class ChatProvider(ABC):
@@ -36,12 +44,16 @@ class OpenAICompatProvider(ChatProvider):
         model: str,
         temperature: float = 0.9,
         max_tokens: int = 1024,
+        on_usage: Callable[[object, str], None] | None = None,
     ) -> None:
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.on_usage = on_usage
+        # 服务商一旦拒绝过 stream_options 就不再尝试，避免每次对话都多打一次请求
+        self._stream_usage_supported = True
         self._client: OpenAI | None = None
 
     def _get_client(self) -> OpenAI:
@@ -49,23 +61,55 @@ class OpenAICompatProvider(ChatProvider):
             self._client = OpenAI(api_key=self.api_key, base_url=self.base_url)
         return self._client
 
+    def _report_usage(self, usage: object) -> None:
+        """把 usage 交给调用方记账；记账失败绝不能影响对话本身。"""
+        if usage is None or self.on_usage is None:
+            return
+        try:
+            self.on_usage(usage, self.model)
+        except Exception:  # noqa: BLE001 - 统计是旁路，异常一律吞掉
+            pass
+
     def stream_chat(self, messages: list[dict], on_chunk=None) -> str:
-        stream = self._get_client().chat.completions.create(
-            model=self.model,
-            messages=messages,
-            stream=True,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-        )
+        if self._stream_usage_supported:
+            try:
+                return self._stream_once(messages, on_chunk, include_usage=True)
+            except _UnsupportedStreamOptions:
+                self._stream_usage_supported = False
+        return self._stream_once(messages, on_chunk, include_usage=False)
+
+    def _stream_once(self, messages: list[dict], on_chunk, include_usage: bool) -> str:
+        """单次流式请求；include_usage 时额外请求用量统计。
+
+        usage 出现在最后一个 chunk 上，且该 chunk 的 choices 未必为空，因此必须在
+        判断 choices 之前读取。只在还没收到任何一帧时降级重试，避免重复计费。
+        """
+        extra = {"stream_options": {"include_usage": True}} if include_usage else {}
         parts: list[str] = []
-        for chunk in stream:
-            if not chunk.choices:
-                continue
-            content = getattr(chunk.choices[0].delta, "content", None)
-            if content:
-                parts.append(content)
-                if on_chunk is not None:
-                    on_chunk(content)
+        received = False
+        try:
+            stream = self._get_client().chat.completions.create(
+                model=self.model,
+                messages=messages,
+                stream=True,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                **extra,
+            )
+            for chunk in stream:
+                received = True
+                self._report_usage(getattr(chunk, "usage", None))
+                if not chunk.choices:
+                    continue
+                content = getattr(chunk.choices[0].delta, "content", None)
+                if content:
+                    parts.append(content)
+                    if on_chunk is not None:
+                        on_chunk(content)
+        except _STREAM_USAGE_UNSUPPORTED as exc:
+            if include_usage and not received:
+                raise _UnsupportedStreamOptions from exc
+            raise
         return "".join(parts)
 
     def chat_with_tools(self, messages: list[dict], tools: list[dict], on_chunk=None) -> dict:
@@ -77,6 +121,7 @@ class OpenAICompatProvider(ChatProvider):
             temperature=self.temperature,
             max_tokens=self.max_tokens,
         )
+        self._report_usage(getattr(resp, "usage", None))
         msg = resp.choices[0].message
         tool_calls = [
             {
@@ -89,12 +134,15 @@ class OpenAICompatProvider(ChatProvider):
         return {"content": msg.content or "", "tool_calls": tool_calls}
 
 
-def create_chat_provider(settings: Settings) -> ChatProvider:
-    """工厂方法：根据配置创建对话提供者。"""
+def create_chat_provider(
+    settings: Settings, on_usage: Callable[[object, str], None] | None = None
+) -> ChatProvider:
+    """工厂方法：根据配置创建对话提供者；on_usage 用于旁路记录 token 用量。"""
     return OpenAICompatProvider(
         settings.llm_api_key,
         settings.llm_base_url,
         settings.llm_model,
         temperature=settings.llm_temperature,
         max_tokens=settings.llm_max_tokens,
+        on_usage=on_usage,
     )

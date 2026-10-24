@@ -187,3 +187,148 @@ def test_llm_client_chat_with_tools_wraps_error():
 
     with pytest.raises(LLMError):
         LLMClient(_Boom()).chat_with_tools([{"role": "user", "content": "hi"}], [])
+
+
+# ---------- usage 采集 ----------
+class _Usage:
+    """最小 usage 伪对象，字段按需缺省。"""
+
+    def __init__(self, prompt=10, completion=5, hit=None):
+        self.prompt_tokens = prompt
+        self.completion_tokens = completion
+        if hit is not None:
+            self.prompt_cache_hit_tokens = hit
+
+
+class _UsageChunk:
+    """可带 usage 的流式帧：usage 可能挂在 choices 非空的最后一帧上。"""
+
+    def __init__(self, content=None, usage=None, with_choice=True):
+        self.choices = [_Choice(content)] if with_choice else []
+        self.usage = usage
+
+
+def _provider_with_chunks(monkeypatch, chunks, sink):
+    provider = OpenAICompatProvider("sk", "https://x", "deepseek-chat", on_usage=sink)
+    monkeypatch.setattr(provider, "_client", _FakeClient(chunks))
+    return provider
+
+
+def test_stream_chat_reports_usage_attached_to_content_chunk(monkeypatch):
+    """DeepSeek 把 usage 放在 choices 长度 1、delta 为空的最后一帧上。"""
+    seen = []
+    chunks = [_Chunk("你"), _UsageChunk(None, _Usage(10, 5, hit=3))]
+    provider = _provider_with_chunks(monkeypatch, chunks, lambda u, m: seen.append((u, m)))
+
+    result = provider.stream_chat([{"role": "user", "content": "hi"}])
+
+    assert result == "你"
+    assert len(seen) == 1
+    assert seen[0][1] == "deepseek-chat"
+    assert seen[0][0].prompt_tokens == 10
+
+
+def test_stream_chat_reports_usage_on_empty_choices_chunk(monkeypatch):
+    """标准 OpenAI 把 usage 放在 choices 为空的独立末帧，同样要能采集。"""
+    seen = []
+    chunks = [_UsageChunk("你"), _UsageChunk(None, _Usage(7, 2), with_choice=False)]
+    provider = _provider_with_chunks(monkeypatch, chunks, lambda u, m: seen.append(u))
+
+    assert provider.stream_chat([{"role": "user", "content": "hi"}]) == "你"
+    assert len(seen) == 1
+
+
+def test_stream_chat_without_usage_still_returns_text(monkeypatch):
+    seen = []
+    provider = _provider_with_chunks(monkeypatch, [_Chunk("好")], lambda u, m: seen.append(u))
+
+    assert provider.stream_chat([{"role": "user", "content": "hi"}]) == "好"
+    assert seen == []
+
+
+def test_stream_chat_requests_usage_by_default(monkeypatch):
+    captured = {}
+
+    class _CapturingCompletions:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            return iter([])
+
+    class _Client:
+        chat = type("Chat", (), {"completions": _CapturingCompletions()})()
+
+    provider = OpenAICompatProvider("sk", "https://x", "m")
+    monkeypatch.setattr(provider, "_client", _Client)
+    provider.stream_chat([{"role": "user", "content": "hi"}])
+    assert captured["stream_options"] == {"include_usage": True}
+
+
+def test_stream_chat_falls_back_when_stream_options_rejected(monkeypatch):
+    """服务商不认 stream_options 时退化为普通流式，且后续请求不再重复尝试。"""
+    calls = []
+
+    class _Completions:
+        def create(self, **kwargs):
+            calls.append(kwargs)
+            if "stream_options" in kwargs:
+                raise TypeError("unexpected keyword argument 'stream_options'")
+            return iter([_Chunk("好")])
+
+    class _Client:
+        chat = type("Chat", (), {"completions": _Completions()})()
+
+    provider = OpenAICompatProvider("sk", "https://x", "m")
+    monkeypatch.setattr(provider, "_client", _Client)
+
+    assert provider.stream_chat([{"role": "user", "content": "hi"}]) == "好"
+    assert len(calls) == 2
+    assert provider._stream_usage_supported is False
+
+    assert provider.stream_chat([{"role": "user", "content": "again"}]) == "好"
+    assert len(calls) == 3  # 第二次对话只发一次请求
+
+
+def test_stream_chat_does_not_retry_after_it_started_streaming(monkeypatch):
+    """已经收到内容后出错不再重试，避免同一轮对话被重复计费。"""
+    calls = []
+
+    class _Completions:
+        def create(self, **kwargs):
+            calls.append(kwargs)
+
+            def generator():
+                yield _Chunk("半")
+                raise TypeError("mid-stream failure")
+
+            return generator()
+
+    class _Client:
+        chat = type("Chat", (), {"completions": _Completions()})()
+
+    provider = OpenAICompatProvider("sk", "https://x", "m")
+    monkeypatch.setattr(provider, "_client", _Client)
+
+    with pytest.raises(TypeError):
+        provider.stream_chat([{"role": "user", "content": "hi"}])
+    assert len(calls) == 1
+
+
+def test_chat_with_tools_reports_usage_and_keeps_return_shape(monkeypatch):
+    seen = []
+    resp = _RespMsg(_Msg("答", []))
+    resp.usage = _Usage(20, 4, hit=8)
+    provider = OpenAICompatProvider("sk", "https://x", "m", on_usage=lambda u, m: seen.append(u))
+    monkeypatch.setattr(provider, "_client", _FakeClientMsg(resp))
+
+    out = provider.chat_with_tools([{"role": "user", "content": "hi"}], [])
+
+    assert set(out) == {"content", "tool_calls"}  # 返回结构不能因统计而改变
+    assert len(seen) == 1 and seen[0].prompt_tokens == 20
+
+
+def test_usage_sink_error_does_not_break_chat(monkeypatch):
+    def boom(_usage, _model):
+        raise RuntimeError("记账炸了")
+
+    provider = _provider_with_chunks(monkeypatch, [_UsageChunk("好", _Usage())], boom)
+    assert provider.stream_chat([{"role": "user", "content": "hi"}]) == "好"

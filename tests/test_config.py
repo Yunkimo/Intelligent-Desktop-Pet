@@ -132,3 +132,45 @@ def test_legacy_voice_migrates_without_changing_custom_voice(tmp_path, monkeypat
         (tmp_path / "config.json").write_text(json.dumps({"tts_voice": original}), encoding="utf-8")
         assert Settings().tts_voice == expected
         assert json.loads((tmp_path / "config.json").read_text())["tts_voice"] == original
+
+
+# ---------- .env 写入 ----------
+def test_save_env_values_creates_file(monkeypatch, tmp_path):
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    path = config.save_env_values(ACCOUNT_API_KEY="sk-new")  # pragma: allowlist secret -- 测试假值
+
+    assert path == tmp_path / ".env"
+    assert path.read_text(encoding="utf-8") == "ACCOUNT_API_KEY=sk-new\n"
+
+
+def test_save_env_values_preserves_other_lines_and_replaces_in_place(monkeypatch, tmp_path):
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    (tmp_path / ".env").write_text(
+        "# 注释要保留\nLLM_API_KEY=sk-old\nACCOUNT_API_KEY=sk-before\nBACKEND_URL=http://x\n",
+        encoding="utf-8",
+    )
+
+    config.save_env_values(ACCOUNT_API_KEY="sk-after")  # pragma: allowlist secret -- 测试假值
+
+    lines = (tmp_path / ".env").read_text(encoding="utf-8").splitlines()
+    assert lines[0] == "# 注释要保留"
+    assert lines[1] == "LLM_API_KEY=sk-old"
+    assert lines[2] == "ACCOUNT_API_KEY=sk-after"  # 原地替换，不重复追加
+    assert lines[3] == "BACKEND_URL=http://x"
+    assert len([line for line in lines if line.startswith("ACCOUNT_API_KEY")]) == 1
+
+
+def test_save_env_values_appends_missing_key(monkeypatch, tmp_path):
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    (tmp_path / ".env").write_text("LLM_API_KEY=sk-old", encoding="utf-8")
+
+    config.save_env_values(ACCOUNT_API_KEY="sk-new")  # pragma: allowlist secret -- 测试假值
+
+    lines = (tmp_path / ".env").read_text(encoding="utf-8").splitlines()
+    assert lines == ["LLM_API_KEY=sk-old", "ACCOUNT_API_KEY=sk-new"]

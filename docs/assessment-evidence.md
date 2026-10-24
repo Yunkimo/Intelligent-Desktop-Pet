@@ -63,6 +63,21 @@ Claude/Codex 状态角标由分支 `feat/badge-draggable` 交付（PR #57），�
 - 边界：角标位置夹在屏幕可用区域内，避免拖出屏幕后无法再双击复位；手动位置仅本次运行有效，不持久化（与会话性定位一致）。
 - 验证：ruff check/format 通过；桌宠端 pytest 213 项全过（合并 #55 的 208 项后 + 新增 5 项拖拽/复位用例）。未改变既有自动摆位规则，仅在其上叠加手动覆盖，不涉及后端与小程序。
 
+## Token 用量查看增量证据（2026-10-24）
+
+分支 `feat/token-usage`，把 LLM 消耗从「完全不可见」变成可自查的三块信息。
+
+- 采集：`pet/providers.py` 新增可选 `on_usage` 回调，流式在最后一个 chunk 上采集（实测 DeepSeek 的 usage 帧 `choices` 长度为 1、`delta` 为空，标准 OpenAI 则在 `choices=[]` 的独立帧上，两种都在判断 `choices` 之前读取）；非流式读 `resp.usage`。上报异常一律吞掉，旁路统计不影响对话；`chat_with_tools` 返回结构保持 `{content, tool_calls}` 不变。服务商不认 `stream_options` 时，仅在尚未收到任何帧时降级重试一次并记住，避免重复计费。
+- 记账：`pet/usage.py` 的 `UsageStore` 把 usage 归一为 prompt/completion/cached（优先 `prompt_cache_hit_tokens`，回退 `prompt_tokens_details.cached_tokens`），按北京时间分天聚合写入 `data/usage.json`；线程锁 + 临时文件 `os.replace` 原子写，坏 JSON 归零重建，按天明细按 `usage_retention_days` 裁剪而总计不裁剪，金额用 `Decimal` 存字符串。
+- 费用：`pet/pricing.py` 内置 DeepSeek 价目（2026-10-24 抓取，只存高峰价、空闲价乘 0.5），`deepseek-chat` 等旧名按别名归一到现役模型；高峰按北京时间工作日 9–12、14–18 判定，法定节假日未建模、会高估，界面与手册均写明。
+- 余额：`pet/balance.py` 只对接官方余额接口（DeepSeek `GET /user/balance`、Moonshot `/v1/users/me/balance`），base_url 归一后忽略 path，禁止跟随重定向以免 `Authorization` 被带到其他 host，401/超时/坏 JSON 各给可读文案且不含 key；`BalanceTarget.api_key` 用 `repr=False`。
+- 入口：`pet/rice_button.py` 的米饭图标是桌宠窗口的子控件，随窗口移动不可分离；图标设 `WA_TransparentForMouseEvents`，点击与拖拽统一由 `PetWindow` 的命中测试分流（点图标开窗口、点头像唤输入框、从图标按下仍可拖动桌宠），悬停时切换手型光标；素材缺失降级为文字块。
+- 线程：`BalanceWorker(QThread)` 的 parent 是桌宠窗口而非对话框，对话框持注册表并在 `finished` 时 `deleteLater`；关闭窗口只 `request_stop` 不阻塞，应用退出时 `shutdown()` 有限等待 1.5 秒。
+- 跳转 API 网站：余额区「刷新余额」下方新增「跳转至API网站」，用 `QDesktopServices.openUrl` 在系统默认浏览器打开；目标优先取 `config.json` 的 `api_website`；未配置时由 `pet/balance.py::console_url` 按服务商给控制台用量页（DeepSeek → `https://platform.deepseek.com/usage`），未收录的服务商退回接口站点根（`website_url` 只保留 scheme+host）；地址为空时按钮置灰并给出提示，改完「API 地址」即时刷新提示。
+- 余额详情：账户余额改为分行字段（服务商 / 币种 / 总余额 / 赠送·充值 / 状态 / 查询时间），失败时保留上次数值只更新状态行；因 DeepSeek、Moonshot 均未开放历史用量接口，界面常驻一行说明「账户侧近七天用量无法获取」，不拿本地数字冒充账户用量。
+- 新用户入口：用量窗口下方提供「配置 API」三栏——API Key（`LLM_API_KEY`，桌宠接入用）、API 地址（`LLM_BASE_URL`，可留空）、账户查询 Key（`ACCOUNT_API_KEY`，可留空回退）。`pet/config.py::save_env_values` 按行合并 `.env`（保留注释与既有键、同名原地替换、缺失追加），保存后立即更新内存配置：改了推理 key/地址发 `llm_config_changed` 信号，窗口据此重建 `LLMClient`；账户 key 留空时沿用推理 key。输入框密码模式、保存后清空、只回显头尾，界面与截图不留明文；`config.json` 会被提交，密钥一律不进该文件。
+- 验证：ruff check/format 全过；桌宠端 pytest 301 项全过（213 + 新增 88 项：价目边界、归一化、聚合/裁剪/并发、余额解析与错误映射、图标几何与点击分流、对话框汇总与线程收敛、`.env` 写入与窗口内接入配置、余额详情字段化、UTC 时区分桶、跳转 API 网站）。真实链路实测：真实 API 一次流式 + 一次工具调用后 `data/usage.json` 记录 2 条、费用非 0、重新加载一致；真实余额接口返回 200 并在窗口分行填出服务商 DeepSeek、币种 CNY、总余额、赠送/充值、状态「可用」与查询时间，该接口在测试网络下约 8 秒返回。
+
 ## B1 后端
 
 关联 [#5](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/5)，PR [#16](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/16)。以下是本议题的证据，不代表项目已完成全部考核。
