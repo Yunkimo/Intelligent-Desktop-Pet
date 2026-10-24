@@ -25,6 +25,8 @@ class StatusBadge(QLabel):
 
     # 用户双击角标清空手动位置，请求窗口重新自动摆位
     position_reset = pyqtSignal()
+    # 右键角标：携带全局坐标，由窗口弹出与桌宠一致的命令菜单
+    context_menu_requested = pyqtSignal(QPoint)
 
     def __init__(self, parent=None, agent_name: str = "Claude") -> None:
         super().__init__(parent)
@@ -107,6 +109,11 @@ class StatusBadge(QLabel):
             return
         self._user_moved = False
         self.position_reset.emit()
+
+    def contextMenuEvent(self, event) -> None:  # noqa: N802
+        """右键弹出命令菜单；角标本身不持有菜单，只把位置交给窗口。"""
+        self.context_menu_requested.emit(event.globalPos())
+        event.accept()
 
     def _clamp_to_screen(self, pos: QPoint) -> QPoint:
         """把角标位置夹在可用区域内，避免拖出屏幕后无法再双击复位。"""

@@ -30,6 +30,7 @@ from .memory import Memory
 from .persona import build_system_prompt
 from .providers import create_chat_provider
 from .rice_button import RiceButton
+from .sfx import AgentSfx
 from .status_badge import StatusBadge
 from .tools import build_tools
 from .tray import TrayIcon
@@ -524,6 +525,10 @@ class PetWindow(QWidget):
         self._status_badges_visible = self.settings.status_badges_visible
         self.status_badge.set_user_visible(self._status_badges_visible)
         self.codex_status_badge.set_user_visible(self._status_badges_visible)
+        # 状态音效与角标右键菜单：两者都只依赖窗口，不参与轮询
+        self.sfx = AgentSfx(self.settings.assets_dir, parent=self)
+        for badge in (self.status_badge, self.codex_status_badge):
+            badge.context_menu_requested.connect(self._show_badge_menu)
         self.agent_status = AgentStatusMonitor(self.settings.agent_status_path, parent=self)
         self.agent_status.state_changed.connect(self._on_agent_status)
         codex_status_path = self.settings.agent_status_path.with_name("codex-agent-status.json")
@@ -570,7 +575,39 @@ class PetWindow(QWidget):
 
     def _on_agent_status(self, state: str) -> None:
         self.status_badge.set_state(state)
+        self.sfx.play(state)
         self._position_status_badge()
+
+    def _show_badge_menu(self, global_pos) -> None:
+        """角标右键菜单：只放与监控相关的项，末尾仍以「退出」收尾。"""
+        menu = QMenu(self)
+        populate_menu(menu, self._badge_commands())
+        menu.exec(global_pos)
+
+    def _badge_commands(self) -> list[Command]:
+        """角标右键的命令表：顺序固定，与桌宠右键菜单共享同一批方法。"""
+        return [
+            Command(
+                "监控 Claude",
+                self._toggle_claude_monitor,
+                checkable=True,
+                checked=lambda: self.settings.monitor_claude,
+            ),
+            Command(
+                "监控 Codex",
+                self._toggle_codex_monitor,
+                checkable=True,
+                checked=lambda: self.settings.monitor_codex,
+            ),
+            Command(
+                "显示状态角标",
+                self._toggle_status_badges,
+                checkable=True,
+                checked=lambda: getattr(self, "_status_badges_visible", True),
+            ),
+            Command("查看余额", self._show_usage_dialog),
+            self._quit_command(),
+        ]
 
     def _toggle_codex_monitor(self) -> None:
         """开关独立的 Codex hook 状态轮询；开启时先确保钩子已写入。"""
@@ -612,6 +649,7 @@ class PetWindow(QWidget):
 
     def _on_codex_status(self, state: str) -> None:
         self.codex_status_badge.set_state(state)
+        self.sfx.play(state)
         self._position_status_badge()
 
     def _position_status_badge(self) -> None:
