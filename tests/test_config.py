@@ -139,7 +139,7 @@ def test_save_env_values_creates_file(monkeypatch, tmp_path):
     import pet.config as config
 
     monkeypatch.setattr(config, "BASE_DIR", tmp_path)
-    path = config.save_env_values(ACCOUNT_API_KEY="sk-new")
+    path = config.save_env_values(ACCOUNT_API_KEY="sk-new")  # pragma: allowlist secret -- 测试假值
 
     assert path == tmp_path / ".env"
     assert path.read_text(encoding="utf-8") == "ACCOUNT_API_KEY=sk-new\n"
@@ -154,7 +154,7 @@ def test_save_env_values_preserves_other_lines_and_replaces_in_place(monkeypatch
         encoding="utf-8",
     )
 
-    config.save_env_values(ACCOUNT_API_KEY="sk-after")
+    config.save_env_values(ACCOUNT_API_KEY="sk-after")  # pragma: allowlist secret -- 测试假值
 
     lines = (tmp_path / ".env").read_text(encoding="utf-8").splitlines()
     assert lines[0] == "# 注释要保留"
@@ -170,7 +170,7 @@ def test_save_env_values_appends_missing_key(monkeypatch, tmp_path):
     monkeypatch.setattr(config, "BASE_DIR", tmp_path)
     (tmp_path / ".env").write_text("LLM_API_KEY=sk-old", encoding="utf-8")
 
-    config.save_env_values(ACCOUNT_API_KEY="sk-new")
+    config.save_env_values(ACCOUNT_API_KEY="sk-new")  # pragma: allowlist secret -- 测试假值
 
     lines = (tmp_path / ".env").read_text(encoding="utf-8").splitlines()
     assert lines == ["LLM_API_KEY=sk-old", "ACCOUNT_API_KEY=sk-new"]

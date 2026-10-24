@@ -157,3 +157,16 @@ def test_totals_merge_sums_every_field():
         "cost_cny": "0.75",
         "unpriced": 66,
     }
+
+
+def test_aware_timestamp_is_bucketed_by_beijing_date(tmp_path):
+    """CI 跑在 UTC：16:30Z 已是北京次日 00:30，必须记到次日而不是当天。"""
+    from datetime import timezone
+
+    store = UsageStore(tmp_path / "usage.json")
+    utc = datetime(2026, 10, 24, 16, 30, tzinfo=timezone.utc)
+    store.record_usage(_usage(10, 1), "deepseek-chat", at=utc)
+
+    snap = store.snapshot(now=utc)
+    assert snap["days"][0][0] == "2026-10-25"
+    assert snap["today"].requests == 1

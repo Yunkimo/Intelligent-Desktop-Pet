@@ -16,9 +16,9 @@ _PEAK = datetime(2026, 10, 26, 10, 0)
 
 def _settings(with_key: bool = True):
     return SimpleNamespace(
-        llm_api_key="sk-llm-key-123456" if with_key else "",
+        llm_api_key="sk-llm-key-123456" if with_key else "",  # pragma: allowlist secret -- 测试假值
         llm_base_url="https://api.deepseek.com",
-        account_api_key="sk-test" if with_key else "",
+        account_api_key="sk-test" if with_key else "",  # pragma: allowlist secret -- 测试假值
         account_base_url="https://api.deepseek.com",
         balance_timeout_seconds=2,
     )
@@ -34,7 +34,7 @@ def _usage(prompt=1000, completion=200, hit=0):
 
 def _store(tmp_path) -> UsageStore:
     """用「现在」记账，保证窗口里的「今日」一行能命中（窗口按真实日期取今日）。"""
-    now = datetime.now()
+    now = datetime.now().astimezone()
     store = UsageStore(tmp_path / "usage.json")
     store.record_usage(_usage(1000, 200, 400), "deepseek-chat", at=now)
     store.record_usage(_usage(500, 50), "unknown-model", at=now)
@@ -195,7 +195,7 @@ def test_refresh_without_key_does_not_spawn_worker(tmp_path, qapp):
 def test_unknown_price_model_does_not_break_snapshot(tmp_path, qapp, value):
     """随手塞一个坏价目不应让窗口构造失败（这里用未知模型走同一条路径）。"""
     store = UsageStore(tmp_path / "usage.json")
-    store.record_usage(_usage(10, 1), value, at=datetime.now())
+    store.record_usage(_usage(10, 1), value, at=datetime.now().astimezone())
 
     dialog = UsageDialog(_settings(), store)
     assert dialog._rows["today"][0].text() == "1"
@@ -225,7 +225,7 @@ def test_save_llm_key_writes_env_and_emits_change(tmp_path, qapp, monkeypatch):
 
     env = (tmp_path / ".env").read_text(encoding="utf-8")
     assert "LLM_API_KEY=sk-user-llm-key-123" in env
-    assert settings.llm_api_key == "sk-user-llm-key-123"
+    assert settings.llm_api_key == "sk-user-llm-key-123"  # pragma: allowlist secret -- 测试假值
     assert dialog._llm_key_input.text() == ""  # 保存后清空，不留明文
     assert changed == [True]  # 推理 key 变了要通知窗口重建客户端
 
@@ -242,7 +242,7 @@ def test_account_key_falls_back_to_llm_key_when_blank(tmp_path, qapp, monkeypatc
     dialog._save_api_config()
 
     # 账户 key 留空时沿用推理 key，账户余额立刻可用
-    assert settings.account_api_key == "sk-user-llm-key-123"
+    assert settings.account_api_key == "sk-user-llm-key-123"  # pragma: allowlist secret -- 测试假值
     assert dialog._refresh_button.isEnabled() is True
 
 
@@ -261,9 +261,9 @@ def test_account_key_only_does_not_touch_llm_config(tmp_path, qapp, monkeypatch)
     dialog._save_api_config()
 
     env = (tmp_path / ".env").read_text(encoding="utf-8")
-    assert "ACCOUNT_API_KEY=sk-account-only-999" in env
+    assert "ACCOUNT_API_KEY=sk-account-only-999" in env  # pragma: allowlist secret -- 测试假值
     assert "LLM_API_KEY" not in env  # 没填的项不写
-    assert settings.account_api_key == "sk-account-only-999"
+    assert settings.account_api_key == "sk-account-only-999"  # pragma: allowlist secret -- 测试假值
     assert changed == []  # 推理配置没变，不需要重建客户端
     assert calls == [True]
 
@@ -300,7 +300,7 @@ def test_save_with_all_fields_empty_only_hints(tmp_path, qapp, monkeypatch):
 
 def test_key_hint_masks_keys(tmp_path, qapp):
     settings = _settings(with_key=True)
-    settings.llm_api_key = "sk-abcdefghijklmnop"
+    settings.llm_api_key = "sk-abcdefghijklmnop"  # pragma: allowlist secret -- 测试假值
     dialog = UsageDialog(settings, UsageStore(tmp_path / "usage.json"))
 
     assert "已接入" in dialog._key_hint.text()
