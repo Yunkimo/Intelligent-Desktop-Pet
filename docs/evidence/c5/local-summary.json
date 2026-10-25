@@ -18,8 +18,14 @@
   "miniprogram": "lint, format, C3/WS logic passed",
   "documented_cli_help_entries_passed": 5,
   "baseline_ci_run": 40117685625,
-  "new_ci_status": "initial deployment CI failed, checker fixed; awaiting actual new PR run",
+  "new_ci_status": "completed/success: 40184345422, all five jobs passed",
   "credentials_or_production_services_used": false,
   "base_commit_short": "2dd5ed3",
-  "base_commit_url": "https://github.com/Yunkimo/Intelligent-Desktop-Pet/commit/2dd5ed3c2b83caf1dfb8ae3c6cc43c48173c17be"
+  "base_commit_url": "https://github.com/Yunkimo/Intelligent-Desktop-Pet/commit/2dd5ed3c2b83caf1dfb8ae3c6cc43c48173c17be",
+  "ci_deployment_tests": {
+    "passed": 35,
+    "failed": 0,
+    "skipped": 0,
+    "elapsed_seconds": 23.3
+  }
 }
