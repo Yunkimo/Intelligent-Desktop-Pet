@@ -45,6 +45,6 @@ B4 原为可选，按用户明确要求纳入本轮。代码、测试、设计�
 
 | 成员 | Issue | 本轮成果 | 状态与证据 | 点数/工时 |
 |---|---|---|---|---|
-| C / YingboQi | [#13](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/13) | 阶段文档同步、复用CI并补文档/部署回归与结果归档、依赖素材许可/安全边界 | 实现、本地35项与实际CI五个执行通过，见[C5记录](c5-verification.md)及PR #63；共享CI变更待成员PR复核 | 待团队确认，不代填 |
+| C / YingboQi | [#13](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/13) | 阶段文档同步、复用CI并补文档/部署回归与结果归档、依赖素材许可/安全边界 | 实现、41项部署文档回归与实际CI五个执行通过；用户已确认人工核验通过，见[C5记录](c5-verification.md)及PR #63；共享CI变更待成员PR复核 | 待团队确认，不代填 |
 
 C4部署事实与演练仅引用[既有C4记录](c4-verification.md)，不在C5重复计算工作量；A/B模块事实仍归原模块，不以本轮编辑代填其完成状态。

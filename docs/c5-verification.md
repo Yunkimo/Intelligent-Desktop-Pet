@@ -51,3 +51,17 @@ C4证据与摘要绑定其既有交付提交，不拿C4摘要比较C5修改后�
 完整部署/文档回归 **41/41通过**（105.93秒，无跳过），见[输出](evidence/c5/review-deployment.txt)和[JUnit](evidence/c5/review-deployment.xml)。按CI说明从仓库根执行后端命令，**252/252通过，覆盖率95%**；出现1项上游Starlette TestClient弃用警告，记录于[后端输出](evidence/c5/review-backend.txt)，未通过更换依赖或屏蔽警告处理它。
 
 另在同一解释器和隔离TLS后端连续执行10轮只读、业务写入、事件、重连及清理检查，**140/140通过**，见[重复检查记录](evidence/c5/review-tls.json)。这些检查均未访问生产服务。二次核验摘要见[review.json](evidence/c5/review.json)；修订提交的远程检查按PR最新SHA和CI链接核对，前述旧运行记录保留其原提交归属。
+
+## 人工核验确认（2026-10-25）
+
+用户（成员C）已明确确认“人工核验通过了”。核验对象为[8b2fe83](https://github.com/Yunkimo/Intelligent-Desktop-Pet/commit/8b2fe83962bd0cbde7e0880e1648083be01bd1b4)，使用该提交的独立源码副本；结果及证据来源见[人工核验记录](evidence/c5/manual-acceptance.json)。
+
+| 项目 | 实际结果 | 证据来源 |
+|---|---|---|
+| 本地后端健康检查 | 18011端口返回HTTP 200及status:ok | 用户粘贴的终端输出 |
+| 无凭据访问业务接口 | GET /api/courses返回HTTP 401 | 用户粘贴的终端输出 |
+| 文档与源码检查命令 | 34份文档、278个相对链接、代码围栏、20项源码校验全部通过 | 用户在核验副本执行命令后的输出 |
+| GitHub三张图示 | 三端数据流、IP部署拓扑、图片导入时序显示核验通过 | 用户按指引查看后明确确认 |
+| 实际CI产物 | XML中tests=41、failures=0、errors=0、skipped=0；两份文档输出均PASS，ZIP摘要与GitHub一致 | 助手实际下载并读取对应Actions产物 |
+
+对应[CI 40198518539](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/40198518539)五个执行全部通过。本次只追加验收记录与更新文档清单；核验通过归属C5，不扩大为C3/C4、生产发布或第三方授权的新增验收结论。共享工作流仍按PR进行成员复核，不自动合并。
