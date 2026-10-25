@@ -11,6 +11,7 @@
   },
   "other_jobs": "miniprogram-c3, backend (3.10), backend (3.12), desktop all passed",
   "failure": "TLS WS business connection/reconnect timeouts; certificate and initial authentication checks passed",
-  "next_change": "Use asyncio HTTP/WS clients in the deployment checker; repeat TLS business handshake/cleanup three times; align fixture protocol with run_backend.py. Keep certificate/auth/event/cleanup assertions and validate actual CI.",
-  "diagnosis": "Reproduced intermittent synchronous TLS WebSocket handshake timeout locally; asynchronous connection to the same service succeeded. Protocol alignment alone did not fix it."
+  "next_change": "Use asyncio HTTP/WS clients in the deployment checker; repeat TLS business handshake/cleanup three times. Keep certificate/auth/event/cleanup assertions and validate actual CI.",
+  "diagnosis": "Reproduced intermittent synchronous TLS WebSocket handshake timeout locally; asynchronous connection to the same service succeeded. Protocol alignment alone did not fix it.",
+  "review_correction": "The temporary explicit websockets-sansio fixture setting did not fix the timeout and differed from run_backend.py (auto). Removed during second review; deployment systemd uses an explicit protocol independently."
 }

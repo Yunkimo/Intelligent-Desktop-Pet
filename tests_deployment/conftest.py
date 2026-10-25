@@ -99,8 +99,6 @@ def service(
         port,
         "--workers",
         "1",
-        "--ws",
-        "websockets-sansio",
     ]
     verify = True
     if tls:

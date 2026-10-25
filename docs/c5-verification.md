@@ -20,11 +20,11 @@ C5只整理当前文档事实、复用/补充CI和依赖安全说明。C4手机�
 
 先读取到develop基线SHA 9bca38fe8e37829d1dda111e4d1063bea3b68b9a的实际push CI：[40117685625](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/40117685625)，completed/success，见[原始元数据](evidence/c5/baseline-ci.json)。只返回PR运行的接口未列出该push run，不能据此说基线无CI。
 
-本轮通过[PR #63](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/63)单独交付。首次[CI 40183173897](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/40183173897)中原四个执行通过，新增部署回归33通过/2失败，均为TLS WS业务握手/重连超时，见[失败记录](evidence/c5/ci-initial-failure.json)。本机复现后将自检HTTP/WS收发统一到异步事件循环，保留CA校验、鉴权、事件及清理断言，并连续三轮验证TLS业务连接；测试服务协议与正式启动器一致。修复源码[5da500c](https://github.com/Yunkimo/Intelligent-Desktop-Pet/commit/5da500cc692e29beb743cb602a3528c10baa3cab)对应的[CI 40184345422](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/40184345422)已completed/success：小程序、后端3.10、后端3.12、桌宠、部署文档五个执行全部通过，部署文档35/35通过（23.30秒，0跳过）。五份结果产物均已上传，保留14天，job链接/产物ID及到期时间见[运行记录](evidence/c5/ci-run.json)。此后补写本记录的文档提交另以PR最新CI核对，不将尚未运行的提交冒充已测试源码。共享CI配置需成员在PR中复核，不自动合并。
+本轮通过[PR #63](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/63)单独交付。首次[CI 40183173897](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/40183173897)中原四个执行通过，新增部署回归33通过/2失败，均为TLS WS业务握手/重连超时，见[失败记录](evidence/c5/ci-initial-failure.json)。本机复现后将自检HTTP/WS收发统一到异步事件循环，保留CA校验、鉴权、事件及清理断言，并连续三轮验证TLS业务连接。修复源码[5da500c](https://github.com/Yunkimo/Intelligent-Desktop-Pet/commit/5da500cc692e29beb743cb602a3528c10baa3cab)对应的[CI 40184345422](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/40184345422)已completed/success：小程序、后端3.10、后端3.12、桌宠、部署文档五个执行全部通过，部署文档35/35通过（23.30秒，0跳过）。五份结果产物均已上传，保留14天，job链接/产物ID及到期时间见[运行记录](evidence/c5/ci-run.json)。此后补写本记录的文档提交另以PR最新CI核对，不将尚未运行的提交冒充已测试源码。共享CI配置需成员在PR中复核，不自动合并。
 
 ## 本地检查
 
-本轮Windows/Python3.13本地：修复后完整隔离部署与文档回归35/35通过（103.31秒，0跳过，含原C4用例与新增5个文档检查用例）；[最终输出](evidence/c5/local-deployment-final.txt)与[JUnit](evidence/c5/local-deployment-final.xml)。首次本地通过的[原始输出](evidence/c5/local-deployment.txt)仍保留；其两个record_property格式警告已用legacy JUnit格式处理。一次本地通过不能排除间歇问题，连续TLS回归和上述Linux真实CI现均已通过。
+首次交付Windows/Python3.13本地：修复后完整隔离部署与文档回归35/35通过（103.31秒，0跳过，含原C4用例与新增5个文档检查用例）；[输出](evidence/c5/local-deployment-final.txt)与[JUnit](evidence/c5/local-deployment-final.xml)。更早本地通过的[原始输出](evidence/c5/local-deployment.txt)仍保留；其两个record_property格式警告已用legacy JUnit格式处理。一次本地通过不能排除间歇问题，连续TLS回归和上述Linux真实CI现均已通过。本次二次核验及新增用例结果见文末。
 
 文档检查34份/272个相对链接、既有C4文档6份/114个相对链接通过；Ruff/格式171个Python文件通过；小程序lint/格式/WS与C3逻辑通过，见[前端输出](evidence/c5/local-miniprogram.txt)。五个已记录运维CLI的--help入口返回0；没有执行文档中的任意命令或在真实服务器做新部署。命令入口与环境见[CI说明](ci.md)，不把这些结果当C4业务或微信送达验收。
 
@@ -38,3 +38,16 @@ C5只整理当前文档事实、复用/补充CI和依赖安全说明。C4手机�
 许可来源见[第三方声明](../THIRD_PARTY_NOTICES.md)，原始元数据保存在evidence/c5。C5实现、本地检查与实际CI证据已交付，等待成员PR评审；不代替共享配置的复核，也不自动关闭Issue。
 
 C4证据与摘要绑定其既有交付提交，不拿C4摘要比较C5修改后的文档。本轮另存[源码校验清单](evidence/c5/source-checksums.sha256)，不混改C4原始记录。
+
+## 二次核验（2026-10-25）
+
+按用户要求重新对照代码、文档、CI与证据，发现并修正以下问题：
+
+- 原源码清单按Windows工作区原始字节计算，18项与Git的LF文件不一致。现统一CRLF到LF计算SHA-256，增加可选 `check_docs.py --checksums` 入口及6项回归，覆盖换行兼容、真实内容变化、空清单、格式损坏、缺失和越界目标。
+- 手册仍把手机联网概括为同一Wi-Fi，且未说明本机启动器默认仅回环监听。现明确局域网直连的绑定参数和公网入口的网络条件，修正重复复制配置、安装器副作用与旧C3进度描述。
+- CI原有Ruff路径遗漏了部署测试目录；现补该目录的静态/格式检查，文档检查输出也归档，并用pipefail保留失败退出码。
+- 上次所述“测试协议与启动器一致”不准确：`run_backend.py`使用auto，systemd另有显式协议。已撤回无助于解决握手超时的夹具协议切换，回归再次覆盖本地启动器的默认选择；TLS修复保留异步客户端与全部原断言。
+
+完整部署/文档回归 **41/41通过**（105.93秒，无跳过），见[输出](evidence/c5/review-deployment.txt)和[JUnit](evidence/c5/review-deployment.xml)。按CI说明从仓库根执行后端命令，**252/252通过，覆盖率95%**；出现1项上游Starlette TestClient弃用警告，记录于[后端输出](evidence/c5/review-backend.txt)，未通过更换依赖或屏蔽警告处理它。
+
+另在同一解释器和隔离TLS后端连续执行10轮只读、业务写入、事件、重连及清理检查，**140/140通过**，见[重复检查记录](evidence/c5/review-tls.json)。这些检查均未访问生产服务。二次核验摘要见[review.json](evidence/c5/review.json)；修订提交的远程检查按PR最新SHA和CI链接核对，前述旧运行记录保留其原提交归属。

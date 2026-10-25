@@ -1,6 +1,7 @@
 """检查项目文档的本地相对链接和代码围栏；不联网、不执行文档命令。"""
 
 import argparse
+import hashlib
 import re
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -51,9 +52,32 @@ def check_file(path: Path, root: Path) -> tuple[list[str], int]:
     return errors, count
 
 
+def check_checksums(manifest: Path, root: Path) -> tuple[list[str], int]:
+    """核对指定源码快照；仅将 CRLF 转为 LF，兼容 Git 的文本换行转换。"""
+    errors, count = [], 0
+    for number, line in enumerate(manifest.read_text(encoding="utf-8").splitlines(), 1):
+        match = re.fullmatch(r"([0-9a-f]{64})  (.+)", line)
+        if not match:
+            errors.append(f"{manifest.name}:{number}: 校验清单格式无效")
+            continue
+        expected, name = match.groups()
+        target = (root / name).resolve()
+        if not target.is_relative_to(root.resolve()) or not target.is_file():
+            errors.append(f"{manifest.name}:{number}: 校验目标不存在或越界 {name}")
+            continue
+        count += 1
+        actual = hashlib.sha256(target.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+        if actual != expected:
+            errors.append(f"{name}: 源码校验值不匹配")
+    if count == 0 and not errors:
+        errors.append(f"{manifest.name}: 校验清单为空")
+    return errors, count
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=ROOT)
+    parser.add_argument("--checksums", type=Path, help="可选：核对与本次源码对应的快照清单")
     args = parser.parse_args()
     root = args.root.resolve()
     paths = documents(root)
@@ -62,6 +86,13 @@ def main() -> int:
         found, number = check_file(path, root)
         errors.extend(found)
         count += number
+    checksum_count = None
+    if args.checksums:
+        try:
+            found, checksum_count = check_checksums(root / args.checksums, root)
+            errors.extend(found)
+        except (OSError, UnicodeError) as exc:
+            errors.append(f"无法读取源码校验清单：{type(exc).__name__}")
     for error in errors:
         print("FAIL " + error)
     if errors:
@@ -69,6 +100,8 @@ def main() -> int:
     print(
         f"PASS {len(paths)} documents, {count} local links, paired fences; external URLs/anchors not checked"
     )
+    if checksum_count is not None:
+        print(f"PASS {checksum_count} source checksums; CRLF normalized to LF")
     return 0
 
 

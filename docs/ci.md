@@ -15,7 +15,7 @@
 | miniprogram-c3 | Node22、lint、格式、WS/C3逻辑与真实后端恢复（只Mock微信上游） | 保留检查输出，pipefail防止tee掩盖失败 |
 | backend | Python3.10/3.12、Ruff、pytest覆盖率、WS/调度/微信/查询/压缩冒烟、密钥扫描、审计 | JUnit、覆盖率XML；3.12审计JSON |
 | desktop | Python3.12、Qt offscreen+xvfb、Ruff、pytest及审计 | JUnit、覆盖率XML、审计JSON |
-| deployment-docs | 复用C4已实现的部署测试 | 新接入文档检查、真实临时Nginx/TLS/上传/鉴权/备份/回滚；全Git历史支持历史schema测试 |
+| deployment-docs | 复用C4已实现的部署测试 | 新接入文档检查、部署测试Ruff/格式检查、真实临时Nginx/TLS/上传/鉴权/备份/回滚；全Git历史支持历史schema测试 |
 
 原先三类job共四个执行（backend双版本），新增一类后共五个执行。没有重复搭建后台/桌宠测试，也不把复用C4用例算成C5新增部署功能。
 
@@ -33,6 +33,8 @@
 
 ```bash
 python -m pip install -r backend/requirements-dev.txt
+python -m ruff check tests_deployment
+python -m ruff format --check tests_deployment
 python scripts/check_docs.py
 python scripts/check_c4_docs.py
 python -m pytest tests_deployment -q -o addopts= -o junit_family=legacy --junitxml=ci-results/deployment.xml
@@ -63,3 +65,13 @@ python scripts/check_c3_integration.py
 check_docs.py覆盖根目录Markdown、docs下Markdown、assets/README与miniprogram/README；检查UTF-8、相对文件链接存在、代码围栏成对，忽略围栏/行内示例链接、外部URL、绝对链接和锚点。它不读取agent/AGENTS指令文件、私有配置、node_modules或虚拟环境，也不执行文档中的命令。
 
 检查器有真实缺失链接、未闭合围栏、转义路径及示例排除回归。命令有效性另外按已知入口/测试核对，Markdown通过不等于所有业务或外部网址都已验证。
+
+## 源码快照复核
+
+C5清单对所列文本文件先将CRLF规范为LF，再计算SHA-256，与Git保存的LF文本一致；其余字节保持不变。检出该清单对应的C5提交后，在仓库根目录执行：
+
+```bash
+python scripts/check_docs.py --checksums docs/evidence/c5/source-checksums.sha256
+```
+
+该选项会报告缺失、越界或内容不匹配的文件；不改写源码和清单。清单是本轮证据快照，后续开发改动不会自动更新旧证据，因此常规CI只检查当前文档，不把历史清单设为后续提交的永久门槛。

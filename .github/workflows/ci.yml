@@ -182,10 +182,16 @@ jobs:
           python -m pip install -r backend/requirements-dev.txt
           command -v nginx
           command -v openssl
+      - name: Check deployment test formatting and lint
+        run: |
+          python -m ruff check tests_deployment
+          python -m ruff format --check tests_deployment
       - name: Check maintained documents
         run: |
-          python scripts/check_docs.py
-          python scripts/check_c4_docs.py
+          set -o pipefail
+          mkdir -p ci-results
+          python scripts/check_docs.py | tee ci-results/documents.txt
+          python scripts/check_c4_docs.py | tee ci-results/c4-documents.txt
       - name: Deployment and documentation regressions
         run: python -m pytest tests_deployment -q -o addopts= -o junit_family=legacy --junitxml=ci-results/deployment.xml
       - name: Keep deployment results

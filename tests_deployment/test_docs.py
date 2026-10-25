@@ -1,6 +1,9 @@
 """文档检查应发现失效链接，同时避免把示例代码或外链当本地文件。"""
 
-from check_docs import check_file, documents
+import hashlib
+
+import pytest
+from check_docs import check_checksums, check_file, documents
 
 
 def test_relative_links_and_examples(tmp_path):
@@ -41,3 +44,26 @@ def test_discovery_does_not_read_agent_or_vendor_files(tmp_path):
     vendor.mkdir()
     (vendor / "README.md").touch()
     assert documents(tmp_path) == [tmp_path / "README.md"]
+
+
+@pytest.mark.parametrize("newline", [b"\n", b"\r\n"])
+def test_source_snapshot_is_portable_but_detects_changes(tmp_path, newline):
+    """Git 换行转换不应误报；真正的内容变化必须失败。"""
+    source = tmp_path / "README.md"
+    source.write_bytes(b"# Title" + newline)
+    manifest = tmp_path / "source.sha256"
+    manifest.write_text(hashlib.sha256(b"# Title\n").hexdigest() + "  README.md\n")
+    assert check_checksums(manifest, tmp_path) == ([], 1)
+    source.write_bytes(b"# Changed" + newline)
+    errors, count = check_checksums(manifest, tmp_path)
+    assert count == 1 and len(errors) == 1 and "README.md" in errors[0]
+
+
+@pytest.mark.parametrize("entry", ["", "invalid", "missing.md", "../outside.md"])
+def test_bad_source_snapshot_cannot_pass(tmp_path, entry):
+    """空清单、格式损坏、缺失或越界目标不能产生通过结论。"""
+    manifest = tmp_path / "source.sha256"
+    line = entry if entry in {"", "invalid"} else "0" * 64 + "  " + entry
+    manifest.write_text(line, encoding="utf-8")
+    errors, count = check_checksums(manifest, tmp_path)
+    assert errors and count == 0
