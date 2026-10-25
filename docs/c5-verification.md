@@ -20,13 +20,13 @@ C5只整理当前文档事实、复用/补充CI和依赖安全说明。C4手机�
 
 先读取到develop基线SHA 9bca38fe8e37829d1dda111e4d1063bea3b68b9a的实际push CI：[40117685625](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/40117685625)，completed/success，见[原始元数据](evidence/c5/baseline-ci.json)。只返回PR运行的接口未列出该push run，不能据此说基线无CI。
 
-本轮源码提交SHA、实际CI链接和结论待新分支PR运行后记入[运行记录](evidence/c5/ci-run.json)；在真实结果返回前不标记全绿。共享CI配置需成员在PR中复核，不自动合并。
+本轮通过[PR #63](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/63)单独交付。首次[CI 40183173897](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/40183173897)中原四个执行通过，新增部署回归33通过/2失败，均为TLS WS业务握手/重连超时，见[失败记录](evidence/c5/ci-initial-failure.json)。本机复现后将自检HTTP/WS收发统一到异步事件循环，保留CA校验、鉴权、事件及清理断言，并连续三轮验证TLS业务连接；测试服务协议与正式启动器一致。修复后的实际CI结果记入[运行记录](evidence/c5/ci-run.json)，在返回前不标记全绿。共享CI配置需成员在PR中复核，不自动合并。
 
 ## 本地检查
 
-本轮Windows/Python3.13本地：隔离部署与文档回归35/35通过（103.50秒，含原C4用例与新增5个文档检查用例）；[完整输出](evidence/c5/local-deployment.txt)与[JUnit](evidence/c5/local-deployment.xml)。首次XML输出有两个record_property格式警告，CI已选legacy JUnit格式保留该类元数据，不把警告写成业务失败。
+本轮Windows/Python3.13本地：修复后完整隔离部署与文档回归35/35通过（103.31秒，0跳过，含原C4用例与新增5个文档检查用例）；[最终输出](evidence/c5/local-deployment-final.txt)与[JUnit](evidence/c5/local-deployment-final.xml)。首次本地通过的[原始输出](evidence/c5/local-deployment.txt)仍保留；其两个record_property格式警告已用legacy JUnit格式处理。一次本地通过不能排除间歇问题，因此以重复TLS回归及后续真实CI为准。
 
-文档检查34份/270个相对链接、既有C4文档6份/114个相对链接通过；Ruff/格式171个Python文件通过；小程序lint/格式/WS与C3逻辑通过，见[前端输出](evidence/c5/local-miniprogram.txt)。五个已记录运维CLI的--help入口返回0；没有执行文档中的任意命令或在真实服务器做新部署。命令入口与环境见[CI说明](ci.md)，不把这些结果当C4业务或微信送达验收。
+文档检查34份/272个相对链接、既有C4文档6份/114个相对链接通过；Ruff/格式171个Python文件通过；小程序lint/格式/WS与C3逻辑通过，见[前端输出](evidence/c5/local-miniprogram.txt)。五个已记录运维CLI的--help入口返回0；没有执行文档中的任意命令或在真实服务器做新部署。命令入口与环境见[CI说明](ci.md)，不把这些结果当C4业务或微信送达验收。
 
 ## 未知项与边界
 

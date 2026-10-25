@@ -1,0 +1,16 @@
+{
+  "run_id": 40183173897,
+  "run_url": "https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/40183173897",
+  "head_commit_url": "https://github.com/Yunkimo/Intelligent-Desktop-Pet/commit/c44a90f9f36be32a58595d43c6abffd5d2ff85f7",
+  "conclusion": "failure",
+  "failed_job": "deployment-docs",
+  "failed_job_url": "https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/40183173897/job/121138331154",
+  "deployment_tests": {
+    "passed": 33,
+    "failed": 2
+  },
+  "other_jobs": "miniprogram-c3, backend (3.10), backend (3.12), desktop all passed",
+  "failure": "TLS WS business connection/reconnect timeouts; certificate and initial authentication checks passed",
+  "next_change": "Use asyncio HTTP/WS clients in the deployment checker; repeat TLS business handshake/cleanup three times; align fixture protocol with run_backend.py. Keep certificate/auth/event/cleanup assertions and validate actual CI.",
+  "diagnosis": "Reproduced intermittent synchronous TLS WebSocket handshake timeout locally; asynchronous connection to the same service succeeded. Protocol alignment alone did not fix it."
+}

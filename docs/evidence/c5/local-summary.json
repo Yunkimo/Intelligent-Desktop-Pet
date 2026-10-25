@@ -5,19 +5,20 @@
     "passed": 35,
     "failed": 0,
     "skipped": 0,
-    "elapsed_seconds": 103.5,
-    "warnings": "2 JUnit record_property format warnings; CI configured legacy format"
+    "elapsed_seconds": 103.31,
+    "warnings": 0,
+    "tls_business_exercises": 3
   },
   "documentation": {
     "documents": 34,
-    "links": 270,
+    "links": 272,
     "scope": "relative files and paired fences; external URLs/anchors not checked"
   },
   "ruff_python_files": 171,
   "miniprogram": "lint, format, C3/WS logic passed",
   "documented_cli_help_entries_passed": 5,
   "baseline_ci_run": 40117685625,
-  "new_ci_status": "pending real PR run",
+  "new_ci_status": "initial deployment CI failed, checker fixed; awaiting actual new PR run",
   "credentials_or_production_services_used": false,
   "base_commit_short": "2dd5ed3",
   "base_commit_url": "https://github.com/Yunkimo/Intelligent-Desktop-Pet/commit/2dd5ed3c2b83caf1dfb8ae3c6cc43c48173c17be"

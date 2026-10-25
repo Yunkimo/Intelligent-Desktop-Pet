@@ -3,7 +3,7 @@
 import datetime as dt
 import json
 import sys
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -38,10 +38,12 @@ def test_business_check_and_cleanup(tmp_path, isolated_env, tls_files, tls):
         args = [sys.executable, ROOT / "scripts/check_deployment.py", base, "--exercise"]
         if tls:
             args += ["--ca-file", tls_files[0]]
-        result = run(args, isolated_env)
-        assert result.returncode == 0, result.stdout + result.stderr
-        assert "14/14" in result.stdout
-        assert isolated_env["API_TOKEN"] not in result.stdout + result.stderr
+        # 连续 TLS 握手/关闭/重连曾使同步自检客户端间歇超时，须覆盖重复使用。
+        for _ in range(3 if tls else 1):
+            result = run(args, isolated_env)
+            assert result.returncode == 0, result.stdout + result.stderr
+            assert "14/14" in result.stdout
+            assert isolated_env["API_TOKEN"] not in result.stdout + result.stderr
         import ssl
 
         verify = ssl.create_default_context(cafile=str(tls_files[0])) if tls else True
@@ -62,12 +64,12 @@ def test_event_failure_still_cleans_only_owned_data(tmp_path, isolated_env, monk
     real_connect = check_deployment.connect
 
     class MissingEvents:
-        def recv(self, timeout):
+        async def recv(self):
             raise TimeoutError("测试中丢弃事件")
 
-    @contextmanager
-    def missing_events(*args, **kwargs):
-        with real_connect(*args, **kwargs):
+    @asynccontextmanager
+    async def missing_events(*args, **kwargs):
+        async with real_connect(*args, **kwargs):
             yield MissingEvents()
 
     with service(tmp_path, isolated_env) as (base, _):

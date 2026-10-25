@@ -1,6 +1,7 @@
 """部署自检：默认只读；--exercise 验证临时业务写入、事件、重连和清理。"""
 
 import argparse
+import asyncio
 import base64
 import json
 import os
@@ -12,8 +13,8 @@ from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import httpx
 from dotenv import load_dotenv
+from websockets.asyncio.client import connect
 from websockets.exceptions import InvalidStatus
-from websockets.sync.client import connect
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -39,6 +40,13 @@ def endpoints(base: str) -> tuple[str, str]:
 
 def check_deployment(base: str, token: str, ca_file: str | None = None) -> list[tuple[str, bool]]:
     """执行七项只读检查；网络/TLS/代理错误不能冒充鉴权拒绝。"""
+    return asyncio.run(_check_deployment(base, token, ca_file))
+
+
+async def _check_deployment(
+    base: str, token: str, ca_file: str | None = None
+) -> list[tuple[str, bool]]:
+    """HTTP 与 WS 使用同一事件循环，替换连续 TLS 握手偶发超时的同步路径。"""
     base, ws_base = endpoints(base)
     context = ssl.create_default_context(cafile=ca_file)
     results = []
@@ -50,7 +58,9 @@ def check_deployment(base: str, token: str, ca_file: str | None = None) -> list[
     wrong = secrets.token_hex(24)
     while wrong == token:
         wrong = secrets.token_hex(24)
-    with httpx.Client(verify=context, trust_env=False, timeout=5, follow_redirects=False) as client:
+    async with httpx.AsyncClient(
+        verify=context, trust_env=False, timeout=5, follow_redirects=False
+    ) as client:
         cases = [
             ("健康检查", "/api/health", {}, 200),
             ("REST 无凭据拒绝", "/api/courses", {}, 401),
@@ -59,7 +69,7 @@ def check_deployment(base: str, token: str, ca_file: str | None = None) -> list[
         ]
         for name, path, headers, expected in cases:
             try:
-                response = client.get(base + path, headers=headers)
+                response = await client.get(base + path, headers=headers)
                 ok = response.status_code == expected
                 if name == "健康检查":
                     ok = ok and response.json() == {"status": "ok"}
@@ -80,8 +90,8 @@ def check_deployment(base: str, token: str, ca_file: str | None = None) -> list[
             # 使用完整 RFC 6455 Upgrade 请求验证拒绝，不建立本应被拒绝的 WS 会话。
             # httpx 正常消费拒绝响应，避免部分 Windows TLS 栈上负向 WS 会话关闭的竞态。
             try:
-                with httpx.Client(verify=context, trust_env=False, timeout=5) as client:
-                    response = client.get(
+                async with httpx.AsyncClient(verify=context, trust_env=False, timeout=5) as client:
+                    response = await client.get(
                         base
                         + "/ws"
                         + ("?" + urlencode({"token": value}) if value is not None else ""),
@@ -99,7 +109,7 @@ def check_deployment(base: str, token: str, ca_file: str | None = None) -> list[
                 record(name, False, type(exc).__name__)
             continue
         try:
-            with connect(url, open_timeout=5, close_timeout=2, proxy=None, **options) as ws:
+            async with connect(url, open_timeout=5, close_timeout=2, proxy=None, **options) as ws:
                 record(name, expected == 101 and ws.response.status_code == 101, "HTTP 101")
         except InvalidStatus as exc:
             code = exc.response.status_code
@@ -113,6 +123,13 @@ def exercise_deployment(
     base: str, token: str, ca_file: str | None = None
 ) -> list[tuple[str, bool]]:
     """显式选择后才写入无提醒的临时日程/课程，只清理本轮确认拥有的记录。"""
+    return asyncio.run(_exercise_deployment(base, token, ca_file))
+
+
+async def _exercise_deployment(
+    base: str, token: str, ca_file: str | None = None
+) -> list[tuple[str, bool]]:
+    """顺序执行每次写入，保持事件接收、重连及清理在同一事件循环。"""
     base, ws_base = endpoints(base)
     context = ssl.create_default_context(cafile=ca_file)
     label = "c4-check-" + secrets.token_hex(8)
@@ -126,18 +143,18 @@ def exercise_deployment(
         results.append((name, ok))
         print(f"{'PASS' if ok else 'FAIL'} {name}")
 
-    def rows(client: httpx.Client, table: str) -> list[dict]:
-        response = client.get(f"api/{table}")
+    async def rows(client: httpx.AsyncClient, table: str) -> list[dict]:
+        response = await client.get(f"api/{table}")
         response.raise_for_status()
         data = response.json()
         if not isinstance(data, list) or not all(isinstance(row, dict) for row in data):
             raise ValueError("业务响应不是记录列表")
         return data
 
-    def event_received(ws, event_type: str, row_id: int) -> bool:
+    async def event_received(ws, event_type: str, row_id: int) -> bool:
         deadline = time.monotonic() + 5
         while (remaining := deadline - time.monotonic()) > 0:
-            event = json.loads(ws.recv(timeout=remaining))
+            event = json.loads(await asyncio.wait_for(ws.recv(), timeout=remaining))
             if (
                 isinstance(event, dict)
                 and event.get("version") == 1
@@ -149,7 +166,7 @@ def exercise_deployment(
                 return True
         return False
 
-    with httpx.Client(
+    async with httpx.AsyncClient(
         base_url=base + "/",
         headers={"X-API-Key": token},
         verify=context,
@@ -159,7 +176,7 @@ def exercise_deployment(
     ) as client:
         stage = "业务 WS 建连"
         try:
-            with connect(url, open_timeout=5, close_timeout=2, proxy=None, **options) as ws:
+            async with connect(url, open_timeout=5, close_timeout=2, proxy=None, **options) as ws:
                 for table, field, payload, event_type in [
                     ("tasks", "title", {"title": label}, "task.created"),
                     (
@@ -175,7 +192,7 @@ def exercise_deployment(
                     ),
                 ]:
                     stage = f"{table} 创建"
-                    response = client.post(f"api/{table}", json=payload)
+                    response = await client.post(f"api/{table}", json=payload)
                     response.raise_for_status()
                     data = response.json()
                     if (
@@ -192,24 +209,27 @@ def exercise_deployment(
                         f"{table} 写入并读回",
                         any(
                             row.get("id") == data["id"] and row.get(field) == label
-                            for row in rows(client, table)
+                            for row in await rows(client, table)
                         ),
                     )
                     stage = f"{table} WS 业务事件"
                     record(
-                        f"{table} WebSocket 业务事件", event_received(ws, event_type, data["id"])
+                        f"{table} WebSocket 业务事件",
+                        await event_received(ws, event_type, data["id"]),
                     )
             stage = "WS 重连与 REST 校正"
-            with connect(url, open_timeout=5, close_timeout=2, proxy=None, **options):
-                record(
-                    "主动断开后重连并 REST 校正",
-                    all(
+            async with connect(url, open_timeout=5, close_timeout=2, proxy=None, **options):
+                reconciled = []
+                for table, field, row_id in created:
+                    reconciled.append(
                         any(
                             row.get("id") == row_id and row.get(field) == label
-                            for row in rows(client, table)
+                            for row in await rows(client, table)
                         )
-                        for table, field, row_id in created
-                    ),
+                    )
+                record(
+                    "主动断开后重连并 REST 校正",
+                    all(reconciled),
                 )
         except Exception as exc:
             # 不打印异常正文/URL，也不因超时重发创建。
@@ -217,16 +237,16 @@ def exercise_deployment(
         finally:
             for table, field, row_id in reversed(created):
                 try:
-                    current = [row for row in rows(client, table) if row.get("id") == row_id]
+                    current = [row for row in await rows(client, table) if row.get("id") == row_id]
                     if current and current[0].get(field) != label:
                         raise ValueError("记录已被他人修改，保留现场")
                     if current:
-                        response = client.delete(f"api/{table}/{row_id}")
+                        response = await client.delete(f"api/{table}/{row_id}")
                         if response.status_code != 204:
                             raise ValueError("清理未确认")
                     record(
                         f"{table} 临时数据清理并读回",
-                        all(row.get("id") != row_id for row in rows(client, table)),
+                        all(row.get("id") != row_id for row in await rows(client, table)),
                     )
                 except Exception as exc:
                     record(f"{table} 清理失败（{type(exc).__name__}；按临时标识人工核查）", False)
