@@ -6,6 +6,7 @@ DeepSeek / 通义 / 智谱 / Moonshot 等任意 OpenAI 兼容服务。
 
 from abc import ABC, abstractmethod
 from typing import Callable
+from urllib.parse import urlsplit
 
 from openai import BadRequestError, OpenAI
 
@@ -61,6 +62,17 @@ class OpenAICompatProvider(ChatProvider):
             self._client = OpenAI(api_key=self.api_key, base_url=self.base_url)
         return self._client
 
+    def _chat_options(self) -> dict:
+        """新版 DeepSeek 默认思考；桌宠采用普通对话，避免工具续轮丢失推理字段。"""
+        if urlsplit(self.base_url).hostname == "api.deepseek.com" and self.model in {
+            "deepseek-flash",
+            "deepseek-v4-pro",
+            "deepseek-v4-flash",
+            "deepseek-v4-flash-vision-exp",
+        }:
+            return {"extra_body": {"thinking": {"type": "disabled"}}}
+        return {}
+
     def _report_usage(self, usage: object) -> None:
         """把 usage 交给调用方记账；记账失败绝不能影响对话本身。"""
         if usage is None or self.on_usage is None:
@@ -94,6 +106,7 @@ class OpenAICompatProvider(ChatProvider):
                 stream=True,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
+                **self._chat_options(),
                 **extra,
             )
             for chunk in stream:
@@ -120,6 +133,7 @@ class OpenAICompatProvider(ChatProvider):
             tool_choice="auto",
             temperature=self.temperature,
             max_tokens=self.max_tokens,
+            **self._chat_options(),
         )
         self._report_usage(getattr(resp, "usage", None))
         msg = resp.choices[0].message

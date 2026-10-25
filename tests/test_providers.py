@@ -34,6 +34,43 @@ class _FakeClient:
         self.chat = type("Chat", (), {"completions": _Completions(chunks)})()
 
 
+@pytest.mark.parametrize("with_tools", [False, True])
+@pytest.mark.parametrize(
+    ("base_url", "model", "disable_thinking"),
+    [
+        ("https://api.deepseek.com", "deepseek-flash", True),
+        ("https://api.deepseek.com/v1", "deepseek-v4-pro", True),
+        ("https://example.test/v1", "deepseek-flash", False),
+        ("https://api.deepseek.com", "deepseek-chat", False),
+    ],
+)
+def test_modern_deepseek_uses_plain_chat_for_both_request_paths(
+    monkeypatch, with_tools, base_url, model, disable_thinking
+):
+    """真实请求路径均带普通模式；其他兼容服务/旧模型不受影响。"""
+    captured = {}
+
+    class Completions:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            if with_tools:
+                return _RespMsg(_Msg("已收到", []))
+            return iter([_Chunk("已收到")])
+
+    provider = OpenAICompatProvider("test-key", base_url, model)
+    client = type("Client", (), {"chat": type("Chat", (), {"completions": Completions()})()})()
+    monkeypatch.setattr(provider, "_client", client)
+    messages = [{"role": "user", "content": "你好"}]
+    if with_tools:
+        assert provider.chat_with_tools(messages, []) == {"content": "已收到", "tool_calls": []}
+    else:
+        assert provider.stream_chat(messages) == "已收到"
+    if disable_thinking:
+        assert captured["extra_body"] == {"thinking": {"type": "disabled"}}
+    else:
+        assert "extra_body" not in captured
+
+
 def test_stream_chat_concatenates_and_callbacks(monkeypatch):
     provider = OpenAICompatProvider("sk", "https://x", "m")
     chunks = [_Chunk("你"), _Chunk(None), _Chunk("好")]
