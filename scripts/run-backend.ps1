@@ -1,37 +1,37 @@
-﻿# 后端启动脚本（Windows 本地开发路线，见 docs/deploy.md）。
-# 用法：powershell -ExecutionPolicy Bypass -File scripts\run-backend.ps1 [-Port 8001] [-Interval 30]
-# 首次运行自动创建 backend/.venv 并安装依赖；缺少 backend/.env 时从示例复制并提醒填写 API_TOKEN。
+# Windows bootstrap. See docs/deploy.md. Native failures must remain failures.
 param(
-    [int]$Port = 8001,
-    [int]$Interval = 30
+    [ValidateRange(1, 65535)][int]$Port = 8001,
+    [Nullable[double]]$Interval = $null,
+    [string]$BindAddress = '127.0.0.1'
 )
-
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $PSScriptRoot
 $Backend = Join-Path $Root 'backend'
 $Venv = Join-Path $Backend '.venv'
 $Python = Join-Path $Venv 'Scripts\python.exe'
 
-if (-not (Test-Path $Python)) {
-    Write-Host '[run-backend] 创建虚拟环境 backend/.venv ...'
+if (-not (Test-Path -LiteralPath $Python)) {
     python -m venv $Venv
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
-
-$Marker = Join-Path $Venv '.deps-installed'
-if (-not (Test-Path $Marker)) {
-    Write-Host '[run-backend] 安装依赖 ...'
-    & $Python -m pip install --disable-pip-version-check -q -r (Join-Path $Backend 'requirements.txt')
-    if ($LASTEXITCODE -ne 0) { throw '依赖安装失败' }
-    New-Item -ItemType File -Path $Marker | Out-Null
+$Requirements = Join-Path $Backend 'requirements.txt'
+$Marker = Join-Path $Venv '.deps-sha256'
+$Digest = & $Python -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" $Requirements
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$Digest = $Digest.Trim()
+$Installed = if (Test-Path -LiteralPath $Marker) { (Get-Content -Raw -LiteralPath $Marker).Trim() } else { '' }
+if ($Installed -ne $Digest) {
+    & $Python -m pip install --disable-pip-version-check -r $Requirements
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    Set-Content -LiteralPath $Marker -Value $Digest -Encoding ASCII
 }
-
 $EnvFile = Join-Path $Backend '.env'
-if (-not (Test-Path $EnvFile)) {
-    Copy-Item (Join-Path $Backend '.env.example') $EnvFile
-    Write-Warning '[run-backend] 已从 .env.example 复制 backend/.env，请填入 API_TOKEN 后重新运行'
+if (-not (Test-Path -LiteralPath $EnvFile)) {
+    Copy-Item -LiteralPath (Join-Path $Backend '.env.example') -Destination $EnvFile
+    Write-Warning 'Created backend/.env. Set API_TOKEN before restarting.'
     exit 1
 }
-
-$Env:SCHEDULER_INTERVAL_SECONDS = "$Interval"
-Write-Host "[run-backend] 启动后端：http://0.0.0.0:$Port（单 worker，调度扫描 $Interval 秒）"
-& $Python -m uvicorn app.main:app --app-dir $Backend --host 0.0.0.0 --port $Port --workers 1
+$RunArgs = @((Join-Path $PSScriptRoot 'run_backend.py'), '--port', "$Port", '--host', $BindAddress)
+if ($null -ne $Interval) { $RunArgs += @('--interval', $Interval.ToString([cultureinfo]::InvariantCulture)) }
+& $Python @RunArgs
+exit $LASTEXITCODE

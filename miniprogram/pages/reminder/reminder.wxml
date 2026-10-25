@@ -1,0 +1,13 @@
+<view class="page">
+  <view wx:if="{{loading}}">正在读取最新提醒…</view>
+  <view wx:if="{{error}}" class="error-banner">{{error}}</view>
+  <view wx:if="{{reminder}}" class="card">
+    <view>{{task ? task.title : reminder.title}}</view>
+    <view>{{task ? task.note : reminder.body}}</view>
+    <view>{{time}}</view>
+    <view>{{status}}</view>
+    <view wx:if="{{!task}}">原日程已不存在，以上为提醒记录。</view>
+  </view>
+  <button bindtap="retry" disabled="{{loading}}">刷新状态</button>
+  <button bindtap="openTasks">查看日程</button>
+</view>

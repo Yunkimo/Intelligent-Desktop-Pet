@@ -15,6 +15,9 @@ def run() -> int:
     app.setApplicationName("Intelligent Desk Pet")
 
     window = PetWindow(settings)
+    if settings.tray_enabled:
+        # 关闭窗口只是隐藏到托盘，事件循环由托盘「退出」显式结束
+        app.setQuitOnLastWindowClosed(False)
     window.show()
 
     if not settings.llm_api_key:

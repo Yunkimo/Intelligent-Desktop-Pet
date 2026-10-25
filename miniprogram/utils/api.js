@@ -20,15 +20,17 @@ const apiKey = config.apiKey || '';
 // ==================================
 
 /** 统一封装 wx.request：自动带 X-API-Key，返回 Promise，非 2xx 抛出带后端详情的错误。 */
-function request(path, { method = 'GET', data } = {}) {
+function request(path, { method = 'GET', data, headers } = {}) {
   return new Promise((resolve, reject) => {
     wx.request({
       url: baseUrl + path,
       method,
       data,
+      timeout: config.requestTimeoutMs || 15000,
       header: {
         'X-API-Key': apiKey,
         'Content-Type': 'application/json',
+        ...(headers || {}),
       },
       success(res) {
         if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -41,7 +43,10 @@ function request(path, { method = 'GET', data } = {}) {
             : typeof res.data === 'string'
               ? res.data
               : '';
-        reject(new Error(`HTTP ${res.statusCode}${detail ? `：${detail}` : ''}`));
+        const error = new Error(`HTTP ${res.statusCode}${detail ? `：${detail}` : ''}`);
+        error.statusCode = res.statusCode;
+        error.code = detail;
+        reject(error);
       },
       fail(err) {
         reject(new Error(`网络请求失败：${err.errMsg || '请检查后端是否启动、baseUrl 是否正确'}`));
@@ -99,11 +104,45 @@ module.exports = {
 
   // 课表图片识别导入
   parseCourseImage: (filePath) => upload('/api/courses/parse-image', { filePath, name: 'image' }),
-  bulkCreateCourses: (courses) => request('/api/courses/bulk', { method: 'POST', data: { courses } }),
+  bulkCreateCourses: (courses) =>
+    request('/api/courses/bulk', { method: 'POST', data: { courses } }),
 
   // 日程/待办
   getTasks: () => request('/api/tasks'),
   createTask: (data) => request('/api/tasks', { method: 'POST', data }),
   updateTask: (id, data) => request(`/api/tasks/${id}`, { method: 'PUT', data }),
   deleteTask: (id) => request(`/api/tasks/${id}`, { method: 'DELETE' }),
+
+  // 提醒（B2/B3 契约见 docs/api-contract.md 与 backend/app/routers/reminders.py）
+  getReminders: () => request('/api/reminders'),
+  createReminder: (data) => request('/api/reminders', { method: 'POST', data }),
+  updateReminder: (id, data) => request(`/api/reminders/${id}`, { method: 'PUT', data }),
+  deleteReminder: (id) => request(`/api/reminders/${id}`, { method: 'DELETE' }),
+
+  // 微信登录与订阅登记（B3；订阅接口需 Bearer 会话头，见契约）
+  wechatLogin: (code) => request('/api/wechat/login', { method: 'POST', data: { code } }),
+  ensurePhoneReminder: (taskId, token) =>
+    request('/api/wechat/reminders', {
+      method: 'POST',
+      data: { task_id: taskId },
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getWechatReminders: (token) =>
+    request('/api/wechat/reminders', {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getWechatReminder: (id, token) =>
+    request(`/api/wechat/reminders/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getSubscriptions: (id, token) =>
+    request(`/api/wechat/subscriptions/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  wechatSubscribe: (data, sessionToken) =>
+    request('/api/wechat/subscribe', {
+      method: 'POST',
+      data,
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    }),
 };

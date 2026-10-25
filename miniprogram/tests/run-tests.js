@@ -4,8 +4,8 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 
-// C3 合并后把 'subscribe-logic.test.js' 加回列表（该文件随 C3 PR #43 引入）
-const TEST_FILES = ['ws-logic.test.js'];
+// 同时保留 WebSocket 适配层和 C3 订阅恢复回归。
+const TEST_FILES = ['ws-logic.test.js', 'subscribe-logic.test.js'];
 
 let failed = 0;
 for (const file of TEST_FILES) {

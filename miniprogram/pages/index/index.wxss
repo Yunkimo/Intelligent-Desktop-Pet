@@ -65,3 +65,14 @@
 .task-meta.overdue {
   color: #e74c3c;
 }
+
+.reminder-title {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.reminder-body {
+  margin-top: 4rpx;
+  color: #747d8c;
+  font-size: 24rpx;
+}

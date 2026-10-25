@@ -5,11 +5,11 @@ const ws = require('../../utils/ws');
 const {
   WEEKDAY_LABELS,
   WEEK_OPTIONS,
-  dateStr,
   todayDow,
   getCurrentWeek,
   setCurrentWeek,
   isActiveWeek,
+  reminderParts,
 } = require('../../utils/datetime');
 
 // 今日页关心的后端事件（WebSocket 推送后 REST 重读，节流由 ws.js 统一处理）
@@ -22,6 +22,7 @@ Page({
     todayLabel: '',
     courses: [],
     tasks: [],
+    reminders: [],
     loading: false,
     error: '',
   },
@@ -41,7 +42,10 @@ Page({
   },
 
   // 后端事件到达：REST 重读（onShow 也走这里，覆盖断线恢复）
-  onWsEvent() {
+  onWsEvent(event) {
+    if (event && event.type === 'reminder.due') {
+      wx.showToast({ title: '有提醒到期', icon: 'none', duration: 3000 });
+    }
     this.loadToday();
   },
 
@@ -60,9 +64,13 @@ Page({
   async loadToday() {
     this.setData({ loading: true, error: '' });
     try {
-      const [courses, tasks] = await Promise.all([api.getCourses(), api.getTasks()]);
+      const [courses, tasks, reminders] = await Promise.all([
+        api.getCourses(),
+        api.getTasks(),
+        api.getReminders(),
+      ]);
       const dow = todayDow();
-      const today = dateStr(new Date());
+      const today = reminderParts(new Date().toISOString()).date;
       this.setData({
         todayLabel: `第${this.data.currentWeek}周 · ${WEEKDAY_LABELS[dow - 1]} · ${today}`,
         courses: courses
@@ -75,6 +83,12 @@ Page({
             checked: false,
             dueText: t.due_at.slice(0, 10),
             overdue: t.due_at.slice(0, 10) < today,
+          })),
+        reminders: reminders
+          .filter((r) => !r.done && reminderParts(r.remind_at).date === today)
+          .map((r) => ({
+            ...r,
+            remindTime: reminderParts(r.remind_at).time,
           })),
       });
     } catch (err) {

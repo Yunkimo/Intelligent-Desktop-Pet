@@ -14,6 +14,38 @@ DEFAULT_TTS_VOICE = "zh-CN-XiaoxiaoNeural"
 DEFAULT_TTS_TIMEOUT_SECONDS = 30
 
 
+def save_env_values(**values: str) -> Path:
+    """把键值合并写入 .env：保留注释与既有顺序，同名键原地替换，缺失则追加。
+
+    .env 被 .gitignore 排除，因此可以安全地存密钥；config.json 会被提交，不能存。
+    返回写入的文件路径，便于调用方提示。
+    """
+    path = BASE_DIR / ".env"
+    try:
+        original = path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        original = []
+
+    pending = dict(values)
+    lines: list[str] = []
+    for line in original:
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and "=" in stripped:
+            key = stripped.split("=", 1)[0].strip()
+            if key in pending:
+                lines.append(f"{key}={pending.pop(key)}")
+                continue
+        lines.append(line)
+    for key, value in pending.items():
+        lines.append(f"{key}={value}")
+
+    tmp = path.with_suffix(".env.tmp")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+    return path
+
+
 class Settings:
     """应用配置的统一入口，各模块从这里取值。"""
 
@@ -24,6 +56,10 @@ class Settings:
         self.llm_api_key: str = os.getenv("LLM_API_KEY", "").strip()
         self.llm_base_url: str = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").strip()
         self.llm_model: str = os.getenv("LLM_MODEL", "deepseek-chat").strip()
+
+        # 账户余额查询用的独立凭据；留空时回退到推理用的 key 与地址
+        self.account_api_key: str = os.getenv("ACCOUNT_API_KEY", "").strip() or self.llm_api_key
+        self.account_base_url: str = os.getenv("ACCOUNT_BASE_URL", "").strip() or self.llm_base_url
 
         # —— 后端服务配置（API_TOKEN 是后端侧密钥，桌宠端填同一值以通过 X-API-Key 鉴权）——
         self.backend_url: str = os.getenv("BACKEND_URL", "http://127.0.0.1:8001").strip()
@@ -80,9 +116,59 @@ class Settings:
         self.health_enabled: bool = bool(data.get("health_enabled", True))
         self.sedentary_interval_min: int = int(data.get("sedentary_interval_min", 45))
 
+        # Claude Code 回合状态监控（默认关闭，右键菜单可开）
+        self.monitor_claude: bool = bool(data.get("monitor_claude", False))
+        # Codex 回合状态监控（默认关闭，独立于 Claude）
+        self.monitor_codex: bool = bool(data.get("monitor_codex", False))
+        # 状态角标显隐（默认显示；关闭后监控照常运行，只是不弹角标）
+        self.status_badges_visible: bool = bool(data.get("status_badges_visible", True))
+
+        # 系统托盘：关闭后右键「隐藏至托盘」置灰，关闭窗口仍直接退出
+        self.tray_enabled: bool = bool(data.get("tray_enabled", True))
+
+        # Token 用量：本地记账文件与按天明细保留天数（总计不受裁剪影响）
+        self.usage_retention_days: int = self._bounded_int(
+            data.get("usage_retention_days", 90), "usage_retention_days", 1, 3650
+        )
+        # 余额查询超时（秒）。实测部分网络下 DeepSeek 余额接口要 8 秒才返回，
+        # 默认 10 秒；上限 30 秒，避免 UI 侧无限等待
+        self.balance_timeout_seconds: float = self._bounded_float(
+            data.get("balance_timeout_seconds", 10), "balance_timeout_seconds", 0.5, 30
+        )
+        # 桌宠右下角的用量入口图标（相对 assets_dir）
+        self.rice_icon: str = data.get("rice_icon", "Rice.png")
+        # 「跳转至 API 网站」的目标地址；留空则按 API 地址推出站点根
+        self.api_website: str = str(data.get("api_website", "")).strip()
+
         # 路径统一解析为绝对路径
         self.assets_dir: Path = BASE_DIR / data.get("assets_dir", "assets")
         self.history_path: Path = BASE_DIR / data.get("history_path", "data/history.json")
+        self.agent_status_path: Path = BASE_DIR / data.get(
+            "agent_status_path", "data/agent-status.json"
+        )
+        self.usage_path: Path = BASE_DIR / data.get("usage_path", "data/usage.json")
+
+    @staticmethod
+    def _bounded_int(value: object, name: str, low: int, high: int) -> int:
+        """读取整数配置并夹在 [low, high]；非法值直接报错，避免静默用错口径。"""
+        try:
+            number = int(value)  # type: ignore[arg-type]
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{name} 必须是整数：{value!r}") from exc
+        if not low <= number <= high:
+            raise ValueError(f"{name} 必须在 {low}-{high} 之间：{number}")
+        return number
+
+    @staticmethod
+    def _bounded_float(value: object, name: str, low: float, high: float) -> float:
+        """读取浮点配置并夹在 [low, high]；非法值直接报错。"""
+        try:
+            number = float(value)  # type: ignore[arg-type]
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{name} 必须是数字：{value!r}") from exc
+        if not low <= number <= high:
+            raise ValueError(f"{name} 必须在 {low}-{high} 之间：{number}")
+        return number
 
     def _save_json(self, **updates: object) -> None:
         """把给定字段合并写回 config.json，保留其余字段。"""
@@ -114,6 +200,21 @@ class Settings:
             self.sedentary_interval_min = int(sedentary_min)
             updates["sedentary_interval_min"] = self.sedentary_interval_min
         self._save_json(**updates)
+
+    def update_monitor_claude(self, enabled: bool) -> None:
+        """更新 Claude Code 状态监控开关并写回 config.json。"""
+        self.monitor_claude = bool(enabled)
+        self._save_json(monitor_claude=self.monitor_claude)
+
+    def update_monitor_codex(self, enabled: bool) -> None:
+        """更新 Codex 状态监控开关并写回 config.json。"""
+        self.monitor_codex = bool(enabled)
+        self._save_json(monitor_codex=self.monitor_codex)
+
+    def update_status_badges_visible(self, visible: bool) -> None:
+        """更新状态角标显隐开关并写回 config.json。"""
+        self.status_badges_visible = bool(visible)
+        self._save_json(status_badges_visible=self.status_badges_visible)
 
     def switch_persona(self, name: str) -> bool:
         """切换到指定人设（从 personas 预设读取），写回 config.json 并返回是否成功。"""

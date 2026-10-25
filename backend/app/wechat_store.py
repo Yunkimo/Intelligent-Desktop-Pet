@@ -92,12 +92,25 @@ def session_user(token: str, now: float | None = None) -> int | None:
 def _public(row: sqlite3.Row | dict) -> dict:
     return {
         key: row[key]
-        for key in ("request_id", "reminder_id", "choice", "status", "attempts", "last_error")
+        for key in (
+            "request_id",
+            "reminder_id",
+            "event_id",
+            "choice",
+            "status",
+            "attempts",
+            "last_error",
+        )
     }
 
 
 def subscribe(
-    user_id: int, reminder_id: int, request_id: str, template_id: str, choice: str
+    user_id: int,
+    reminder_id: int,
+    request_id: str,
+    template_id: str,
+    choice: str,
+    event_id: str | None = None,
 ) -> dict:
     """每个逻辑提醒只登记一条发送意图；客户端重放不会增加发送次数。"""
     with db._conn() as conn:
@@ -109,6 +122,8 @@ def subscribe(
         ).fetchone()
         if row is None:
             raise SubscriptionError("reminder_not_found")
+        if event_id is not None and event_id != row["event_id"]:
+            raise SubscriptionError("reminder_event_changed")
         if row["channel"] not in {"phone", "both"}:
             raise SubscriptionError("reminder_has_no_phone_channel")
         existing = conn.execute(
@@ -193,7 +208,7 @@ def claim_due(now: float) -> dict | None:
             "AND d.status!='cancelled')"
         )
         row = conn.execute(
-            "SELECT s.*,u.openid,r.title,r.body,r.remind_at FROM wechat_subscriptions s "
+            "SELECT s.*,u.openid,r.title,r.body,r.remind_at,r.task_id FROM wechat_subscriptions s "
             "JOIN reminders r ON r.id=s.reminder_id JOIN wechat_users u ON u.id=s.user_id "
             "JOIN reminder_deliveries d ON d.reminder_id=r.id AND d.event_id=s.event_id "
             "WHERE s.status IN ('pending','retry') AND s.next_attempt_at<=? AND d.due_at<=? "

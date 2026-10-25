@@ -1,0 +1,54 @@
+{
+  "checked_at": "2026-10-24T23:48:49.839995+08:00",
+  "base_url": "http://8.148.29.9:8080",
+  "source": "collaborating Windows computer; direct requests with trust_env=False",
+  "scope": "public HTTP health and negative REST/WS authentication only; not the default seven-check positive credential suite",
+  "business_mutations": false,
+  "valid_credentials_used": false,
+  "results": [
+    {
+      "check": "health_json",
+      "expected_status": 200,
+      "actual_status": 200,
+      "passed": true
+    },
+    {
+      "check": "courses_missing_key_rejected",
+      "expected_status": 401,
+      "actual_status": 401,
+      "passed": true
+    },
+    {
+      "check": "courses_wrong_key_rejected",
+      "expected_status": 401,
+      "actual_status": 401,
+      "passed": true
+    },
+    {
+      "check": "tasks_missing_key_rejected",
+      "expected_status": 401,
+      "actual_status": 401,
+      "passed": true
+    },
+    {
+      "check": "tasks_wrong_key_rejected",
+      "expected_status": 401,
+      "actual_status": 401,
+      "passed": true
+    },
+    {
+      "check": "ws_missing_key_rejected",
+      "expected_status": 403,
+      "actual_status": 403,
+      "passed": true
+    },
+    {
+      "check": "ws_wrong_key_rejected",
+      "expected_status": 403,
+      "actual_status": 403,
+      "passed": true
+    }
+  ],
+  "passed": 7,
+  "total": 7
+}

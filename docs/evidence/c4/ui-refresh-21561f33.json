@@ -1,0 +1,15 @@
+{
+  "title": "C4-refresh-21561f33",
+  "created_at": "2026-10-25T01:15:55.852762+08:00",
+  "task_id": 7,
+  "reminder_created": false,
+  "create_status": "confirmed",
+  "scenario": "phone_live_update_after_network_restore",
+  "human_observation": {
+    "source": "user reply in this conversation",
+    "new_row_appeared_without_refresh_or_page_switch": true
+  },
+  "cleanup_confirmed": true,
+  "cleaned_at": "2026-10-25T01:17:37.382107+08:00",
+  "boundary": "Human UI observation must be recorded separately; creation is not proof of automatic refresh."
+}

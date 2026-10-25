@@ -1,0 +1,15 @@
+{
+  "recorded_at": "2026-10-25T00:34:38.759699+08:00",
+  "source": "user executed commands on server and provided output",
+  "source_database": "/home/idp/idp/backend/data/pet.db",
+  "private_copy_directory": "/root/c4-backup-check.B2m4bZ",
+  "source_opened_read_only_by_backup_script": true,
+  "backup_to_new_file": true,
+  "restore_to_new_file": true,
+  "backup_integrity_ok": true,
+  "restored_integrity_ok": true,
+  "schema_equal": true,
+  "record_counts_equal": true,
+  "production_database_replaced": false,
+  "boundary": "snapshot and restoration to isolated copy, not actual application-version rollback or production switchover"
+}

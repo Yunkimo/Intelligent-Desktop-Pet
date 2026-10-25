@@ -33,6 +33,14 @@ class TaskIn(BaseModel):
     due_at: str | None = None
     remind_at: str | None = None
 
+    @field_validator("remind_at")
+    @classmethod
+    def validate_reminder(cls, value: str | None) -> str | None:
+        """拒绝非法提醒时间；兼容保留历史任务接口的时间文本形式。"""
+        if value is not None:
+            normalize_reminder_time(value)
+        return value
+
 
 class TaskUpdate(BaseModel):
     title: str | None = None
@@ -40,6 +48,12 @@ class TaskUpdate(BaseModel):
     due_at: str | None = None
     remind_at: str | None = None
     done: bool | None = None
+
+    @field_validator("remind_at")
+    @classmethod
+    def validate_reminder(cls, value: str | None) -> str | None:
+        """改期入事务前校验；null 表示清除提醒。"""
+        return TaskIn.validate_reminder(value)
 
 
 class ReminderIn(BaseModel):

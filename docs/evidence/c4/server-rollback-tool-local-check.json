@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "previous_ref": "5ff462f",
+  "current_ref": "d418655",
+  "schema_before": [
+    1
+  ],
+  "schema_after": [
+    1,
+    2
+  ],
+  "old_code_reads_restored_data": true,
+  "post_backup_row_excluded": true,
+  "upgraded_copy_preserved": true,
+  "production_database_opened": false,
+  "production_service_changed": false,
+  "directory": "D:\\IDP\\reviews\\c4-20261024\\after-develop-9bca38f\\c4-rollback-drill-46phc26p",
+  "execution_host": "local Windows computer, not the ECS server",
+  "server_execution_pending": true
+}

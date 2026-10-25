@@ -1,0 +1,7 @@
+FAIL 健康检查：ConnectError
+FAIL REST 无凭据拒绝：ConnectError
+FAIL REST 错误凭据拒绝：ConnectError
+FAIL REST 正确凭据放行：ConnectError
+FAIL WS 正确凭据握手：ConnectionResetError
+FAIL WS 无凭据拒绝：ConnectError
+FAIL WS 错误凭据拒绝：ConnectError

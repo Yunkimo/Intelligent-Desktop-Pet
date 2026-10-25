@@ -1,0 +1,13 @@
+2026-10-24 23:32:28 Asia/Shanghai (15:32:28 UTC response Date)
+User instance screenshot confirmed public IP 8.148.29.9.
+Earlier requests to 8.148.31.9 targeted a different IP; original logs preserved.
+curl.exe --noproxy "*" -4 -i --connect-timeout 5 --max-time 10 http://8.148.29.9:8080/api/health
+Exit code: 0
+HTTP/1.1 200 OK
+Server: nginx/1.18.0 (Ubuntu)
+Date: Sat, 24 Oct 2026 15:32:28 GMT
+Content-Type: application/json
+Body: {"status":"ok"}
+Only public HTTP health was verified; no authenticated CRUD, WS, TLS or phone result.
+SSH keyscan received the server banner, but exited 1 with unsupported KEX method;
+this does not establish a successful SSH login or tunnel.

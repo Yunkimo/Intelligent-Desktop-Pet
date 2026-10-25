@@ -1,0 +1,38 @@
+{
+  "checked_at": "2026-10-25T05:42:22.551505+00:00",
+  "scope": "actual recognition result, review exact fields, then unique-name bulk import/readback/cleanup through cloud API; no UI claim",
+  "expected": {
+    "name": "C4-vision-bulk-e03c93271462",
+    "day_of_week": 1,
+    "start_time": "08:00",
+    "end_time": "09:40",
+    "location": "A101",
+    "teacher": "",
+    "weeks": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ]
+  },
+  "create_status": "confirmed_by_owned_readback",
+  "cleanup_confirmed": true,
+  "stored_weeks_type": "str",
+  "record_id": 5,
+  "readback_matches": true,
+  "recovery_note": "Initial harness assumed weeks array in CRUD output; existing API returns JSON text. Decoded for comparison, no business code modified or repeated POST.",
+  "passed": true,
+  "checked_after_normalization_at": "2026-10-25T05:43:06.738264+00:00"
+}

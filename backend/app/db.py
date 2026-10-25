@@ -187,12 +187,40 @@ def create_task(title, note="", due_at=None, remind_at=None) -> dict:
 
 
 def update_task(task_id: int, fields: dict) -> dict | None:
+    """日程改期与关联提醒在同一事务更新，取消旧事件的待发授权。"""
+    from .reminder_time import normalize_reminder_time
+
     cols = {"title", "note", "due_at", "remind_at", "done"}
-    return _apply_update("tasks", cols, task_id, fields)
+    updates = {key: value for key, value in fields.items() if key in cols}
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        old = conn.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
+        if old is None:
+            return None
+        previous = normalize_reminder_time(old["remind_at"]) if old["remind_at"] else None
+        target = updates.get("remind_at", old["remind_at"])
+        target = normalize_reminder_time(target) if target else None
+        if "remind_at" in updates:
+            updates["remind_at"] = target
+        if updates:
+            sql = ", ".join(f"{key}=?" for key in updates)
+            conn.execute(f"UPDATE tasks SET {sql} WHERE id=?", (*updates.values(), task_id))
+        if previous != target:
+            rows = conn.execute("SELECT * FROM reminders WHERE task_id=?", (task_id,)).fetchall()
+            for reminder in rows:
+                if target is None:
+                    conn.execute("DELETE FROM reminders WHERE id=?", (reminder["id"],))
+                else:
+                    _update_reminder(conn, reminder["id"], {"remind_at": target})
+        return dict(conn.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone())
 
 
 def delete_task(task_id: int) -> bool:
-    return _delete("tasks", task_id)
+    """删除关联提醒和授权，避免客户端清理失败后留下孤儿发送。"""
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute("DELETE FROM reminders WHERE task_id=?", (task_id,))
+        return conn.execute("DELETE FROM tasks WHERE id=?", (task_id,)).rowcount > 0
 
 
 # ---------- 提醒 reminders ----------
@@ -227,29 +255,81 @@ def create_reminder(
 
 def update_reminder(reminder_id: int, fields: dict) -> dict | None:
     """编辑时失效旧领取；重新安排时间或显式 done=false 开始新逻辑事件。"""
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        return _update_reminder(conn, reminder_id, fields)
+
+
+def _update_reminder(conn: sqlite3.Connection, reminder_id: int, fields: dict) -> dict | None:
+    """共享事务中的提醒更新；等价时间及无变化写入不会生成新事件。"""
     from .reminder_store import seed_delivery
     from .reminder_time import normalize_reminder_time
 
+    old = conn.execute("SELECT * FROM reminders WHERE id=?", (reminder_id,)).fetchone()
+    if old is None:
+        return None
     cols = {"title", "body", "remind_at", "channel", "done", "task_id", "wechat_user_id"}
     updates = {key: value for key, value in fields.items() if key in cols}
-    if not updates:
-        return _get_by_id("reminders", reminder_id)
     if "remind_at" in updates:
         updates["remind_at"] = normalize_reminder_time(updates["remind_at"])
+    updates = {key: value for key, value in updates.items() if value != old[key] or key == "done"}
+    if not updates:
+        return dict(old)
     if {"remind_at", "channel"} & updates.keys():
         updates.setdefault("done", False)
     if "done" in updates:
         updates["done"] = int(updates["done"])
-    with _conn() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        set_sql = ", ".join(f"{key}=?" for key in updates)
-        conn.execute(f"UPDATE reminders SET {set_sql} WHERE id=?", (*updates.values(), reminder_id))
-        row = conn.execute("SELECT * FROM reminders WHERE id=?", (reminder_id,)).fetchone()
-        if row is None:
-            return None
+    set_sql = ", ".join(f"{key}=?" for key in updates)
+    conn.execute(f"UPDATE reminders SET {set_sql} WHERE id=?", (*updates.values(), reminder_id))
+    row = conn.execute("SELECT * FROM reminders WHERE id=?", (reminder_id,)).fetchone()
+    if updates:
+        conn.execute(
+            "UPDATE wechat_subscriptions SET status='cancelled',last_error='reminder_changed' "
+            "WHERE reminder_id=? AND status IN ('pending','retry')",
+            (reminder_id,),
+        )
         conn.execute("DELETE FROM reminder_deliveries WHERE reminder_id=?", (reminder_id,))
         seed_delivery(conn, dict(row))
-    return _get_by_id("reminders", reminder_id)
+    return dict(row)
+
+
+def ensure_phone_reminder(task_id: int, user_id: int) -> dict:
+    """按最新日程和会话用户原子复用手机提醒，历史重复数据需人工处理。"""
+    from .reminder_store import seed_delivery
+    from .reminder_time import normalize_reminder_time
+
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        task = conn.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
+        if task is None or not task["remind_at"]:
+            raise ValueError("task_reminder_unavailable")
+        due = normalize_reminder_time(task["remind_at"])
+        rows = conn.execute(
+            "SELECT * FROM reminders WHERE task_id=? AND wechat_user_id=? AND channel='phone'",
+            (task_id, user_id),
+        ).fetchall()
+        if len(rows) > 1:
+            raise ValueError("duplicate_task_reminders")
+        if rows:
+            reminder_id = rows[0]["id"]
+            _update_reminder(conn, reminder_id, {"remind_at": due})
+        else:
+            reminder_id = conn.execute(
+                "INSERT INTO reminders(title,body,remind_at,channel,task_id,wechat_user_id) "
+                "VALUES (?,?,?,'phone',?,?)",
+                (task["title"], task["note"], due, task_id, user_id),
+            ).lastrowid
+            seed_delivery(
+                conn,
+                dict(conn.execute("SELECT * FROM reminders WHERE id=?", (reminder_id,)).fetchone()),
+            )
+        return dict(
+            conn.execute(
+                "SELECT r.*,d.event_id FROM reminders r JOIN reminder_deliveries d "
+                "ON d.reminder_id=r.id WHERE r.id=?",
+                (reminder_id,),
+            ).fetchone()
+        )
 
 
 def delete_reminder(reminder_id: int) -> bool:

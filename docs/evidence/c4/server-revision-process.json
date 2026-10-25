@@ -1,0 +1,21 @@
+{
+  "source": "user executed read-only commands on server and provided output",
+  "server_git_head": "d418655",
+  "tracked_worktree_clean": true,
+  "service": {
+    "main_pid": 62174,
+    "automatic_restarts": 0,
+    "active_state": "active",
+    "sub_state": "running",
+    "unit_file_state": "enabled"
+  },
+  "process_query": "ps -C python,python3,uvicorn -o pid,ppid,comm",
+  "matching_processes": [
+    {
+      "pid": 62174,
+      "ppid": 1,
+      "command": "python"
+    }
+  ],
+  "boundary": "One matching Python/backend process in the stated filter; no command lines, credentials or arbitrary process/container inspection. Local develop merge did not deploy server code."
+}

@@ -1,0 +1,32 @@
+{
+  "checked_at": "2026-10-24T23:49:51.917838+08:00",
+  "actual_server_ip": "8.148.29.9",
+  "domain": "shynb.beer",
+  "scope": "read-only DNS and strict HTTPS via fixed IP; no credentials or mutations",
+  "dns_error_type": "gaierror",
+  "http": {
+    "curl_exit_code": 0,
+    "response_headers": "HTTP/1.1 403 Forbidden\r\nServer: Beaver\r\nCache-Control: no-cache\r\nContent-Type: text/html\r\nContent-Length: 640\r\nConnection: close",
+    "stderr": "",
+    "icp_block_page_observed": true,
+    "health_body_observed": false
+  },
+  "https": {
+    "curl_exit_code": 0,
+    "response_headers": "HTTP/1.1 200 OK\r\nServer: nginx/1.18.0 (Ubuntu)\r\nDate: Sat, 24 Oct 2026 15:49:52 GMT\r\nContent-Type: application/json\r\nContent-Length: 15\r\nConnection: keep-alive",
+    "stderr": "",
+    "icp_block_page_observed": false,
+    "health_body_observed": true
+  },
+  "dns_followup": {
+    "local_command": "nslookup -type=A shynb.beer",
+    "local_result": "No address (A) records available for shynb.beer",
+    "nameservers": [
+      "dns19.hichina.com",
+      "dns20.hichina.com"
+    ],
+    "authoritative_command": "nslookup -type=A shynb.beer dns19.hichina.com",
+    "authoritative_result": "Name: shynb.beer; no A address returned",
+    "scope": "observed during this verification turn; not a claim about every resolver or future DNS state"
+  }
+}

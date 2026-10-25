@@ -117,7 +117,9 @@ B1 已由 PR #16 合并；B2 的时间、状态与验收口径补充仍需 A/C �
 
 ## B3：微信登录与订阅消息
 
-所有请求携带 `X-API-Key`；订阅与查询另需 `Authorization: Bearer <session_token>`。实现分为 `WeChatClient`（HTTP 适配）、`wechat_store`（事务与状态）、`WeChatDispatcher`（重试决策）与路由四层，微信与桌面扫描各用独立后台循环。
+所有请求携带 `X-API-Key`；本人提醒创建/查询、订阅登记与查询另需 `Authorization: Bearer <session_token>`。实现分为 `WeChatClient`（HTTP 适配）、`wechat_store`（事务与状态）、`WeChatDispatcher`（重试决策）与路由四层，微信与桌面扫描各用独立后台循环。
+
+C3 修复新增带 Bearer 的本人提醒创建/查询、event_id 校验和消息落地页；日程改期、清除和删除与关联提醒处理在同一事务完成。同一时刻的格式变化不生成新事件。接口清单、恢复规则及兼容边界见 [C3 接口与恢复说明](c3-subscription.md)。现有 REST/WS 事件格式保持兼容。
 
 ### 登录
 
@@ -131,10 +133,10 @@ B1 已由 PR #16 合并；B2 的时间、状态与验收口径补充仍需 A/C �
 
 ### 提醒归属与订阅登记
 
-`POST /api/reminders` 新增可选 `wechat_user_id`，`phone`/`both` 必须绑定收件人并登记授权后才发送微信。小程序在用户主动操作后调用：
+管理接口 `POST /api/reminders` 保留可选 `wechat_user_id`，`phone`/`both` 必须绑定收件人并登记授权后才发送微信。C3 小程序使用 `POST /api/wechat/reminders`，提交 `task_id`，由后端从 Bearer 会话确定身份并在事务中创建或复用本人 phone 提醒；不由客户端指定收件人。小程序在用户主动操作后调用：
 
-- `POST /api/wechat/subscribe`，请求 `{"reminder_id","request_id"(UUID),"template_id","result":"accept|reject|ban|filter"}`。同一网络重试复用原 `request_id`；内容变化或同一事件重复登记返回 409。`accept` 初始为 pending，其余为 rejected 且不发送。
-- `GET /api/wechat/subscriptions/{reminder_id}` 返回本人当前仍拥有的该提醒的订阅历史，无记录或非本人时返回空数组。
+- `POST /api/wechat/subscribe`，请求 `{"reminder_id","request_id"(UUID),"template_id","result":"accept|reject|ban|filter","event_id"(可选)}`。C3 必传 `event_id`，旧客户端省略时保持原契约；事件已变化返回 409 `reminder_event_changed`。同一网络重试复用原 `request_id`；内容变化或同一事件重复登记返回 409。`accept` 初始为 pending，其余为 rejected 且不发送。
+- `GET /api/wechat/subscriptions/{reminder_id}` 返回本人当前仍拥有的该提醒的订阅历史，记录包含 `event_id`；无记录或非本人时返回空数组。C3 按当前事件匹配，不能用历史 sent 表示当前事件已发送。
 - `GET /api/reminders/{id}/delivery` 在 B2 字段外新增 `wechat` 数组。
 
 | 情况 | HTTP |
@@ -159,6 +161,8 @@ B1 已由 PR #16 合并；B2 的时间、状态与验收口径补充仍需 A/C �
 | `WX_MINIPROGRAM_STATE` | developer | developer / trial / formal |
 | `WX_TIMEOUT_SECONDS` | 10 | 单次 HTTP 请求上限 |
 | `WX_SESSION_TTL_SECONDS` | 7200 | 本地会话有效期，60–86400 秒 |
+
+字段名必须匹配真实模板。目前支持 `thingN` 对应 `title`/`body`，`timeN`/`dateN` 对应 `remind_at`；文本取前 20 个字符，时间按 `REMINDER_NAIVE_OFFSET_MINUTES` 显示，格式为 `YYYY-MM-DD HH:MM`。其他字段类型尚未实现，不能套用示例假装模板兼容。
 
 缺少身份配置时微信接口返回 503；缺少模板或映射时订阅返回 503。启动时幂等创建 `wechat_users`/`wechat_sessions`/`wechat_subscriptions` 并为 reminders 增加可空外键，迁移版本 2；不自动绑定已有提醒，也不生成升级备份。
 

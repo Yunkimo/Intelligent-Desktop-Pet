@@ -1,0 +1,16 @@
+Source: user-provided server output, 2026-10-25 around 00:13 Asia/Shanghai.
+Command: systemctl show idp-backend -p LoadState -p ActiveState -p SubState -p MainPID -p WorkingDirectory -p FragmentPath
+MainPID=59473
+WorkingDirectory=/home/idp/idp/backend
+LoadState=loaded
+ActiveState=active
+SubState=running
+FragmentPath=/etc/systemd/system/idp-backend.service
+Command: ss -lntp ports 80,443,8001,8080
+nginx listening on 0.0.0.0:80, :443, :8080; worker PIDs 59846,59845; master 59526.
+python PID 59473 listening on 127.0.0.1:8001.
+This confirms the observed listener/service state, not a complete scheduler instance audit.
+
+Human restart on 2026-10-25: MainPID changed 59473 -> 62174; active/running; UnitFileState=enabled.
+Local health HTTP 200; response Date Sat, 24 Oct 2026 16:19:53 GMT.
+Actual server config DB_PATH resolved to /home/idp/idp/backend/data/pet.db; scheduler interval reported 30 seconds.

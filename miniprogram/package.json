@@ -1,13 +1,14 @@
 {
   "name": "idp-miniprogram",
   "private": true,
-  "description": "智能桌宠小程序：逻辑层静态检查与适配层验收测试（微信运行时由开发者工具提供）",
   "scripts": {
-    "lint": "eslint . --ext .js",
-    "test": "node tests/run-tests.js"
+    "test": "node tests/run-tests.js",
+    "lint": "eslint utils/api.js utils/datetime.js utils/subscribe.js pages/task/task.js pages/index/index.js pages/reminder/reminder.js tests/runtime.js tests/subscribe-logic.test.js tests/subscribe-contract.test.js utils/ws.js tests/ws-logic.test.js tests/run-tests.js",
+    "format:check": "prettier --check utils/subscribe.js pages/reminder/reminder.js tests/runtime.js tests/subscribe-logic.test.js tests/subscribe-contract.test.js"
   },
   "devDependencies": {
-    "eslint": "10.12.0",
+    "eslint": "10.13.0",
     "prettier": "3.9.10"
-  }
+  },
+  "description": "智能桌宠小程序：C3 订阅与 C4 WebSocket 逻辑回归"
 }

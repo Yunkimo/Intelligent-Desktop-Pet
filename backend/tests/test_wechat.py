@@ -4,9 +4,13 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 import sqlite3
+import subprocess
+import sys
 from contextlib import closing
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -22,6 +26,7 @@ from fastapi.testclient import TestClient
 
 NOW = datetime(2040, 1, 1, tzinfo=timezone.utc).timestamp()
 HEADERS = {"X-API-Key": "test-token"}
+BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture
@@ -645,3 +650,22 @@ def test_send_success_before_database_failure_does_not_repeat(wx_app, monkeypatc
     assert dispatch(client, NOW + config.WX_DELIVERY_LEASE_SECONDS) == 0
     assert wechat_store.status(reminder["id"])[0]["status"] == "uncertain"
     assert fake.count("/cgi-bin/message/subscribe/send") == 1
+
+
+def test_config_accepts_date_field_for_remind_at():
+    """真实订阅模板常用 dateN 时间字段(如 date4),配置校验必须放行。"""
+    env = {
+        **os.environ,
+        "WX_TEMPLATE_FIELDS": json.dumps(
+            {"thing2": "title", "date4": "remind_at", "thing10": "body"}
+        ),
+    }
+    result = subprocess.run(
+        [sys.executable, "-c", "import app.config"],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=BACKEND_DIR,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr

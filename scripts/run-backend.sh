@@ -1,33 +1,24 @@
 #!/usr/bin/env bash
-# 后端启动脚本（Linux/macOS 本地开发路线，见 docs/deploy.md）。
-# 用法：./scripts/run-backend.sh [PORT] [SCHEDULER_INTERVAL_SECONDS]
+# 用法：bash scripts/run-backend.sh [PORT] [INTERVAL] [BIND_ADDRESS]
 set -euo pipefail
-
-PORT="${1:-8001}"
-INTERVAL="${2:-30}"
-
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND="$ROOT/backend"
 VENV="$BACKEND/.venv"
 PYTHON="$VENV/bin/python"
-
-if [ ! -x "$PYTHON" ]; then
-  echo "[run-backend] 创建虚拟环境 backend/.venv ..."
+if [[ ! -x "$PYTHON" ]]; then
   python3 -m venv "$VENV"
 fi
-
-if [ ! -f "$VENV/.deps-installed" ]; then
-  echo "[run-backend] 安装依赖 ..."
-  "$PYTHON" -m pip install --disable-pip-version-check -q -r "$BACKEND/requirements.txt"
-  touch "$VENV/.deps-installed"
+DIGEST="$("$PYTHON" -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],"rb").read()).hexdigest())' "$BACKEND/requirements.txt")"
+INSTALLED="$(cat "$VENV/.deps-sha256" 2>/dev/null || true)"
+if [[ "$INSTALLED" != "$DIGEST" ]]; then
+  "$PYTHON" -m pip install --disable-pip-version-check -r "$BACKEND/requirements.txt"
+  printf '%s\n' "$DIGEST" > "$VENV/.deps-sha256"
 fi
-
-if [ ! -f "$BACKEND/.env" ]; then
-  cp "$BACKEND/.env.example" "$BACKEND/.env"
-  echo "[run-backend] 已从 .env.example 复制 backend/.env，请填入 API_TOKEN 后重新运行" >&2
+if [[ ! -f "$BACKEND/.env" ]]; then
+  (umask 077; cp "$BACKEND/.env.example" "$BACKEND/.env")
+  echo 'Created backend/.env. Set API_TOKEN before restarting.' >&2
   exit 1
 fi
-
-export SCHEDULER_INTERVAL_SECONDS="$INTERVAL"
-echo "[run-backend] 启动后端：http://0.0.0.0:$PORT（单 worker，调度扫描 $INTERVAL 秒）"
-exec "$PYTHON" -m uvicorn app.main:app --app-dir "$BACKEND" --host 0.0.0.0 --port "$PORT" --workers 1
+ARGS=(--port "${1:-8001}" --host "${3:-127.0.0.1}")
+if [[ -n "${2:-}" ]]; then ARGS+=(--interval "$2"); fi
+exec "$PYTHON" "$ROOT/scripts/run_backend.py" "${ARGS[@]}"

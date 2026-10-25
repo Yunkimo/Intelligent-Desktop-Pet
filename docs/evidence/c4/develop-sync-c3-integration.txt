@@ -1,0 +1,13 @@
+Command: D:\IDP\worktrees\c4-deployment\backend\.venv\Scripts\python.exe scripts/check_c3_integration.py
+Exit: 0
+PASS 真实登记、拒绝两次后同意、409 不变成功
+PASS 登记提交后丢响应、调度后重进，只有一次平台调用
+PASS 创建提交后丢响应重试和两个并发入口不会重复创建
+PASS 等价 UTC 写入不重置事件或完成状态
+PASS 页面真实保存改期、清除及删除同步使旧提醒失效
+PASS 服务端改期后本地 done 不遮蔽当前事件
+PASS 会话撤销自动重登录一次，其他账号和伪造身份被拒绝
+PASS 真实今日页面 UTC 转换覆盖 10:00、凌晨 01:00
+PASS 真实 WS 阳性对照：pc 有事件，phone 仅微信渠道
+PASS 消息目标不含凭据；详情页重新读取和资源删除反馈
+C3 real-backend integration passed: 10

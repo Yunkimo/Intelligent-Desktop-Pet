@@ -10,30 +10,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 小程序：JS 静态检查与适配层逻辑验收（微信运行时由开发者工具提供，CI 只验逻辑层）
-  miniprogram:
+  miniprogram-c3:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: miniprogram
     steps:
       - uses: actions/checkout@v5
-
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: miniprogram/package-lock.json
-
-      - name: Install JS dependencies
-        run: npm ci
-
-      - name: Lint (ESLint)
-        run: npm run lint
-
-      - name: Adapter logic tests (ws)
-        run: npm test
-
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install C3 test dependencies
+        run: |
+          npm ci --prefix miniprogram
+          python -m pip install -r backend/requirements-dev.txt
+      - name: C3 lint, format and logic regression
+        run: |
+          npm run lint --prefix miniprogram
+          npm run format:check --prefix miniprogram
+          npm test --prefix miniprogram
+      - name: C3 real backend recovery regression (mock WeChat only)
+        run: python scripts/check_c3_integration.py
   # 后端：FastAPI + SQLite，轻量，无需系统依赖，单独跑 backend/tests
   backend:
     runs-on: ubuntu-latest

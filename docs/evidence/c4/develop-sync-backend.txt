@@ -1,0 +1,13 @@
+Command: D:\IDP\worktrees\c4-deployment\backend\.venv\Scripts\python.exe -m pytest backend/tests -o addopts= -q --basetemp D:\IDP\reviews\c4-20261024\after-develop-9bca38f\tmp-backend-4fa8e9224d
+Exit: 0
+........................................................................ [ 28%]
+........................................................................ [ 57%]
+........................................................................ [ 85%]
+....................................                                     [100%]
+============================== warnings summary ===============================
+..\c4-deployment\backend\.venv\Lib\site-packages\fastapi\testclient.py:1
+  D:\IDP\worktrees\c4-deployment\backend\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+252 passed, 1 warning in 17.78s

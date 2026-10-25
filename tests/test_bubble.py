@@ -91,3 +91,77 @@ def test_bubble_placement_above_override(qapp):
     x, y, tail_up = bubble_placement(avatar, screen, 200, 60, 8, above=False)
     assert tail_up is True
     assert y > avatar.y() + avatar.height()
+
+
+def test_badge_placement_matches_bubble_when_no_bubble(qapp):
+    from PyQt6.QtCore import QRect
+
+    from pet.bubble import badge_placement, bubble_placement
+
+    screen = QRect(0, 0, 1000, 700)
+    anchor = QRect(40, 540, 300, 200)
+    expected = bubble_placement(anchor, screen, 100, 20, 8)[:2]
+    assert badge_placement(anchor, screen, 100, 20, 8) == expected
+
+
+def test_badge_placement_stacks_above_visible_bubble(qapp):
+    """气泡在桌宠上方且与角标重叠时，角标应叠到气泡外侧。"""
+    from PyQt6.QtCore import QRect
+
+    from pet.bubble import badge_placement
+
+    screen = QRect(0, 0, 1000, 700)
+    anchor = QRect(40, 540, 300, 200)
+    bubble = QRect(165, 472, 200, 60)
+
+    x, y = badge_placement(anchor, screen, 100, 20, 8, bubble)
+
+    assert y == bubble.y() - 20 - 8
+    assert not QRect(x, y, 100, 20).intersects(bubble)
+
+
+def test_badge_placement_stacks_below_visible_bubble(qapp):
+    """气泡在桌宠下方时，角标同样叠在气泡外侧（下方）。"""
+    from PyQt6.QtCore import QRect
+
+    from pet.bubble import badge_placement
+
+    screen = QRect(0, 0, 1000, 700)
+    anchor = QRect(660, 40, 300, 200)
+    bubble = QRect(635, 248, 200, 60)
+
+    x, y = badge_placement(anchor, screen, 100, 20, 8, bubble)
+
+    assert y == bubble.y() + bubble.height() + 8
+    assert not QRect(x, y, 100, 20).intersects(bubble)
+
+
+def test_badge_placement_flips_side_when_screen_edge_lacks_room(qapp):
+    """气泡贴屏幕顶边、外侧放不下角标时，翻到桌宠另一侧。"""
+    from PyQt6.QtCore import QRect
+
+    from pet.bubble import badge_placement
+
+    screen = QRect(0, 0, 1000, 200)
+    anchor = QRect(40, 68, 300, 70)
+    bubble = QRect(165, 0, 200, 60)
+
+    x, y = badge_placement(anchor, screen, 100, 20, 8, bubble)
+
+    assert y > bubble.bottom()
+    assert not QRect(x, y, 100, 20).intersects(bubble)
+
+
+def test_bubble_emits_visibility_changes(qapp):
+    from pet.bubble import SpeechBubble
+
+    bubble = SpeechBubble(timeout_ms=0)
+    events: list[bool] = []
+    bubble.visibility_changed.connect(events.append)
+
+    bubble.set_text("你好")
+    qapp.processEvents()
+    bubble.hide()
+    qapp.processEvents()
+
+    assert events == [True, False]

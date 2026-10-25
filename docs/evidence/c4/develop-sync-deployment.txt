@@ -1,0 +1,4 @@
+Command: D:\IDP\worktrees\c4-deployment\backend\.venv\Scripts\python.exe -m pytest tests_deployment -o addopts= -o junit_family=legacy -q --basetemp D:\IDP\reviews\c4-20261024\after-develop-9bca38f\tmp-deployment-33cadf66a0 --junitxml D:\IDP\reviews\c4-20261024\after-develop-9bca38f\deployment.xml
+Exit: 0
+..........................                                               [100%]
+26 passed in 116.19s (0:01:56)

@@ -20,6 +20,24 @@ echo Installing dependencies...
 .venv\Scripts\python -m pip install -r requirements.txt
 
 echo.
+echo Configuring Claude Code status hooks...
+.venv\Scripts\python scripts\install_claude_status_hook.py
+if errorlevel 1 (
+    echo [WARN] Claude Code hook setup failed. You can run it manually later:
+    echo        .venv\Scripts\python scripts\install_claude_status_hook.py
+)
+
+echo.
+echo Configuring Codex status hooks...
+.venv\Scripts\python scripts\install_codex_status_hook.py
+if errorlevel 1 (
+    echo [WARN] Codex hook setup failed. You can run it manually later:
+    echo        .venv\Scripts\python scripts\install_codex_status_hook.py
+)
+
+echo.
 echo Done. Next steps:
 echo   1. copy .env.example .env  and fill in LLM_API_KEY
 echo   2. Run  启动桌宠.bat
+echo   3. Review and trust the hooks in Codex, then restart it
+echo   4. Restart Claude Code so its status hooks take effect

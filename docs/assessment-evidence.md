@@ -26,6 +26,58 @@
 
 未闭环项：A4 `reminder.due` 端到端依赖 B2 到期调度器（issue #6）；A3 手动 GUI 气泡经决定跳过（逻辑以 6 例单测覆盖）。不以单测/Mock 替代真实端到端验收。
 
+## A6 增量证据（Issue #32，2026-10-19）
+
+系统托盘与开机自启由分支 `feat/a6-system-tray` 交付（提交 `a386313` 注册表管理、`ec8805f` 托盘与隐藏，文档随本提交更新）。
+
+- 托盘：`pet/tray.py` 用当前形象生成 16–64 px 多档图标；左键单击显隐桌宠；右键菜单复用 A5 `Command` 表（`_build_commands(include_hide_to_tray=False)`），追加勾选式「开机自启动」。**2026-10-24 调整：菜单里的「退出」移到最下方**——`_build_commands` 增加 `include_quit` 开关，托盘以 `include_quit=False` 取表后先追加自启、再追加窗口提供的 `_quit_command()`，桌面菜单默认仍以「退出」结尾；新增/更新 `test_tray.py` 的顺序断言与 `test_window_status_badge.py` 的剔除断言。
+- 隐藏：桌宠右键菜单顶部新增「隐藏至托盘」。气泡与角标是独立顶层浮窗，实测不会随父窗口隐藏，因此 A6 交付时 `hide_to_tray()` 显式隐藏气泡、Claude 角标与 Codex 角标，恢复时还原隐藏前的显隐状态。**该角标行为已于 2026-10-23 被「角标独立显隐」取代（见下文同名增量证据）：隐藏桌宠后角标按自身开关继续显示。**
+- 退出：A5 的「退出」由 `self.close` 改为 `_quit`，置 `_quitting` 后走原有收尾路径；托盘启用时普通关闭只隐藏，托盘「退出」在窗口隐藏状态下也能正常结束进程。
+- 开机自启：`pet/autostart.py` 读写 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 的 `IntelligentDeskPet` 值，指向带引号的 `启动桌宠.bat`；注册表是唯一事实源，因此未在 `config.json` 增加 `autostart_enabled` 字段（与 Issue 原范围的有意差异）。非 Windows 返回 False。
+- 验证：ruff check/format 通过；合并 develop 的 Codex 双角标后 pytest 182 条通过；真实窗口确认系统托盘可用、图标非空（15×16 至 60×64 五档）、托盘菜单顺序正确、隐藏/恢复气泡角标、真实注册表 enable→is_enabled→disable 往返成功、隐藏状态下退出返回码 0。失败与修正过程见 [测试文档](testing.md) §5.3。上述「隐藏/恢复气泡角标」记录的是 A6 交付时行为，角标部分自 2026-10-23 起改由独立开关控制。
+
+## A9 增量证据（Issue #46，2026-10-19）
+
+Claude Code 状态监控由 PR #49 合并，启动定位、退出残留与气泡遮挡修复由 PR #51 合并。2026-10-19 修复启动时控制台的两行 `Could not parse stylesheet of object StatusBadge`：
+
+- 根因：`StatusBadge` 的 QSS 由三段拼接，前两段是 f-string（`{{`/`}}` 会转义），最后一段是普通字符串，`}}` 原样输出，导致样式表多一个右花括号、Qt 解析失败。
+- 修正：提交 `2f00cbd`（`fix(pet): 修复状态角标样式表解析警告`）将末尾改为单个 `}`；新增捕获 Qt 消息的回归测试，修正前失败、修正后通过。
+- 验证：ruff check/format 通过；桌宠端 147 条用例通过；真实 `main.py` 运行 8 秒，控制台 0 条解析警告（旧样式表对照为 2 条）。
+- 修复提交与文档（`2f00cbd`、`903e97d`）已快进推送至 develop（2026-10-19，CI run 39237613619 全绿）；AI 纠错过程见 [测试文档](testing.md) §5.3。
+
+## 角标独立显隐增量证据（2026-10-23）
+
+分支 `feat/badge-independent-visibility`，提交 `2760f72`。
+
+- 行为：`hide_to_tray()` 只隐藏桌宠与气泡，不再连带隐藏 Claude / Codex 角标；新增右键与托盘共用的「显示状态角标」勾选项，写入 `config.json` 的 `status_badges_visible`。
+- 实现：`StatusBadge.set_user_visible()` 与状态驱动的 `set_state()` 取交集决定显隐；关闭期间状态继续更新，重开时按当前状态恢复。沿用 `_build_commands()` 命令表，托盘菜单自动复用新命令。
+- 测试：新增 `test_badge_visibility.py`（开关持久化与双向切换）、`test_status_badge.py::test_user_visible_switch_keeps_state` 与 `test_config.py` 三项（默认值隔离、持久化往返、更新保存）；另补启动时恢复隐藏状态与菜单未勾选态断言。原 A6 托盘回归用例改为断言角标不随桌宠隐藏。桌宠端 208 条用例、ruff check/format 通过；测试补强与文档修正见 PR #55 追加提交。
+- 待办：真实窗口人工验收（隐藏桌宠后角标保留、勾选开关即时生效）。Issue #54 / PR #55 已于 2026-10-23 创建并分配成员 A，待人工验收后合并。
+
+## 角标自由移动增量证据（Issue #56，2026-10-23）
+
+Claude/Codex 状态角标由分支 `feat/badge-draggable` 交付（PR #57），在既有自动摆位之上增加「手动拖拽 + 双击复位」：
+
+- 可交互：移除角标的 `WA_TransparentForMouseEvents`，按下左键拖动超过 4px 阈值即移动并标记手动位置；`_position_status_badge()` 跳过手动角标，其余角标仍正常跟随桌宠自动摆位。
+- 复位：双击角标清空手动标记并发 `position_reset` 信号，窗口重新执行自动摆位。
+- 边界：角标位置夹在屏幕可用区域内，避免拖出屏幕后无法再双击复位；手动位置仅本次运行有效，不持久化（与会话性定位一致）。
+- 验证：ruff check/format 通过；桌宠端 pytest 213 项全过（合并 #55 的 208 项后 + 新增 5 项拖拽/复位用例）。未改变既有自动摆位规则，仅在其上叠加手动覆盖，不涉及后端与小程序。
+
+## Token 用量查看增量证据（2026-10-24）
+
+分支 `feat/token-usage`，把 LLM 消耗从「完全不可见」变成可自查的三块信息。
+
+- 采集：`pet/providers.py` 新增可选 `on_usage` 回调，流式在最后一个 chunk 上采集（实测 DeepSeek 的 usage 帧 `choices` 长度为 1、`delta` 为空，标准 OpenAI 则在 `choices=[]` 的独立帧上，两种都在判断 `choices` 之前读取）；非流式读 `resp.usage`。上报异常一律吞掉，旁路统计不影响对话；`chat_with_tools` 返回结构保持 `{content, tool_calls}` 不变。服务商不认 `stream_options` 时，仅在尚未收到任何帧时降级重试一次并记住，避免重复计费。
+- 记账：`pet/usage.py` 的 `UsageStore` 把 usage 归一为 prompt/completion/cached（优先 `prompt_cache_hit_tokens`，回退 `prompt_tokens_details.cached_tokens`），按北京时间分天聚合写入 `data/usage.json`；线程锁 + 临时文件 `os.replace` 原子写，坏 JSON 归零重建，按天明细按 `usage_retention_days` 裁剪而总计不裁剪，金额用 `Decimal` 存字符串。
+- 费用：`pet/pricing.py` 内置 DeepSeek 价目（2026-10-24 抓取，只存高峰价、空闲价乘 0.5），`deepseek-chat` 等旧名按别名归一到现役模型；高峰按北京时间工作日 9–12、14–18 判定，法定节假日未建模、会高估，界面与手册均写明。
+- 余额：`pet/balance.py` 只对接官方余额接口（DeepSeek `GET /user/balance`、Moonshot `/v1/users/me/balance`），base_url 归一后忽略 path，禁止跟随重定向以免 `Authorization` 被带到其他 host，401/超时/坏 JSON 各给可读文案且不含 key；`BalanceTarget.api_key` 用 `repr=False`。
+- 入口：`pet/rice_button.py` 的米饭图标是桌宠窗口的子控件，随窗口移动不可分离；图标设 `WA_TransparentForMouseEvents`，点击与拖拽统一由 `PetWindow` 的命中测试分流（点图标开窗口、点头像唤输入框、从图标按下仍可拖动桌宠），悬停时切换手型光标；素材缺失降级为文字块。
+- 线程：`BalanceWorker(QThread)` 的 parent 是桌宠窗口而非对话框，对话框持注册表并在 `finished` 时 `deleteLater`；关闭窗口只 `request_stop` 不阻塞，应用退出时 `shutdown()` 有限等待 1.5 秒。
+- 跳转 API 网站：余额区「刷新余额」下方新增「跳转至API网站」，用 `QDesktopServices.openUrl` 在系统默认浏览器打开；目标优先取 `config.json` 的 `api_website`；未配置时由 `pet/balance.py::console_url` 按服务商给控制台用量页（DeepSeek → `https://platform.deepseek.com/usage`），未收录的服务商退回接口站点根（`website_url` 只保留 scheme+host）；地址为空时按钮置灰并给出提示，改完「API 地址」即时刷新提示。
+- 余额详情：账户余额改为分行字段（服务商 / 币种 / 总余额 / 赠送·充值 / 状态 / 查询时间），失败时保留上次数值只更新状态行；因 DeepSeek、Moonshot 均未开放历史用量接口，界面常驻一行说明「账户侧近七天用量无法获取」，不拿本地数字冒充账户用量。
+- 新用户入口：用量窗口下方提供「配置 API」三栏——API Key（`LLM_API_KEY`，桌宠接入用）、API 地址（`LLM_BASE_URL`，可留空）、账户查询 Key（`ACCOUNT_API_KEY`，可留空回退）。`pet/config.py::save_env_values` 按行合并 `.env`（保留注释与既有键、同名原地替换、缺失追加），保存后立即更新内存配置：改了推理 key/地址发 `llm_config_changed` 信号，窗口据此重建 `LLMClient`；账户 key 留空时沿用推理 key。输入框密码模式、保存后清空、只回显头尾，界面与截图不留明文；`config.json` 会被提交，密钥一律不进该文件。
+- 验证：ruff check/format 全过；桌宠端 pytest 301 项全过（213 + 新增 88 项：价目边界、归一化、聚合/裁剪/并发、余额解析与错误映射、图标几何与点击分流、对话框汇总与线程收敛、`.env` 写入与窗口内接入配置、余额详情字段化、UTC 时区分桶、跳转 API 网站）。真实链路实测：真实 API 一次流式 + 一次工具调用后 `data/usage.json` 记录 2 条、费用非 0、重新加载一致；真实余额接口返回 200 并在窗口分行填出服务商 DeepSeek、币种 CNY、总余额、赠送/充值、状态「可用」与查询时间，该接口在测试网络下约 8 秒返回。
+
 ## B1 后端
 
 关联 [#5](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/5)，PR [#16](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/16)。以下是本议题的证据，不代表项目已完成全部考核。

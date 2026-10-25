@@ -1,0 +1,4 @@
+branch feat/miniprogram-c4
+HEAD f58f07bcea103029e45dded7db014713f1ea9b98
+MERGE_HEAD 9bca38fe8e37829d1dda111e4d1063bea3b68b9a
+merge commit not created; deployment fixes remain local

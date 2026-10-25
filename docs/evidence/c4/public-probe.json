@@ -1,0 +1,27 @@
+{
+  "observed_at_utc": "2026-10-24T13:31:40.705443+00:00",
+  "observer": "local Windows workstation, retried outside execution sandbox",
+  "provided_server_ip": "8.148.31.9",
+  "provided_domain": "shynb.beer",
+  "dns": {
+    "status": "failed",
+    "error": "gaierror 11001 getaddrinfo failed"
+  },
+  "https_health": {
+    "status": "not_reached",
+    "error": "ConnectError (DNS failure)"
+  },
+  "https_courses_without_credentials": {
+    "status": "not_reached",
+    "error": "ConnectError (DNS failure)"
+  },
+  "ip_http_health_with_host_header": {
+    "status": "not_reached",
+    "error": "ReadTimeout"
+  },
+  "tls_certificate": {
+    "status": "not_observed",
+    "error": "DNS failure"
+  },
+  "limitations": "No server login, write or deploy performed. Does not determine server-side cause. Operator must verify independently from server and another network."
+}
