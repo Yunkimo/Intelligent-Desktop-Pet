@@ -1,0 +1,8 @@
+{
+  "status": "not_yet_triggered",
+  "source": "will record actual GitHub run after branch/PR exists",
+  "baseline_run_id": 40117685625,
+  "baseline_conclusion": "success",
+  "baseline_sha_short": "9bca38f",
+  "baseline_sha_url": "https://github.com/Yunkimo/Intelligent-Desktop-Pet/commit/9bca38fe8e37829d1dda111e4d1063bea3b68b9a"
+}

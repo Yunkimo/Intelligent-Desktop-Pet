@@ -1,6 +1,6 @@
 # 设计文档：架构演进与设计模式
 
-> 智能桌面宠物（Intelligent Desk Pet）—— 一个基于 PyQt6 + DeepSeek 的桌面宠物，支持文字与双向语音对话。
+> 智能桌面宠物（Intelligent Desk Pet）。本文保留历史重构对照，当前三端、外部数据流和IP部署图见末尾“当前三端与数据流”节。
 
 ## 1. 系统概述
 
@@ -250,7 +250,7 @@ sequenceDiagram
     P->>B: GET /api/courses（REST 重读，唯一数据源）
 ```
 
-### 6.3 部署拓扑（C4 三路线）
+### 6.3 可选部署方案示意（不等于本轮实测）
 
 ```mermaid
 flowchart LR
@@ -260,3 +260,63 @@ flowchart LR
 ```
 
 细节与操作见 [deploy.md](deploy.md)；单 worker/单调度实例约束来自 B1/B2/B3 契约。
+
+## 当前三端与数据流（C5，2026-10-25）
+
+本节对应当前源码。后文重构前后体量、用例数是历史对照；C4部署事实引用[复验报告](c4-verification.md)，不在C5重复计作新验收。
+
+```mermaid
+flowchart LR
+    U[用户] --> D[PyQt6桌宠]
+    U --> M[微信小程序]
+    D -->|消息与选定历史| L[OpenAI兼容LLM]
+    D -->|回复文本| T[在线TTS / Windows本地兜底]
+    D -->|本机录音| A[faster-whisper本地转写]
+    D -->|REST / WS| B[FastAPI单进程]
+    M -->|REST / 上传 / WS| B
+    B --> DB[(SQLite)]
+    B -->|课表图片| V[视觉模型]
+    B -->|code交换 / 订阅发送| W[微信服务]
+    B -->|城市或关键词| Q[B4固定查询服务]
+```
+
+桌宠LLM Key在本机配置，后端视觉Key在后端配置。ASR首次下载模型需要网络；在线TTS会发送回复文本。共享API Key保护演示业务接口，微信订阅接口另用Bearer会话，当前没有全应用多用户隔离。
+
+### 当前IP部署拓扑
+
+```mermaid
+flowchart LR
+    D[桌宠] -->|HTTP / WS :8080| N[Nginx]
+    M[开发工具 / 手机] -->|HTTP / WS :8080| N
+    N -->|回环8001 / Upgrade| B[systemd单worker FastAPI]
+    B --> DB[(私有目录SQLite)]
+    B --> S[单调度实例]
+    BK[备份工具] -->|快照| CP[备份 / 恢复新副本]
+```
+
+这是用户选择并由C4核验的开发调试路线，不能当作正式域名/证书或正式发布验收。TLS部署模板保留供另行选择时使用。
+
+### 课表图片确认导入
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant M as 小程序
+    participant B as 后端
+    participant V as 视觉服务
+    participant DB as SQLite
+    U->>M: 选择图片
+    M->>B: POST parse-image
+    B->>V: 图片与识别要求
+    V-->>B: 候选课程
+    B-->>M: 校验后列表（不落库）
+    M-->>U: 核对课程
+    U->>M: 确认导入
+    M->>B: POST courses/bulk
+    B->>DB: 事务写入有效课程
+    B-->>M: created / skipped
+    B-->>M: course.created事件
+    M->>B: GET courses校正页面
+```
+
+REST读回是业务数据来源，WS通知携带事件ID与资源标识。小程序在重连后补拉当前状态；桌宠提醒按ID读取正文并做内存去重，不承诺跨应用重启恰好一次。C3的用户同意、后端登记、平台受理与真机收到消息分别记录，见[专项说明](c3-subscription.md)。

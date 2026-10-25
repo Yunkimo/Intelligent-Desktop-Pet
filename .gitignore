@@ -43,3 +43,6 @@ dist/
 
 # Node（小程序端 JS 检查）
 node_modules/
+
+# GitHub Actions / local regression outputs (published separately as artifacts)
+ci-results/

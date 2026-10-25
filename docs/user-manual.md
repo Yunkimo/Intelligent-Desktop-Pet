@@ -3,9 +3,15 @@
 ## 1. 系统要求
 
 - Windows 10/11
-- Python 3.10+（开发环境为 3.14）
+- Python 3.10+；CI后端覆盖3.10/3.12、桌宠覆盖3.12；本轮Windows开发复验为3.13，不据此宣布所有版本人工验收通过。
 - 麦克风（语音输入用）
 - 可访问 DeepSeek（或其它 OpenAI 兼容 API）的网络
+
+## 当前配置与验证边界
+
+当前源码基线包含C4的IP开发调试交付。具体服务器、手机操作和清理结果见[C4报告](c4-verification.md)，C5只同步已有事实，不重新计为部署验收。示例配置不含真实凭据；桌宠与后端的LLM Key用途不同，`API_TOKEN`另用于受保护业务接口。C3微信实际消息送达以[专项记录](c3-subscription.md)为准。
+
+Windows文档中 `.bat`、`copy` 和反斜杠路径为命令提示符示例；PowerShell完整启动入口见[README](../README.md)。已有私有配置请先保留，避免复制示例覆盖现有Key。
 
 ## 2. 安装
 
@@ -24,7 +30,7 @@ pip install -r requirements.txt
 ### 2.2 配置密钥
 
 ```bash
-copy .env.example .env
+if not exist .env copy .env.example .env
 ```
 
 编辑 `.env`：
@@ -32,7 +38,7 @@ copy .env.example .env
 ```
 LLM_API_KEY=sk-你的密钥
 LLM_BASE_URL=https://api.deepseek.com
-LLM_MODEL=deepseek-chat
+LLM_MODEL=deepseek-flash
 ```
 
 > 若用通义/智谱等其它 OpenAI 兼容服务，改 `LLM_BASE_URL` 与 `LLM_MODEL` 即可。
@@ -47,7 +53,7 @@ LLM_MODEL=deepseek-chat
 
 宠物会出现在桌面右下角。
 
-> 首次使用语音识别会自动下载 faster-whisper 模型（约 100~500 MB）。若下载缓慢，先执行 `set HF_ENDPOINT=https://hf-mirror.com` 再运行。
+> 首次识别会按 `whisper_model` 下载模型，体积和许可证随具体模型与版本变化。下载期间需要网络；模型及在线语音服务的边界见[第三方说明](../THIRD_PARTY_NOTICES.md)。
 
 ## 4. 使用说明
 
@@ -225,9 +231,9 @@ cd backend && .venv\Scripts\python run.py   :: 监听 8001
 `WsListener` 维持 WebSocket 长连接（`/ws`），收到后端事件弹气泡 + 语音：
 
 - `task.created` / `course.created`：新增日程/课表的资源 ID 通知。
-- `reminder.due`：提醒到期（依赖后端 B2 到期调度器，未就绪前不触发）。
+- `reminder.due`：提醒到期；B2已实现，需启用调度并检查通道、到期时间及发送状态。
 
-断线自动重连并重新拉取 REST 状态。
+桌宠WS监听会自动重连；提醒事件按ID从REST核对正文。小程序会在重连后主动拉取当前状态并恢复事件更新，二者不能混称为相同的离线补齐实现。
 
 # 后端 B1 实时广播联调
 
@@ -304,3 +310,14 @@ Windows 默认允许 `tts_windows_fallback=true`：在线服务失败后使用�
 | 点订阅提醒提示未配置模板 | `config.js` 的 `subscribeTemplateId` 为空（需在微信公众平台申请模板） |
 | 订阅登记 503/401 | B3 后端未启用（`WX_ENABLED`）或会话过期（重新点一次会重新登录） |
 | 页面不自动刷新 | 后端事件连接依赖 WS；重进页面会 REST 重读，杀后端再重启会退避重连 |
+
+## 当前小程序与公网IP联调
+
+- 课表页支持手工增删改与“识”图片导入；识别只返回待确认结果，确认后才调用bulk接口写入。周次会影响本周显示，灰色课程不表示数据丢失。
+- 日程左侧复选框用于完成/取消完成；删除使用独立“删除”按钮。需要无提醒时先清除提醒时间并保存。
+- REST、图片上传和WS地址均由本机 `miniprogram/config.js` 的 `baseUrl` 派生；`apiKey`不提供多用户隔离。
+- 当前采用公网IP/HTTP/WS与开发调试豁免。C4已有手机CRUD、断网补齐与后续实时更新记录，不能据此宣布正常合法域名或正式发布通过。
+- 电脑公网出口改变时，安全组旧来源规则可能不再匹配。诊断先看服务器回环8001/8080健康，再看电脑到公网8080；401与TCP超时分开处理。若使用Windows虚拟环境Python，实际网络连接可能在启动器的Python子进程，应同时核对子进程。
+- 图片502先确认后端加载真实视觉Key与可用模型；504是上游超时，413区分Nginx与后端体积限制。不要在聊天或截图中发送 `.env`、Key或含token的WS地址。
+
+CI触发和本地检查见[CI说明](ci.md)，各端数据和外部服务流向见[设计文档](design.md)。

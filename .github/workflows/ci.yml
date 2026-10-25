@@ -9,6 +9,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   miniprogram-c3:
     runs-on: ubuntu-latest
@@ -28,11 +31,23 @@ jobs:
           python -m pip install -r backend/requirements-dev.txt
       - name: C3 lint, format and logic regression
         run: |
+          set -o pipefail
+          mkdir -p ci-results
           npm run lint --prefix miniprogram
           npm run format:check --prefix miniprogram
-          npm test --prefix miniprogram
+          npm test --prefix miniprogram | tee ci-results/miniprogram-logic.txt
       - name: C3 real backend recovery regression (mock WeChat only)
-        run: python scripts/check_c3_integration.py
+        run: |
+          set -o pipefail
+          python scripts/check_c3_integration.py | tee ci-results/c3-integration.txt
+      - name: Keep miniprogram results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miniprogram-results
+          path: ci-results/
+          retention-days: 14
+          if-no-files-found: warn
   # 后端：FastAPI + SQLite，轻量，无需系统依赖，单独跑 backend/tests
   backend:
     runs-on: ubuntu-latest
@@ -61,7 +76,7 @@ jobs:
           ruff format --check . ../scripts
 
       - name: Test backend (pytest)
-        run: pytest --cov=app --cov-report=term
+        run: pytest --cov=app --cov-report=term --cov-report=xml:../ci-results/backend-coverage.xml --junitxml=../ci-results/backend.xml
 
       - name: Real WebSocket smoke test
         run: python ../scripts/smoke_backend_ws.py
@@ -85,7 +100,16 @@ jobs:
 
       - name: Audit backend dependencies
         if: matrix.python-version == '3.12'
-        run: pip-audit -r requirements.txt
+        run: pip-audit -r requirements.txt --format=json --output=../ci-results/backend-audit.json
+
+      - name: Keep backend results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-py${{ matrix.python-version }}-results
+          path: ci-results/
+          retention-days: 14
+          if-no-files-found: warn
 
   # 桌宠：PyQt6 + pynput + faster-whisper 等，需 Qt offscreen 与虚拟 X 服务器
   desktop:
@@ -118,9 +142,57 @@ jobs:
 
       - name: Test (pytest)
         # xvfb-run 提供虚拟 X 显示器，供 pynput 探测 X 连接；Qt 走 offscreen 平台
-        run: xvfb-run -a pytest tests/ --cov=pet --cov-report=term-missing
+        run: xvfb-run -a pytest tests/ --cov=pet --cov-report=term-missing --cov-report=xml:ci-results/desktop-coverage.xml --junitxml=ci-results/desktop.xml
         env:
           QT_QPA_PLATFORM: offscreen
 
       - name: Audit desktop dependencies
-        run: pip-audit -r requirements.txt
+        run: pip-audit -r requirements.txt --format=json --output=ci-results/desktop-audit.json
+
+      - name: Keep desktop results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-results
+          path: ci-results/
+          retention-days: 14
+          if-no-files-found: warn
+
+  # 复用 C4 回归；不连接真实服务器、微信或模型，不执行自动部署。
+  deployment-docs:
+    runs-on: ubuntu-latest
+    env:
+      API_TOKEN: ci-only-isolated-token
+      WX_ENABLED: "false"
+      LLM_API_KEY: ""
+      LLM_BASE_URL: ""
+      LLM_VISION_MODEL: ""
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # 历史 schema/代码回滚回归需要已有 Git 对象。
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install isolated deployment test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nginx openssl
+          python -m pip install -r backend/requirements-dev.txt
+          command -v nginx
+          command -v openssl
+      - name: Check maintained documents
+        run: |
+          python scripts/check_docs.py
+          python scripts/check_c4_docs.py
+      - name: Deployment and documentation regressions
+        run: python -m pytest tests_deployment -q -o addopts= -o junit_family=legacy --junitxml=ci-results/deployment.xml
+      - name: Keep deployment results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-docs-results
+          path: ci-results/
+          retention-days: 14
+          if-no-files-found: warn

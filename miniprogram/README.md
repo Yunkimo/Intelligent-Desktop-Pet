@@ -6,7 +6,7 @@
 
 | 路径 | 说明 |
 |---|---|
-| `project.config.json` | 微信开发者工具项目配置（`appid` 为占位 `touristappid`，请替换为你注册的 appid） |
+| `project.config.json` | 微信开发者工具项目配置（请核对并使用你注册的小程序AppID，仓库中的值不代替账号权限） |
 | `app.js` / `app.json` / `app.wxss` | 全局入口（启动 WebSocket 适配层）、页面注册与 TabBar、全局样式 |
 | `pages/index` | 今日课表 / 待办（按本周周次过滤、勾选完成、下拉刷新） |
 | `pages/schedule` | 课表增删改 + 图片识别导入（按星期分组，周次支持 `1-16` / `1,3,5` 写法） |
@@ -67,3 +67,7 @@ python scripts/check_c3_integration.py
 Node 不在 PATH 时可设置 NODE_BINARY。逻辑回归和真实 HTTP 联调分别执行；后者使用真实页面逻辑、FastAPI、SQLite、会话和调度器，仅外部微信使用 MockTransport，数据库及凭据临时生成并清理，不覆盖 config.js。
 
 工作流新增 miniprogram-c3 检查；本地通过不能代表远端 CI 已运行。真实设备上的弹窗、离线实收及原生消息点击需要另行记录，见 [验收记录](../docs/c3-subscription.md)。原测试中“任意 409 等于成功”和“本地 done 后永不访问服务端”的断言已改为状态校验与异常恢复断言。
+
+## C5 检查与边界同步
+
+本轮CI继续复用miniprogram-c3的lint、格式、WS/C3逻辑及真实后端恢复检查，新增输出归档。触发和本地命令见[CI说明](../docs/ci.md)。当前C4使用IP开发调试入口，正常域名/证书或微信实收不能只凭这些自动化写成通过。Key与AppSecret、session_key和服务端access_token用途不同，服务端秘密不得打包进小程序。
