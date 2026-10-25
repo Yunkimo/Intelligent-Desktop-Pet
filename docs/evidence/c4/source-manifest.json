@@ -25,7 +25,7 @@
   "full_base_commit_location": "docs/c4-verification.md",
   "files_checksum_file": "source-checksums.sha256",
   "input_package_checksum_file": "input-package.sha256",
-  "followup": "2026-10-25: public HTTP/WS authenticated suite 14/14 and supplemental PUT/cleanup 4/4; upload rejection boundaries 3/3; actual systemd restart persistence and isolated backup/restore passed. C3 ignored connection config points to cloud, user confirmed developer-tool page loads. Human developer-tool and phone CRUD verified with cloud readback and deletion; phone missed-row reconciliation and subsequent live refresh passed. Merged origin/develop 9bca38f in working tree, no commit; 5 merge conflicts resolved. Post-merge tests: backend 252, desktop 301, deployment 26, C3 integration 10; frontend/static passed. Desktop bubble/audio human-confirmed, no duplicates reported; server sent once and test reminder cleaned. Deployed server revision d418655 and clean worktree confirmed; one matching Python main process, active/enabled. Isolated historical code/schema rollback passed on ECS; production database/service untouched, post-drill health 200. Independent reproduction pending. Vision configuration resumed: real recognition and API bulk import/readback/cleanup passed; GUI recognition/import/edit/delete confirmed by user and cloud readback; test records cleaned. After initial formal-route diagnosis, user confirmed filing not approved and explicitly continued IP route. User reports A 8.148.29.9 enabled; propagation not rechecked. Formal HTTPS/WSS deferred, prior diagnostics retained. Final IP read-only suite passed 7/7 after service restarts. No commit or push.",
+  "followup": "2026-10-25: public HTTP/WS authenticated suite 14/14 and supplemental PUT/cleanup 4/4; upload rejection boundaries 3/3; actual systemd restart persistence and isolated backup/restore passed. C3 ignored connection config points to cloud, user confirmed developer-tool page loads. Human developer-tool and phone CRUD verified with cloud readback and deletion; phone missed-row reconciliation and subsequent live refresh passed. Merged origin/develop 9bca38f in working tree, no commit; 5 merge conflicts resolved. Post-merge tests: backend 252, desktop 301, deployment 26, C3 integration 10; frontend/static passed. Desktop bubble/audio human-confirmed, no duplicates reported; server sent once and test reminder cleaned. Deployed server revision d418655 and clean worktree confirmed; one matching Python main process, active/enabled. Isolated historical code/schema rollback passed on ECS; production database/service untouched, post-drill health 200. Independent reproduction subsequently confirmed successful by user. Vision configuration resumed: real recognition and API bulk import/readback/cleanup passed; GUI recognition/import/edit/delete confirmed by user and cloud readback; test records cleaned. After initial formal-route diagnosis, user confirmed filing not approved and explicitly continued IP route. User reports A 8.148.29.9 enabled; propagation not rechecked. Formal HTTPS/WSS subsequently excluded from this C4 acceptance by explicit user instruction, prior diagnostics retained. Final IP read-only suite passed 7/7 after service restarts. No commit or push.",
   "merged_develop": "9bca38f",
   "merge_commit_created": false,
   "files_checksum_scope": "Selected C4 source/doc/merge-resolution paths in the full repository working tree, not every repository file. Deployment-only overlay uses its separate root SHA256SUMS.",
@@ -66,7 +66,8 @@
     "user_dns_record_state": "user reports A 8.148.29.9 enabled; public propagation not rechecked",
     "passed": false,
     "evidence": "formal-route-20261025.md",
-    "current_state": "deferred_by_user_after_initial_diagnosis"
+    "current_state": "excluded_from_current_acceptance_by_explicit_user_instruction",
+    "included_in_current_acceptance": false
   },
   "ip_route_final_check": {
     "passed": 7,
@@ -75,5 +76,10 @@
     "evidence": "ip-route-final-readonly-20261025.json"
   },
   "snapshot_phase": "verification before delivery commit; recorded working-tree/merge flags describe that measurement snapshot",
-  "delivery_scope": "IP development/debug route verified; formal HTTPS/WSS and independent member reproduction remain incomplete; Git history records delivered commits"
+  "delivery_scope": "C4 complete for the user-agreed IP development/debug scope; independent reproduction user-confirmed passed; formal HTTPS/WSS excluded and not claimed passed",
+  "independent_reproduction": {
+    "passed": true,
+    "source": "user_confirmation",
+    "evidence": "independent-reproduction-user-confirmed-20261025.json"
+  }
 }
