@@ -1,0 +1,18 @@
+{
+  "source": "human UI operation followed by read-only cloud API verification",
+  "test_record_id": 5,
+  "expected_title_found": true,
+  "due_date": "2026-10-25",
+  "expected_done": true,
+  "actual_done": 0,
+  "expected_no_reminder": true,
+  "actual_reminder_present": true,
+  "verification_passed": false,
+  "followup": "User clarified checkbox purpose, explicitly cleared reminder and marked completed. Refresh retained desired state; cloud readback passed. See manual-ui-tasks.json. No product source changes were made for this sequence.",
+  "business_source_modified": false,
+  "user_observation_after_refresh": {
+    "checked": false,
+    "reminder_time_visible": true,
+    "source": "user response in this conversation"
+  }
+}

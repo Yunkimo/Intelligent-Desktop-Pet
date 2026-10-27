@@ -1,0 +1,11 @@
+Command: D:\IDP\worktrees\c4-deployment\backend\.venv\Scripts\python.exe -m ruff check .
+Exit: 0
+All checks passed!
+
+Command: D:\IDP\worktrees\c4-deployment\backend\.venv\Scripts\python.exe -m ruff format --check .
+Exit: 0
+160 files already formatted
+
+Command: D:\IDP\worktrees\c4-deployment\backend\.venv\Scripts\python.exe scripts/check_c4_docs.py
+Exit: 0
+PASS 6 份文档、67 个相对文件链接、Shell LF；外链与锚点未纳入

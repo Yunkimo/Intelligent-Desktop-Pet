@@ -1,0 +1,5 @@
+Native curl 8.21.0 uses Schannel; strict HTTPS health with --resolve succeeded.
+Python 3.13/OpenSSL HTTPS/WSS with process-only DNS override: 0/7.
+Public health-only diagnosis: both default TLS and max TLS 1.2 produced WinError 10054 / ConnectError.
+No disabled certificate checks, system hosts changes or server TLS edits.
+Root cause not determined; no normal HTTPS/WSS acceptance claimed.

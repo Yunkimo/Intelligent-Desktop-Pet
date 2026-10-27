@@ -1,0 +1,10 @@
+{
+  "action": "course",
+  "expected_label": "C4-手工课程1025-已修改",
+  "matching_records": 1,
+  "checked_at": "2026-10-25T01:07:22.720103+08:00",
+  "source": "read-only API check following user UI operation",
+  "passed": true,
+  "record_id": 3,
+  "location_is_C4_test_room": true
+}

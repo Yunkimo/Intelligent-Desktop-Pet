@@ -1,0 +1,32 @@
+{
+  "source": "user reply in this conversation",
+  "user_confirmed_phone_loads": true,
+  "network_instruction": "same Wi-Fi as PC; port 8080 source whitelist unchanged",
+  "entry": "developer preview or real-device debugging; exact entry and versions not yet recorded",
+  "base_url": "http://8.148.29.9:8080",
+  "reconnect_exercise": {
+    "human_confirmed_offline_before_create": true,
+    "owned_marker": "C4-refresh-a52636d8",
+    "no_reminder_created": true,
+    "network_restore_observation": "passed: user confirmed missed row appeared automatically after restoring original Wi-Fi without pull refresh or reopening",
+    "boundary": "Returning from network controls may trigger page onShow; observing the missed row alone does not prove subsequent live WS events.",
+    "cleanup_confirmed": true,
+    "evidence": "ui-refresh-a52636d8.json"
+  },
+  "normal_domain_route_tested": false,
+  "boundary": "Phone loading is human-observed; this alone is not phone CRUD, offline reconciliation or formal release acceptance.",
+  "post_restore_live_event": {
+    "human_confirmed_new_row_appeared_without_refresh_or_page_switch": true,
+    "evidence": "ui-refresh-21561f33.json",
+    "cleanup_confirmed": true
+  },
+  "phone_crud": {
+    "task_create_edit_complete_clear_reminder_and_delete": "passed with human action and cloud readback",
+    "course_create_edit_and_delete": "passed with human action and cloud readback",
+    "evidence": [
+      "manual-phone-tasks.json",
+      "manual-phone-courses.json"
+    ],
+    "test_records_cleaned": true
+  }
+}

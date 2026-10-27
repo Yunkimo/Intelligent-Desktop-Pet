@@ -1,0 +1,17 @@
+{
+  "observed_at": "2026-10-24T22:21:51.342639+08:00",
+  "observer": "local workstation outside execution sandbox",
+  "observations": [
+    {
+      "url": "http://8.148.31.9:8080/api/health",
+      "error": "ConnectTimeout",
+      "detail": "timed out"
+    },
+    {
+      "url": "http://8.148.31.9:8001/api/health",
+      "error": "ConnectTimeout",
+      "detail": "timed out"
+    }
+  ],
+  "limitation": "Read-only; not server-side diagnosis or a successful mini-program test."
+}

@@ -1,0 +1,20 @@
+PASS 健康检查：HTTP 200
+PASS REST 无凭据拒绝：HTTP 401
+PASS REST 错误凭据拒绝：HTTP 401
+PASS REST 正确凭据放行：HTTP 200
+PASS WS 正确凭据握手：HTTP 101
+PASS WS 无凭据拒绝：HTTP 403
+PASS WS 错误凭据拒绝：HTTP 403
+临时业务标识：c4-check-6ca9c7388b4ed007；若响应丢失请人工按此标识核查，不自动重试创建
+PASS tasks 写入并读回
+PASS tasks WebSocket 业务事件
+PASS courses 写入并读回
+PASS courses WebSocket 业务事件
+PASS 主动断开后重连并 REST 校正
+PASS courses 临时数据清理并读回
+PASS tasks 临时数据清理并读回
+Temporary PUT marker: c4-check-put-84b169bd322cda8a
+PASS tasks PUT persisted
+PASS courses PUT persisted
+PASS courses PUT data cleanup and readback
+PASS tasks PUT data cleanup and readback

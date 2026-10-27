@@ -1,0 +1,10 @@
+{
+  "source": "user executed safe configuration diagnostics",
+  "vision_key_present": true,
+  "vision_key_is_example": true,
+  "vision_api_host": "api.siliconflow.cn",
+  "vision_model": "Qwen/Qwen3-VL-32B-Instruct",
+  "actual_key_recorded": false,
+  "followup": "User explicitly deferred model Key setup and recognition until a later explicit request; do not retry automatically.",
+  "deferred_by_user": true
+}

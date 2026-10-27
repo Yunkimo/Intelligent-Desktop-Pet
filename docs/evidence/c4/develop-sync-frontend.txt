@@ -1,0 +1,77 @@
+Command: node D:\IDP\worktrees\c3-subscription\miniprogram\node_modules\eslint\bin\eslint.js utils/api.js utils/datetime.js utils/subscribe.js pages/task/task.js pages/index/index.js pages/reminder/reminder.js tests/runtime.js tests/subscribe-logic.test.js tests/subscribe-contract.test.js utils/ws.js tests/ws-logic.test.js tests/run-tests.js
+Exit: 0
+
+Command: node D:\IDP\worktrees\c3-subscription\miniprogram\node_modules\prettier\bin\prettier.cjs --check utils/subscribe.js pages/reminder/reminder.js tests/runtime.js tests/subscribe-logic.test.js tests/subscribe-contract.test.js
+Exit: 0
+Checking formatting...
+All matched files use Prettier code style!
+
+Command: node tests/run-tests.js
+Exit: 0
+PASS HTTP 地址映射为 WS 地址并携带 token
+PASS 忽略不符合契约的事件
+PASS 合法事件分发且 event_id 去重
+PASS 同一 handler 重复订阅不叠加、off 后不再分发
+PASS 同类型突发事件节流合并（首条立即 + 尾条补发）
+PASS 断线后按退避重连并发出 reconnect
+PASS 切后台停止不重连、回前台恢复连接
+
+全部通过：7 项
+✔ UUID、会话临界期和非同意结果 (4.8438ms)
+✔ 并发入口合并且授权在点击同步调用链触发 (3.5306ms)
+✔ 拒绝、取消和调用失败不误报成功 (16.0678ms)
+✔ 缺模板和登录失败不登记 (5.9652ms)
+✔ 已有记录每次查询：不依赖旧 done 缓存，也不重复登记 (2.0385ms)
+✔ 任意 409 不算成功；rejected 冲突保持拒绝 (1.9017ms)
+✔ 已有有效登记时再次拒绝，区分本次选择和旧登记状态 (2.1547ms)
+✔ 提交后丢响应，模块重载后查询已发送状态，不再弹窗或提交 (5.5364ms)
+✔ 提交前断网，重进复用 request_id；改期不会重放旧授权 (3.7348ms)
+✔ 创建丢响应后改期，旧选择不会应用于新时间 (1.9348ms)
+✔ 401 只重登录一次；账号变化禁止重放旧操作 (3.8487ms)
+✔ failed/uncertain/sending 不自动重发 (5.2842ms)
+✔ UTC、旧格式、跨日和输入偏移 (1.1228ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 65.8817
+
+全部测试文件通过（2/2）
+[ws] 忽略不符合契约的事件: {
+  version: 2,
+  event_id: 'e-oen4ge50hc',
+  type: 'course.created',
+  occurred_at: '2026-10-25T04:14:33.524Z',
+  data: { id: 1 }
+}
+[ws] 忽略不符合契约的事件: {
+  version: 1,
+  event_id: '',
+  type: 'course.created',
+  occurred_at: '2026-10-25T04:14:33.529Z',
+  data: { id: 1 }
+}
+[ws] 忽略不符合契约的事件: {
+  version: 1,
+  event_id: 'e-v7hcpqlaeho',
+  type: 'unknown.type',
+  occurred_at: '2026-10-25T04:14:33.529Z',
+  data: { id: 1 }
+}
+[ws] 忽略不符合契约的事件: {
+  version: 1,
+  event_id: 'e-jglecfub1ac',
+  type: 'course.created',
+  occurred_at: '2026-10-25T04:14:33.529Z',
+  data: { id: 0 }
+}
+[ws] 忽略不符合契约的事件: {
+  version: 1,
+  event_id: 'e-gqra3ddvycq',
+  type: 'course.created',
+  occurred_at: '2026-10-25T04:14:33.529Z',
+  data: { id: 'x' }
+}

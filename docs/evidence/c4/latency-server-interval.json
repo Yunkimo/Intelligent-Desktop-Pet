@@ -1,0 +1,11 @@
+{
+  "source": "user supplied server terminal output",
+  "observed_on": "2026-10-25",
+  "service": "idp-backend",
+  "MainPID": 65574,
+  "ActiveState": "active",
+  "SubState": "running",
+  "SCHEDULER_INTERVAL_SECONDS": 1,
+  "command": "sudo systemctl restart idp-backend && sudo systemctl show idp-backend -p ActiveState -p SubState -p MainPID && grep scheduler interval only",
+  "scope": "restart and .env value confirmed; timing run separately verifies resulting delivery behavior"
+}

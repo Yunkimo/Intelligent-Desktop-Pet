@@ -1,6 +1,6 @@
 # 设计文档：架构演进与设计模式
 
-> 智能桌面宠物（Intelligent Desk Pet）—— 一个基于 PyQt6 + DeepSeek 的桌面宠物，支持文字与双向语音对话。
+> 智能桌面宠物（Intelligent Desk Pet）。本文保留历史重构对照，当前三端、外部数据流和IP部署图见末尾“当前三端与数据流”节。
 
 ## 1. 系统概述
 
@@ -210,3 +210,113 @@ POST tasks / courses
 `/ws` 在握手前验证 token，在断线后清理连接。每个应用生命周期只有一个 PushService，
 退出时停止注册并释放连接。同步 SQLite 不在新增异步路由中直接执行；事件失败不回滚提交。
 本次仅新增必要的广播边界，没有引入 ORM、中间件或额外数据库表。
+
+## 6. 小程序端架构（C1–C4）
+
+### 6.1 适配层与页面分层
+
+```mermaid
+flowchart LR
+    P1[pages/index 今日] --> A[utils/api.js REST 适配]
+    P2[pages/schedule 课表] --> A
+    P3[pages/task 日程] --> A
+    P3 --> S[utils/subscribe.js 订阅流程]
+    W[utils/ws.js 事件适配] --> P1
+    W --> P2
+    W --> P3
+    A --> B[后端 FastAPI]
+    W --> B
+    S --> B
+    cfg[config.js 集中配置] --> A
+    cfg --> W
+    cfg --> S
+```
+
+- 页面只做交互与展示；请求统一经 `utils/api.js`（`baseUrl`/`X-API-Key` 顶部集中配置），
+  WebSocket 统一经 `utils/ws.js`（连接/重连/去重/节流单例），订阅流程统一经 `utils/subscribe.js`。
+- 配置派生：REST `http(s)://<host>`，WS 由同一 `baseUrl` 映射为 `ws(s)://<host>/ws?token=`。
+
+### 6.2 事件刷新时序（C2）
+
+```mermaid
+sequenceDiagram
+    participant O as 其他端
+    participant B as 后端
+    participant W as ws.js
+    participant P as 页面
+    O->>B: POST /api/courses
+    B->>W: course.created（信封校验 + event_id 去重 + 节流）
+    W->>P: 事件分发
+    P->>B: GET /api/courses（REST 重读，唯一数据源）
+```
+
+### 6.3 可选部署方案示意（不等于本轮实测）
+
+```mermaid
+flowchart LR
+    D[开发者工具/真机] -->|本地路线 http/ws 局域网| B1[本机后端 :8001]
+    D -->|穿透路线 https/wss 域名| T[cpolar 隧道] --> B1
+    D -->|学生机路线 https/wss 备案域名| N[Nginx TLS] --> B2[systemd 后端 :8001 单 worker]
+```
+
+细节与操作见 [deploy.md](deploy.md)；单 worker/单调度实例约束来自 B1/B2/B3 契约。
+
+## 当前三端与数据流（C5，2026-10-25）
+
+本节对应当前源码。前面章节中的重构体量、用例数是历史对照；C4部署事实引用[复验报告](c4-verification.md)，不在C5重复计作新验收。
+
+```mermaid
+flowchart LR
+    U[用户] --> D[PyQt6桌宠]
+    U --> M[微信小程序]
+    D -->|消息与选定历史| L[OpenAI兼容LLM]
+    D -->|回复文本| T[在线TTS / Windows本地兜底]
+    D -->|本机录音| A[faster-whisper本地转写]
+    D -->|REST / WS| B[FastAPI单进程]
+    M -->|REST / 上传 / WS| B
+    B --> DB[(SQLite)]
+    B -->|课表图片| V[视觉模型]
+    B -->|code交换 / 订阅发送| W[微信服务]
+    B -->|城市或关键词| Q[B4固定查询服务]
+```
+
+桌宠LLM Key在本机配置，后端视觉Key在后端配置。ASR首次下载模型需要网络；在线TTS会发送回复文本。共享API Key保护演示业务接口，微信订阅接口另用Bearer会话，当前没有全应用多用户隔离。
+
+### 当前IP部署拓扑
+
+```mermaid
+flowchart LR
+    D[桌宠] -->|HTTP / WS :8080| N[Nginx]
+    M[开发工具 / 手机] -->|HTTP / WS :8080| N
+    N -->|回环8001 / Upgrade| B[systemd单worker FastAPI]
+    B --> DB[(私有目录SQLite)]
+    B --> S[单调度实例]
+    BK[备份工具] -->|快照| CP[备份 / 恢复新副本]
+```
+
+这是用户选择并由C4核验的开发调试路线，不能当作正式域名/证书或正式发布验收。TLS部署模板保留供另行选择时使用。
+
+### 课表图片确认导入
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant M as 小程序
+    participant B as 后端
+    participant V as 视觉服务
+    participant DB as SQLite
+    U->>M: 选择图片
+    M->>B: POST parse-image
+    B->>V: 图片与识别要求
+    V-->>B: 候选课程
+    B-->>M: 校验后列表（不落库）
+    M-->>U: 核对课程
+    U->>M: 确认导入
+    M->>B: POST courses/bulk
+    B->>DB: 事务写入有效课程
+    B-->>M: created / skipped
+    B-->>M: course.created事件
+    M->>B: GET courses校正页面
+```
+
+REST读回是业务数据来源，WS通知携带事件ID与资源标识。小程序在重连后补拉当前状态；桌宠提醒按ID读取正文并做内存去重，不承诺跨应用重启恰好一次。C3的用户同意、后端登记、平台受理与真机收到消息分别记录，见[专项说明](c3-subscription.md)。

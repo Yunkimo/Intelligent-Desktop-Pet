@@ -1,0 +1,50 @@
+[
+  {
+    "name": "pytest",
+    "version": "9.1.1",
+    "license_expression": "MIT",
+    "license": null,
+    "classifiers": []
+  },
+  {
+    "name": "pytest-cov",
+    "version": "7.1.0",
+    "license_expression": "MIT",
+    "license": null,
+    "classifiers": [
+      "License :: OSI Approved :: MIT License"
+    ]
+  },
+  {
+    "name": "ruff",
+    "version": "0.17.0",
+    "license_expression": "MIT",
+    "license": null,
+    "classifiers": []
+  },
+  {
+    "name": "pre-commit",
+    "version": "4.6.2",
+    "license_expression": null,
+    "license": "MIT",
+    "classifiers": []
+  },
+  {
+    "name": "detect-secrets",
+    "version": "1.5.0",
+    "license_expression": null,
+    "license": "UNKNOWN",
+    "classifiers": [
+      "License :: OSI Approved :: Apache Software License"
+    ]
+  },
+  {
+    "name": "pip-audit",
+    "version": "2.10.1",
+    "license_expression": null,
+    "license": null,
+    "classifiers": [
+      "License :: OSI Approved :: Apache Software License"
+    ]
+  }
+]

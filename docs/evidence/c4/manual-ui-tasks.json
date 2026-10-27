@@ -1,0 +1,29 @@
+{
+  "readback": {
+    "action": "task",
+    "expected_label": "C4-手工日程1025-已修改",
+    "matching_records": 1,
+    "checked_at": "2026-10-25T01:03:26.430952+08:00",
+    "source": "read-only API check following user UI operation",
+    "passed": true,
+    "record_id": 5,
+    "done": true,
+    "has_due_date": true,
+    "no_reminder": true,
+    "human_operation_confirmed": true
+  },
+  "deletion": {
+    "action": "absence-task",
+    "expected_label": "C4-手工日程1025-已修改",
+    "matching_records": 0,
+    "checked_at": "2026-10-25T01:07:21.555604+08:00",
+    "source": "read-only API check following user UI operation",
+    "saved_id_absent": true,
+    "passed": true
+  },
+  "boundary": "Developer-tool UI actions and cloud REST readback; phone and formal route not included.",
+  "human_observation": {
+    "source": "user reply in this conversation",
+    "after_clear_reminder_and_one_checkbox_tap": "still checked after pull refresh, no reminder shown"
+  }
+}

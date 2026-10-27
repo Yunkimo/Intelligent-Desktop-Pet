@@ -1,0 +1,12 @@
+{
+  "confirmed_on": "2026-10-25",
+  "result": "passed",
+  "source": "user_confirmation",
+  "user_statement": "另一成员独立复现这个成功了",
+  "scope": "C4 selected IP development/debug route",
+  "execution_observed_by_assistant": false,
+  "executor_name": null,
+  "execution_version": null,
+  "raw_execution_artifacts_provided": false,
+  "note": "Records the user-confirmed result; does not manufacture executor identity, commands, timing or screenshots."
+}

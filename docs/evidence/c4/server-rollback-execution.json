@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "previous_ref": "5ff462f",
+  "current_ref": "d418655",
+  "schema_before": [
+    1
+  ],
+  "schema_after": [
+    1,
+    2
+  ],
+  "old_code_reads_restored_data": true,
+  "post_backup_row_excluded": true,
+  "upgraded_copy_preserved": true,
+  "production_database_opened": false,
+  "production_service_changed": false,
+  "directory": "/tmp/c4-rollback-drill-gzjia8zo",
+  "execution_host": "Alibaba Cloud ECS, Ubuntu 22.04.5",
+  "execution_user": "idp",
+  "source": "user executed uploaded script on ECS and provided full result",
+  "boundary": "Historical code/schema exercise with synthetic databases on the real host; no production release or database switchover."
+}

@@ -1,0 +1,12 @@
+Command: node tests/run-tests.js (C4 package miniprogram directory)
+Exit code: 0; 7 logic cases passed, 1/1 test file passed.
+Result summary, not a full raw console transcript:
+PASS HTTP to WS URL mapping and token encoding
+PASS invalid event envelope rejection
+PASS valid dispatch and event_id deduplication
+PASS duplicate subscription and unsubscribe handling
+PASS same-type burst throttling
+PASS backoff reconnect and reconnect notification
+PASS background stop and foreground reconnect
+Scope: mock wx/timers in the existing C4 baseline; not the real WeChat runtime,
+not the complete C3 subscription suite, and not public authenticated WS validation.

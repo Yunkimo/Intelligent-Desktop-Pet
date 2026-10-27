@@ -1,0 +1,85 @@
+{
+  "description": "SHA256 checksums of C4 implementation and operation documents; not credentials",
+  "created_at_utc": "2026-10-24T13:59:14.264533+00:00",
+  "branch": "feat/miniprogram-c4",
+  "base_commit": "f58f07b",
+  "working_tree_uncommitted": true,
+  "preexisting_c3_files_excluded": [
+    "docs/evidence/c3/verification.txt",
+    "miniprogram/tests/subscribe-contract.test.js",
+    "miniprogram/tests/subscribe-logic.test.js",
+    "miniprogram/utils/subscribe.js"
+  ],
+  "environment": {
+    "python": "3.13.0 (tags/v3.13.0:60403a5, Oct  7 2024, 09:38:07) [MSC v.1941 64 bit (AMD64)]",
+    "interpreter": "D:\\IDP\\worktrees\\c4-deployment\\backend\\.venv\\Scripts\\python.exe",
+    "dependencies": {
+      "uvicorn": "0.54.0",
+      "httpx": "0.28.1",
+      "websockets": "17.2",
+      "python-dotenv": "1.2.4",
+      "pytest": "9.1.1",
+      "ruff": "0.17.0"
+    }
+  },
+  "full_base_commit_location": "docs/c4-verification.md",
+  "files_checksum_file": "source-checksums.sha256",
+  "input_package_checksum_file": "input-package.sha256",
+  "followup": "2026-10-25: public HTTP/WS authenticated suite 14/14 and supplemental PUT/cleanup 4/4; upload rejection boundaries 3/3; actual systemd restart persistence and isolated backup/restore passed. C3 ignored connection config points to cloud, user confirmed developer-tool page loads. Human developer-tool and phone CRUD verified with cloud readback and deletion; phone missed-row reconciliation and subsequent live refresh passed. Merged origin/develop 9bca38f in working tree, no commit; 5 merge conflicts resolved. Post-merge tests: backend 252, desktop 301, deployment 26, C3 integration 10; frontend/static passed. Desktop bubble/audio human-confirmed, no duplicates reported; server sent once and test reminder cleaned. Deployed server revision d418655 and clean worktree confirmed; one matching Python main process, active/enabled. Isolated historical code/schema rollback passed on ECS; production database/service untouched, post-drill health 200. Independent reproduction subsequently confirmed successful by user. Vision configuration resumed: real recognition and API bulk import/readback/cleanup passed; GUI recognition/import/edit/delete confirmed by user and cloud readback; test records cleaned. After initial formal-route diagnosis, user confirmed filing not approved and explicitly continued IP route. User reports A 8.148.29.9 enabled; propagation not rechecked. Formal HTTPS/WSS subsequently excluded from this C4 acceptance by explicit user instruction, prior diagnostics retained. Final IP read-only suite passed 7/7 after service restarts. No commit or push.",
+  "merged_develop": "9bca38f",
+  "merge_commit_created": false,
+  "files_checksum_scope": "Selected C4 source/doc/merge-resolution paths in the full repository working tree, not every repository file. Deployment-only overlay uses its separate root SHA256SUMS.",
+  "latency_verification": {
+    "passed": true,
+    "date": "2026-10-25",
+    "scheduler_interval_seconds": 1,
+    "server_pid": 65574,
+    "samples": 5,
+    "max_delay_upper_seconds": 2.0688610076904297,
+    "test_records_cleaned": true,
+    "evidence": "desktop-latency-20261025.json"
+  },
+  "vision_verification": {
+    "date": "2026-10-25",
+    "real_model_http_status": 200,
+    "parse_seconds": 17.13,
+    "expected_all_fields_match": true,
+    "bulk_import_readback_passed": true,
+    "program_owned_record_cleanup_confirmed": true,
+    "gui_confirmation": "user confirmed; course ID6 exact-field cloud readback passed; UI deletion checked absent by ID/name",
+    "fixture_size_bytes": 1154843,
+    "fixture_type": "synthetic PNG expanded with tEXt metadata; no personal data; not a large photograph",
+    "evidence": "vision-recognition-20261025.md",
+    "manual_test_course_id": 6,
+    "all_test_records_cleaned": true
+  },
+  "formal_route_verification": {
+    "date": "2026-10-25",
+    "resumed_by_user": true,
+    "normal_dns_A_verified": false,
+    "alidns_answer_A_empty": true,
+    "forced_http_status": 403,
+    "forced_http_icp_block_page": true,
+    "strict_https_forced_ip": "connection reset; certificate validity not determined",
+    "credentials_sent_to_domain": false,
+    "user_filing_status": "not approved; user explicitly continues IP route",
+    "user_dns_record_state": "user reports A 8.148.29.9 enabled; public propagation not rechecked",
+    "passed": false,
+    "evidence": "formal-route-20261025.md",
+    "current_state": "excluded_from_current_acceptance_by_explicit_user_instruction",
+    "included_in_current_acceptance": false
+  },
+  "ip_route_final_check": {
+    "passed": 7,
+    "total": 7,
+    "business_mutations": false,
+    "evidence": "ip-route-final-readonly-20261025.json"
+  },
+  "snapshot_phase": "verification before delivery commit; recorded working-tree/merge flags describe that measurement snapshot",
+  "delivery_scope": "C4 complete for the user-agreed IP development/debug scope; independent reproduction user-confirmed passed; formal HTTPS/WSS excluded and not claimed passed",
+  "independent_reproduction": {
+    "passed": true,
+    "source": "user_confirmation",
+    "evidence": "independent-reproduction-user-confirmed-20261025.json"
+  }
+}

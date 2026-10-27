@@ -1,0 +1,31 @@
+{
+  "working_tree_changes_tested": true,
+  "platform": "Windows / Python 3.13",
+  "deployment_and_documentation_tests": {
+    "passed": 35,
+    "failed": 0,
+    "skipped": 0,
+    "elapsed_seconds": 103.31,
+    "warnings": 0,
+    "tls_business_exercises": 3
+  },
+  "documentation": {
+    "documents": 34,
+    "links": 272,
+    "scope": "relative files and paired fences; external URLs/anchors not checked"
+  },
+  "ruff_python_files": 171,
+  "miniprogram": "lint, format, C3/WS logic passed",
+  "documented_cli_help_entries_passed": 5,
+  "baseline_ci_run": 40117685625,
+  "new_ci_status": "completed/success: 40184345422, all five jobs passed",
+  "credentials_or_production_services_used": false,
+  "base_commit_short": "2dd5ed3",
+  "base_commit_url": "https://github.com/Yunkimo/Intelligent-Desktop-Pet/commit/2dd5ed3c2b83caf1dfb8ae3c6cc43c48173c17be",
+  "ci_deployment_tests": {
+    "passed": 35,
+    "failed": 0,
+    "skipped": 0,
+    "elapsed_seconds": 23.3
+  }
+}

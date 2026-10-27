@@ -30,11 +30,12 @@ HTTP REST + WebSocket                  HTTP REST + WebSocket
 |---|---|
 | **桌宠端 A1–A4**：后端客户端 / Agent 工具调用 / 健康关怀 / 实时接收 | ✅ 已完成 |
 | **后端 B1–B2**：WebSocket 广播 / 到期提醒调度器 | ✅ 已完成 |
-| **后端 B3**：微信登录、订阅登记与离线推送 | 实现及 Mock 验证完成，[PR #29](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/29) 待评审；真机待 C3 联调 |
-| **小程序 C1**：骨架 + api.js（查改课表/日程、拍照识别课表、周次设置） | ✅ 已完成 |
-| **小程序 C2–C3**：实时刷新 / 订阅消息授权 | ⬜ 待开发 |
-| **小程序 C4–C5**：部署 / 阶段文档、CI 与依赖安全说明 | ⬜ 待开发 |
-| **工程基建**：CI 双 job、ruff、`main` 分支保护 | ✅ 已完成 |
+| **后端 B3**：微信登录、订阅登记与离线推送 | 已实现，Mock 验证完成；实际订阅送达按 C3 专项验收 |
+| **小程序 C1–C2**：骨架、课表/日程读写、识别导入与实时刷新 | 已实现；IP 开发调试路线下手机读写与断网恢复已有复验记录 |
+| **小程序 C3**：订阅授权与恢复处理 | 已同步 develop 的实现及回归；微信运行时验收见 C3 专项记录 |
+| **小程序 C4**：部署与运维复验 | 已完成本轮约定的 IP 调试部署与复验；另一成员独立复现由用户确认通过，正式 HTTPS/WSS 不纳入本轮验收，见 [复验报告](docs/c4-verification.md) |
+| **小程序 C5**：阶段文档、CI维护、依赖与安全说明 | 本分支同步文档并补文档/部署CI与结果归档，见[C5记录](docs/c5-verification.md) |
+| **工程基建**：CI 多 job、ruff、分支保护 | 保留现有检查；小程序同时运行 C3 订阅和 WS 逻辑回归 |
 
 > B4 已按用户要求实施为后端天气 / 搜索接口（Issue #8），真实 curl 验收通过，待评审；桌宠原有本地工具继续可用，接入方式由 A/B 评审确认。
 
@@ -42,33 +43,44 @@ HTTP REST + WebSocket                  HTTP REST + WebSocket
 
 ## 快速开始
 
-### 桌宠端
+### 桌宠端（Windows PowerShell）
 
-```bat
-setup.bat                  :: 建 .venv 并安装依赖（一次性）
-copy .env.example .env     :: 填入 LLM_API_KEY
-启动桌宠.bat                :: 启动（缺 .venv 会自动先跑 setup.bat）
+在仓库根目录执行；`.env` 已存在时保留原配置。
+
+```powershell
+.\setup.bat
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-也可手动运行：`.venv\Scripts\python main.py`。无后端也能纯聊天。
+在本机编辑 `.env`，填写自己的 `LLM_API_KEY`、服务商 `LLM_BASE_URL` 和可用 `LLM_MODEL`；DeepSeek示例为 `deepseek-flash`。运行：
 
-> 首次使用语音识别会自动下载 faster-whisper 模型（约 100~500 MB）；下载慢可先 `set HF_ENDPOINT=https://hf-mirror.com`。
-
-### 后端
-
-```bat
-cd backend
-python -m venv .venv
-.venv\Scripts\python -m pip install -r requirements.txt
-copy .env.example .env     :: 填入 API_TOKEN
-.venv\Scripts\python run.py
+```powershell
+.\.venv\Scripts\python.exe main.py
 ```
 
-启动后监听 `0.0.0.0:8001`，健康检查 `GET /api/health`。接口调用需带请求头 `X-API-Key: <API_TOKEN>`。
+也可双击 `启动桌宠.bat`。米饭图标 → “配置 API”可以保存Key/地址并重建对话客户端；模型名仍通过 `.env` 的 `LLM_MODEL` 设置。Key不用发给他人。首次语音识别会按配置下载模型，首次TTS需要外网；见[模型与服务边界](THIRD_PARTY_NOTICES.md)。
+
+### 后端（Windows PowerShell）
+
+```powershell
+python -m venv backend/.venv
+.\backend\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+if (-not (Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
+```
+
+在本机编辑 `backend/.env`，将 `API_TOKEN` 改成自己的随机凭据，然后执行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-backend.ps1 -Port 8001 -Interval 1
+```
+
+该启动器默认仅监听 `127.0.0.1:8001`，固定单worker、不热重载。健康检查为 `GET /api/health`；业务REST需要 `X-API-Key`。桌宠 `.env` 的 `BACKEND_URL` 和 `API_TOKEN` 需与此后端一致。Linux、服务器和已有数据的操作见[部署手册](docs/deploy.md)，不要在已有线上部署运行首次安装脚本。
 
 ### 小程序
 
-用「微信开发者工具」导入 `miniprogram/` 目录（`project.config.json` 已填 appid）。复制 `config.example.js` 为 `config.js`，填入后端地址与 `backend/.env` 的 `API_TOKEN`；开发期在「详情 → 本地设置」勾选「不校验合法域名」即可连本地后端。实时刷新与订阅提醒尚待联调（C2/C3），详见 [任务书 C](docs/tasks/C-miniprogram-deploy.md)。
+微信开发者工具导入 `miniprogram/`，核对自己的AppID；仅首次复制 `config.example.js` 为被Git忽略的 `config.js`。`baseUrl`、`apiKey`分别填写选定后端入口及对应 `API_TOKEN`，REST/上传/WS共用该配置。
+
+当前C4实际验证路线是公网IP + HTTP/WS + 开发调试豁免，详见[IP联调步骤](docs/C4-IP调试复验.md)。手机使用能访问该入口的网络；若安全组只放行特定公网IP，换网络后需重新核对来源规则。连接超时先查端口与网络，401再查凭据。C2刷新与离线恢复已有人工作业记录；C3微信登录/订阅的Mock、平台受理和真机实收分别记账，见[C3专项记录](docs/c3-subscription.md)。本轮IP路线不代表正式域名/证书验收或正式发布通过。
 
 ## 使用说明
 
@@ -85,11 +97,11 @@ copy .env.example .env     :: 填入 API_TOKEN
 ```
 pet/             桌宠端（PyQt6：窗口 / 形象 / 对话 / 语音 / 记忆）
 backend/         后端（FastAPI + SQLite，唯一数据源）
-miniprogram/     小程序（骨架 + api.js，C1）
+miniprogram/     小程序（业务页面、REST/上传、实时更新与订阅恢复）
 assets/          桌宠素材（图片 / 动图）
 docs/            设计文档、用户手册、测试与安全文档、三份任务书
 tests/           桌宠端测试（后端测试在 backend/tests/）
-scripts/         冒烟测试
+scripts/         启动、备份、自检、文档检查与隔离回归
 config.json      桌宠非敏感配置
 .env             密钥（不提交）；后端另有 backend/.env
 ```
@@ -111,6 +123,8 @@ config.json      桌宠非敏感配置
 | [设计文档](docs/design.md) | 架构演进、分层与设计模式 |
 | [重构效果量化分析](docs/refactor-report.md) | 设计模式证据、git 可还原的前后对照与边界声明 |
 | [用户手册](docs/user-manual.md) | 安装、运行与操作说明 |
+| [CI检查与本地复现](docs/ci.md) | 触发条件、复用任务、结果归档和限制 |
+| [C5交付记录](docs/c5-verification.md) | 文档/CI/依赖说明的范围、结果与待核验项 |
 | [测试文档](docs/testing.md) | 测试策略、用例清单、实验环境、覆盖率与分阶段实测 |
 | [信息安全设计](docs/security.md) | 密钥管理、隐私保护、供应链 |
 | [API 契约](docs/api-contract.md) | REST / WebSocket / 微信 / 天气搜索的字段与错误语义 |
@@ -123,7 +137,7 @@ config.json      桌宠非敏感配置
 
 ## 许可证与依赖
 
-本项目采用 **MIT License**（见 [LICENSE](LICENSE)）。主要依赖及其许可证：
+本仓库自有代码声明为 **MIT License**（见 [LICENSE](LICENSE)）。第三方库、Qt组件、模型和素材分别适用其许可；PyQt6有GPLv3/商业许可，不能将项目MIT声明当作整套分发物的许可结论。已知待核验项及来源见[第三方说明](THIRD_PARTY_NOTICES.md)。主要依赖：
 
 | 依赖 | 许可证 | 用途 |
 |---|---|---|
@@ -132,7 +146,7 @@ config.json      桌宠非敏感配置
 | openai | Apache-2.0 | LLM 调用 |
 | edge-tts | LGPL-3.0 | 语音合成 |
 | faster-whisper | MIT | 语音识别 |
-| sounddevice / numpy / Pillow / python-dotenv | MIT / BSD / MIT / BSD | 录音、数值、图像、配置 |
+| sounddevice / numpy / Pillow / python-dotenv | MIT / 复合BSD许可 / MIT-CMU / BSD | 录音、数值、图像、配置 |
 
 ## 常见问题
 
