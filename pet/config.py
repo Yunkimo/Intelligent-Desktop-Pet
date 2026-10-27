@@ -55,7 +55,8 @@ class Settings:
         # —— 来自 .env 的密钥/模型配置 ——
         self.llm_api_key: str = os.getenv("LLM_API_KEY", "").strip()
         self.llm_base_url: str = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").strip()
-        self.llm_model: str = os.getenv("LLM_MODEL", "deepseek-chat").strip()
+        # 默认用现役模型名：旧别名 deepseek-chat 不在 providers 的思考模式兼容名单里
+        self.llm_model: str = os.getenv("LLM_MODEL", "deepseek-flash").strip()
 
         # 账户余额查询用的独立凭据；留空时回退到推理用的 key 与地址
         self.account_api_key: str = os.getenv("ACCOUNT_API_KEY", "").strip() or self.llm_api_key

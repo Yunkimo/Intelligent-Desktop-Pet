@@ -8,7 +8,7 @@ def test_defaults_when_env_unset(monkeypatch):
         monkeypatch.delenv(key, raising=False)
     s = Settings()
     assert s.llm_base_url == "https://api.deepseek.com"
-    assert s.llm_model == "deepseek-chat"
+    assert s.llm_model == "deepseek-flash"  # 现役模型名，与 .env.example 及 providers 兼容名单一致
     assert s.llm_api_key == ""
 
 

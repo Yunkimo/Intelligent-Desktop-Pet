@@ -32,6 +32,7 @@
 - LLM 温度与最大 token 改为 `config.json` 可配置（`llm_temperature` / `llm_max_tokens`）。
 - 健康提醒合并为单条久坐提醒，默认间隔 45 分钟。
 - 支持「今天 / 明天 / 后天 时刻」自然时间规整。
+- 默认模型改为 `deepseek-flash`：旧别名 `deepseek-chat` 不在新版思考模式兼容名单里，未设置 `LLM_MODEL` 时会漏掉该兼容。
 - 系统托盘右键菜单的「退出」移到菜单最下方。
 
 ### 修复
