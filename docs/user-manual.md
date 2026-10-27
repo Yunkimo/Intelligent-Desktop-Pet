@@ -3,15 +3,21 @@
 ## 1. 系统要求
 
 - Windows 10/11
-- Python 3.10+（开发环境为 3.14）
+- Python 3.10+；CI后端覆盖3.10/3.12、桌宠覆盖3.12；本轮Windows开发复验为3.13，不据此宣布所有版本人工验收通过。
 - 麦克风（语音输入用）
 - 可访问 DeepSeek（或其它 OpenAI 兼容 API）的网络
+
+## 当前配置与验证边界
+
+当前源码基线包含C4的IP开发调试交付。具体服务器、手机操作和清理结果见[C4报告](c4-verification.md)，C5只同步已有事实，不重新计为部署验收。示例配置不含真实凭据；桌宠与后端的LLM Key用途不同，`API_TOKEN`另用于受保护业务接口。C3微信实际消息送达以[专项记录](c3-subscription.md)为准。
+
+Windows文档中 `.bat`、`copy` 和反斜杠路径为命令提示符示例；PowerShell完整启动入口见[README](../README.md)。已有私有配置请先保留，避免复制示例覆盖现有Key。
 
 ## 2. 安装
 
 ### 2.1 一键安装
 
-双击 `setup.bat`，脚本会自动创建虚拟环境 `.venv`、安装依赖，并把 Claude Code 状态监控 hooks 合并写入 `.claude/settings.local.json`（本机路径，已被 git 忽略；重复运行不会重复添加）。
+双击 `setup.bat`，脚本会创建虚拟环境 `.venv`、安装依赖，并安装两类状态监控 hooks：Claude 写入项目 `.claude/settings.local.json`，Codex 写入用户级 hooks 配置。两者都会保留已有配置、避免重复添加；具体路径和手动安装入口见下文。只需安装桌宠依赖时可使用下面的手动命令。
 
 或手动执行：
 
@@ -24,7 +30,7 @@ pip install -r requirements.txt
 ### 2.2 配置密钥
 
 ```bash
-copy .env.example .env
+if not exist .env copy .env.example .env
 ```
 
 编辑 `.env`：
@@ -32,7 +38,7 @@ copy .env.example .env
 ```
 LLM_API_KEY=sk-你的密钥
 LLM_BASE_URL=https://api.deepseek.com
-LLM_MODEL=deepseek-chat
+LLM_MODEL=deepseek-flash
 ```
 
 > 若用通义/智谱等其它 OpenAI 兼容服务，改 `LLM_BASE_URL` 与 `LLM_MODEL` 即可。
@@ -47,7 +53,7 @@ LLM_MODEL=deepseek-chat
 
 宠物会出现在桌面右下角。
 
-> 首次使用语音识别会自动下载 faster-whisper 模型（约 100~500 MB）。若下载缓慢，先执行 `set HF_ENDPOINT=https://hf-mirror.com` 再运行。
+> 首次识别会按 `whisper_model` 下载模型，体积和许可证随具体模型与版本变化。下载期间需要网络；模型及在线语音服务的边界见[第三方说明](../THIRD_PARTY_NOTICES.md)。
 
 ## 4. 使用说明
 
@@ -127,13 +133,15 @@ LLM_MODEL=deepseek-chat
 
 账户余额用的是独立凭据：在 `.env` 里设置 `ACCOUNT_API_KEY`（留空则回退 `LLM_API_KEY`），`ACCOUNT_BASE_URL` 留空则回退 `LLM_BASE_URL`，因此可以用 A 家的 key 推理、查 B 家账户余额。当前只支持提供官方余额接口的 DeepSeek 与 Moonshot，其余服务商如实提示「未提供余额查询接口」，本地记账照常可用。
 
-还没有 key 的新用户不用改文件：窗口最下方有「配置 API」三栏，粘贴后点「保存」即可，**留空的栏位保持不变**。
+还没有 key 的新用户可使用窗口最下方「配置 API」三栏，粘贴后点「保存」即可。API Key 与 API 地址留空时保持原值；账户查询 Key 的回退规则见下表。
 
 | 栏位 | 写入 `.env` | 作用 |
 |---|---|---|
 | API Key | `LLM_API_KEY` | 桌宠对话接入用的 key；保存后立即重建客户端，无需重启 |
 | API 地址 | `LLM_BASE_URL` | 可选；留空沿用当前地址，没写协议会自动补 `https://` |
 | 账户查询 Key | `ACCOUNT_API_KEY` | 可选；留空则沿用上面的 API Key |
+
+已有独立账户查询 Key 时，更新对话 API Key 请同时填写账户查询 Key：当前保存逻辑会在本次会话将未填写的账户 Key 回退到新对话 Key，但保留 `.env` 中原有独立值，重启后会重新载入该值。
 
 key 只写入本机 `.env`（已被 git 忽略，不会提交），不会进 `config.json`。输入框是密码模式，保存后立即清空，提示里只回显头尾几位，界面和截图都不留明文。改了 API Key 或地址后，账户余额会用新配置自动刷新。
 
@@ -222,17 +230,17 @@ cd backend && .venv\Scripts\python run.py   :: 监听 8001
 
 ### 实时接收（A4）
 
-`WsListener` 维持 WebSocket 长连接（`/ws`），收到后端事件弹气泡 + 语音：
+`WsListener` 维持 WebSocket 长连接（`/ws`），按事件类型处理：
 
-- `task.created` / `course.created`：新增日程/课表的资源 ID 通知。
-- `reminder.due`：提醒到期（依赖后端 B2 到期调度器，未就绪前不触发）。
+- `task.created` / `course.created`：收到新增资源 ID 后显示日程/课表更新气泡，不触发语音。
+- `reminder.due`：到期提醒显示气泡，并在开启语音时播报；B2已实现，需启用调度并检查通道、到期时间及发送状态。
 
-断线自动重连并重新拉取 REST 状态。
+桌宠WS监听会自动重连；提醒事件按ID从REST核对正文。小程序会在重连后主动拉取当前状态并恢复事件更新，二者不能混称为相同的离线补齐实现。
 
 # 后端 B1 实时广播联调
 
 本节对应 [Issue #5](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/5)，契约尚待 A/C 评审。
-在 `backend/` 安装 `requirements-dev.txt`，复制 `.env.example` 为 `.env`，填入随机 `API_TOKEN`。
+在 `backend/` 安装 `requirements-dev.txt`，仅在 `.env` 不存在时复制 `.env.example`，填入随机 `API_TOKEN`；已有配置保留。
 执行 `python run.py` 启动开发服务（监听 8001，热重载会断开连接）。
 
 客户端连接 `ws://127.0.0.1:8001/ws?token=<URL 编码的 API_TOKEN>`。
@@ -274,7 +282,7 @@ Windows 默认允许 `tts_windows_fallback=true`：在线服务失败后使用�
 
 ## B3 微信提醒使用入口
 
-微信功能默认关闭，不影响桌面使用。开发验收可在后端虚拟环境运行 `python scripts/smoke_backend_wechat.py --samples 30`，不需要真实微信凭证。真实使用需要后端配置账号和模板，C3 完成登录、提醒归属绑定及用户主动授权；登录、订阅与发送状态的完整契约见 [API 契约](api-contract.md) §微信，故障与安全用例见 [测试文档](testing.md) §3.2 与 [信息安全设计](security.md)。当前真机接收和 C3 界面尚待联调。
+微信功能默认关闭，不影响桌面使用。开发验收可在仓库根目录用后端虚拟环境运行 `python scripts/smoke_backend_wechat.py --samples 30`，不需要真实微信凭证。真实使用需要后端配置账号和模板，C3 完成登录、提醒归属绑定及用户主动授权；登录、订阅与发送状态的完整契约见 [API 契约](api-contract.md) §微信，故障与安全用例见 [测试文档](testing.md) §3.2 与 [信息安全设计](security.md)。C3 界面及自动化回归已有实现，平台受理、真机实收分别以 [C3 记录](c3-subscription.md)为准。
 ## B4 天气与搜索入口
 
 后端启动后，可使用带 X-API-Key 的 curl 请求获取天气和搜索摘要，输入/响应契约与错误语义见 [API 契约](api-contract.md) §天气与搜索。无需天气/搜索上游密钥；无公网条件下运行 `python scripts/smoke_backend_web_query.py` 验证 Mock 链路，显式增加 `--live` 才进行真实上游验收。
@@ -283,10 +291,10 @@ Windows 默认允许 `tts_windows_fallback=true`：在线服务失败后使用�
 
 ## 安装与配置
 
-1. 微信开发者工具导入 `miniprogram/` 目录（appid 已在 `project.config.json`）。
-2. 复制 `config.example.js` 为 `config.js`，填 `baseUrl`（本机 `http://127.0.0.1:8001`，真机用电脑局域网 IP）与 `apiKey`（= `backend/.env` 的 `API_TOKEN`）。
+1. 微信开发者工具导入 `miniprogram/` 目录，核对 `project.config.json` 中的 AppID 与自己的小程序账号一致。
+2. 仅在 `config.js` 不存在时复制 `config.example.js`，填入后端 `baseUrl` 与对应 `apiKey`（后端的 `API_TOKEN`）。本机模拟器可用 `http://127.0.0.1:8001`；当前云端调试使用 `http://8.148.29.9:8080`。
 3. 开发期：详情 → 本地设置 → 勾选「不校验合法域名」（仅限调试；正式路线见 [部署手册](deploy.md)）。
-4. 后端运行：`powershell -File scripts\run-backend.ps1`（自动建 venv/装依赖）。
+4. 使用本机后端时，在仓库根目录运行 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-backend.ps1`，默认只监听本机回环地址。若手机直连电脑局域网，改用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-backend.ps1 -BindAddress 0.0.0.0`，`baseUrl` 填电脑局域网 IP:8001，手机需能访问该局域网且防火墙允许该端口。使用已部署云端后端时，直接连接云端入口。
 
 ## 主要操作
 
@@ -299,8 +307,19 @@ Windows 默认允许 `tts_windows_fallback=true`：在线服务失败后使用�
 | 现象 | 排查 |
 |---|---|
 | HTTP 401：API Key 无效 | `config.js` 的 `apiKey` 与 `backend/.env` 的 `API_TOKEN` 不一致 |
-| 网络请求失败 | 后端未启动或 `baseUrl` 不对；真机需同一 WiFi 且防火墙放行 8001（见部署手册） |
+| 网络请求失败 | 核对 `baseUrl`、监听地址与端口；局域网直连需网络互通和电脑防火墙放行；公网入口需手机能上网且符合服务器安全组来源规则，不要求与电脑同一 Wi-Fi |
 | 识别返回 503 | 后端未配置视觉模型（`LLM_API_KEY`/`LLM_BASE_URL`/`LLM_VISION_MODEL`） |
 | 点订阅提醒提示未配置模板 | `config.js` 的 `subscribeTemplateId` 为空（需在微信公众平台申请模板） |
 | 订阅登记 503/401 | B3 后端未启用（`WX_ENABLED`）或会话过期（重新点一次会重新登录） |
 | 页面不自动刷新 | 后端事件连接依赖 WS；重进页面会 REST 重读，杀后端再重启会退避重连 |
+
+## 当前小程序与公网IP联调
+
+- 课表页支持手工增删改与“识”图片导入；识别只返回待确认结果，确认后才调用bulk接口写入。周次会影响本周显示，灰色课程不表示数据丢失。
+- 日程左侧复选框用于完成/取消完成；删除使用独立“删除”按钮。需要无提醒时先清除提醒时间并保存。
+- REST、图片上传和WS地址均由本机 `miniprogram/config.js` 的 `baseUrl` 派生；`apiKey`不提供多用户隔离。
+- 当前采用公网IP/HTTP/WS与开发调试豁免。C4已有手机CRUD、断网补齐与后续实时更新记录，不能据此宣布正常合法域名或正式发布通过。
+- 电脑公网出口改变时，安全组旧来源规则可能不再匹配。诊断先看服务器回环8001/8080健康，再看电脑到公网8080；401与TCP超时分开处理。若使用Windows虚拟环境Python，实际网络连接可能在启动器的Python子进程，应同时核对子进程。
+- 图片502先确认后端加载真实视觉Key与可用模型；504是上游超时，413区分Nginx与后端体积限制。不要在聊天或截图中发送 `.env`、Key或含token的WS地址。
+
+CI触发和本地检查见[CI说明](ci.md)，各端数据和外部服务流向见[设计文档](design.md)。

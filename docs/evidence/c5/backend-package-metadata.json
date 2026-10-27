@@ -1,0 +1,50 @@
+[
+  {
+    "name": "python-multipart",
+    "installed_version": "0.0.32",
+    "license_expression": "Apache-2.0",
+    "license": null,
+    "classifiers": [
+      "License :: OSI Approved :: Apache Software License"
+    ]
+  },
+  {
+    "name": "fastapi",
+    "installed_version": "0.143.0",
+    "license_expression": "MIT",
+    "license": null,
+    "classifiers": []
+  },
+  {
+    "name": "uvicorn",
+    "installed_version": "0.54.0",
+    "license_expression": "BSD-3-Clause",
+    "license": null,
+    "classifiers": []
+  },
+  {
+    "name": "pydantic",
+    "installed_version": "2.14.0",
+    "license_expression": "MIT",
+    "license": null,
+    "classifiers": []
+  },
+  {
+    "name": "httpx",
+    "installed_version": "0.28.1",
+    "license_expression": null,
+    "license": "BSD-3-Clause",
+    "classifiers": [
+      "License :: OSI Approved :: BSD License"
+    ]
+  },
+  {
+    "name": "certifi",
+    "installed_version": "2026.7.22",
+    "license_expression": null,
+    "license": "MPL-2.0",
+    "classifiers": [
+      "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)"
+    ]
+  }
+]

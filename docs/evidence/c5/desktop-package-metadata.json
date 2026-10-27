@@ -1,0 +1,320 @@
+[
+  {
+    "name": "PyQt6",
+    "version": "6.11.0",
+    "license_expression": "GPL-3.0-only",
+    "license": null,
+    "classifiers": [],
+    "project_url": [
+      "homepage, https://www.riverbankcomputing.com/software/pyqt/"
+    ],
+    "license_files": [
+      "pyqt6-6.11.0.dist-info/licenses/LICENSE"
+    ]
+  },
+  {
+    "name": "openai",
+    "version": "3.29.0",
+    "license_expression": "Apache-2.0",
+    "license": null,
+    "classifiers": [
+      "License :: OSI Approved :: Apache Software License"
+    ],
+    "project_url": [
+      "Homepage, https://github.com/openai/openai-python",
+      "Repository, https://github.com/openai/openai-python"
+    ],
+    "license_files": [
+      "openai-3.29.0.dist-info/licenses/LICENSE",
+      "openai/_vendor/httpx_aiohttp/LICENSE"
+    ]
+  },
+  {
+    "name": "httpx",
+    "version": "0.28.1",
+    "license_expression": null,
+    "license": "BSD-3-Clause",
+    "classifiers": [
+      "License :: OSI Approved :: BSD License"
+    ],
+    "project_url": [
+      "Changelog, https://github.com/encode/httpx/blob/master/CHANGELOG.md",
+      "Documentation, https://www.python-httpx.org",
+      "Homepage, https://github.com/encode/httpx",
+      "Source, https://github.com/encode/httpx"
+    ],
+    "license_files": [
+      "httpx-0.28.1.dist-info/licenses/LICENSE.md"
+    ]
+  },
+  {
+    "name": "ddgs",
+    "version": "9.16.0",
+    "license_expression": "MIT",
+    "license": null,
+    "classifiers": [],
+    "project_url": [
+      "Homepage, https://github.com/deedy5/ddgs",
+      "Source, https://github.com/deedy5/ddgs",
+      "Bug Tracker, https://github.com/deedy5/ddgs/issues",
+      "Documentation, https://github.com/deedy5/ddgs/blob/main/README.md"
+    ],
+    "license_files": [
+      "ddgs-9.16.0.dist-info/licenses/LICENSE.md"
+    ]
+  },
+  {
+    "name": "websocket-client",
+    "version": "1.9.2",
+    "license_expression": null,
+    "license": "Apache-2.0",
+    "classifiers": [],
+    "project_url": [
+      "Documentation, https://websocket-client.readthedocs.io/",
+      "Source, https://github.com/websocket-client/websocket-client/"
+    ],
+    "license_files": [
+      "websocket_client-1.9.2.dist-info/licenses/LICENSE"
+    ]
+  },
+  {
+    "name": "python-dotenv",
+    "version": "1.2.4",
+    "license_expression": null,
+    "license": "BSD-3-Clause",
+    "classifiers": [],
+    "project_url": [
+      "Source, https://github.com/theskumar/python-dotenv"
+    ],
+    "license_files": [
+      "python_dotenv-1.2.4.dist-info/licenses/LICENSE"
+    ]
+  },
+  {
+    "name": "edge-tts",
+    "version": "7.2.8",
+    "license_expression": null,
+    "license": null,
+    "classifiers": [
+      "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)"
+    ],
+    "project_url": [
+      "Bug Tracker, https://github.com/rany2/edge-tts/issues"
+    ],
+    "license_files": [
+      "edge_tts-7.2.8.dist-info/licenses/LICENSE"
+    ]
+  },
+  {
+    "name": "faster-whisper",
+    "version": "1.2.1",
+    "license_expression": null,
+    "license": "MIT",
+    "classifiers": [
+      "License :: OSI Approved :: MIT License"
+    ],
+    "project_url": [],
+    "license_files": [
+      "faster_whisper-1.2.1.dist-info/LICENSE"
+    ]
+  },
+  {
+    "name": "sounddevice",
+    "version": "0.5.6",
+    "license_expression": "MIT",
+    "license": null,
+    "classifiers": [],
+    "project_url": [
+      "Documentation, https://python-sounddevice.readthedocs.io/",
+      "Repository, https://github.com/spatialaudio/python-sounddevice/",
+      "Issues, https://github.com/spatialaudio/python-sounddevice/issues"
+    ],
+    "license_files": [
+      "sounddevice-0.5.6.dist-info/licenses/LICENSE"
+    ]
+  },
+  {
+    "name": "numpy",
+    "version": "2.5.4",
+    "license_expression": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+    "license": null,
+    "classifiers": [],
+    "project_url": [
+      "homepage, https://numpy.org",
+      "documentation, https://numpy.org/doc/",
+      "source, https://github.com/numpy/numpy",
+      "download, https://pypi.org/project/numpy/#files",
+      "tracker, https://github.com/numpy/numpy/issues",
+      "release notes, https://numpy.org/doc/stable/release"
+    ],
+    "license_files": [
+      "numpy-2.5.4.dist-info/licenses/LICENSE.txt",
+      "numpy-2.5.4.dist-info/licenses/numpy/_core/include/numpy/libdivide/LICENSE.txt",
+      "numpy-2.5.4.dist-info/licenses/numpy/_core/src/common/pythoncapi-compat/COPYING",
+      "numpy-2.5.4.dist-info/licenses/numpy/_core/src/highway/LICENSE",
+      "numpy-2.5.4.dist-info/licenses/numpy/_core/src/multiarray/dragon4_LICENSE.txt",
+      "numpy-2.5.4.dist-info/licenses/numpy/_core/src/npysort/x86-simd-sort/LICENSE.md",
+      "numpy-2.5.4.dist-info/licenses/numpy/_core/src/umath/svml/LICENSE",
+      "numpy-2.5.4.dist-info/licenses/numpy/fft/pocketfft/LICENSE.md",
+      "numpy-2.5.4.dist-info/licenses/numpy/linalg/lapack_lite/LICENSE.txt",
+      "numpy-2.5.4.dist-info/licenses/numpy/ma/LICENSE",
+      "numpy-2.5.4.dist-info/licenses/numpy/random/LICENSE.md",
+      "numpy-2.5.4.dist-info/licenses/numpy/random/src/distributions/LICENSE.md",
+      "numpy-2.5.4.dist-info/licenses/numpy/random/src/mt19937/LICENSE.md",
+      "numpy-2.5.4.dist-info/licenses/numpy/random/src/pcg64/LICENSE.md",
+      "numpy-2.5.4.dist-info/licenses/numpy/random/src/philox/LICENSE.md",
+      "numpy-2.5.4.dist-info/licenses/numpy/random/src/sfc64/LICENSE.md",
+      "numpy-2.5.4.dist-info/licenses/numpy/random/src/splitmix64/LICENSE.md",
+      "numpy/_core/include/numpy/random/LICENSE.txt",
+      "numpy/ma/LICENSE",
+      "numpy/random/LICENSE.md"
+    ]
+  },
+  {
+    "name": "pillow",
+    "version": "12.3.0",
+    "license_expression": "MIT-CMU",
+    "license": null,
+    "classifiers": [],
+    "project_url": [
+      "Release notes, https://pillow.readthedocs.io/en/stable/releasenotes/index.html",
+      "Changelog, https://github.com/python-pillow/Pillow/releases",
+      "Documentation, https://pillow.readthedocs.io",
+      "Funding, https://tidelift.com/subscription/pkg/pypi-pillow?utm_source=pypi-pillow&utm_medium=pypi",
+      "Homepage, https://python-pillow.github.io",
+      "Mastodon, https://fosstodon.org/@pillow",
+      "Source, https://github.com/python-pillow/Pillow"
+    ],
+    "license_files": [
+      "pillow-12.3.0.dist-info/licenses/LICENSE"
+    ]
+  },
+  {
+    "name": "pynput",
+    "version": "1.8.2",
+    "license_expression": null,
+    "license": "LGPLv3",
+    "classifiers": [
+      "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)"
+    ],
+    "project_url": [],
+    "license_files": [
+      "pynput-1.8.2.dist-info/licenses/COPYING.LGPL"
+    ]
+  },
+  {
+    "name": "PyQt6-Qt6",
+    "version": "6.11.2",
+    "license_expression": null,
+    "license": "LGPL v3",
+    "classifiers": [],
+    "project_url": [],
+    "license_files": [
+      "pyqt6_qt6-6.11.2.dist-info/LICENSE"
+    ]
+  },
+  {
+    "name": "PyQt6_sip",
+    "version": "13.13.0",
+    "license_expression": null,
+    "license": "BSD-2-Clause",
+    "classifiers": [],
+    "project_url": [],
+    "license_files": [
+      "pyqt6_sip-13.13.0.dist-info/licenses/LICENSE"
+    ]
+  },
+  {
+    "name": "ctranslate2",
+    "version": "4.8.2",
+    "license_expression": null,
+    "license": "MIT",
+    "classifiers": [],
+    "project_url": [
+      "Documentation, https://opennmt.net/CTranslate2",
+      "Forum, https://forum.opennmt.net",
+      "Gitter, https://gitter.im/OpenNMT/CTranslate2",
+      "Source, https://github.com/OpenNMT/CTranslate2"
+    ],
+    "license_files": []
+  },
+  {
+    "name": "av",
+    "version": "19.0.1",
+    "license_expression": "BSD-3-Clause",
+    "license": null,
+    "classifiers": [],
+    "project_url": [
+      "Bug Tracker, https://github.com/PyAV-Org/PyAV/issues",
+      "Source Code, https://github.com/PyAV-Org/PyAV",
+      "homepage, https://pyav.basswood.io"
+    ],
+    "license_files": [
+      "av-19.0.1.dist-info/licenses/AUTHORS.py",
+      "av-19.0.1.dist-info/licenses/AUTHORS.rst",
+      "av-19.0.1.dist-info/licenses/LICENSE.txt"
+    ]
+  },
+  {
+    "name": "tokenizers",
+    "version": "0.23.3",
+    "license_expression": null,
+    "license": null,
+    "classifiers": [
+      "License :: OSI Approved :: Apache Software License"
+    ],
+    "project_url": [
+      "Homepage, https://github.com/huggingface/tokenizers",
+      "Source, https://github.com/huggingface/tokenizers"
+    ],
+    "license_files": []
+  },
+  {
+    "name": "huggingface_hub",
+    "version": "2.2.0",
+    "license_expression": null,
+    "license": "Apache-2.0",
+    "classifiers": [
+      "License :: OSI Approved :: Apache Software License"
+    ],
+    "project_url": [],
+    "license_files": [
+      "huggingface_hub-2.2.0.dist-info/licenses/LICENSE"
+    ]
+  },
+  {
+    "name": "onnxruntime",
+    "version": "1.31.0",
+    "license_expression": null,
+    "license": "MIT License",
+    "classifiers": [
+      "License :: OSI Approved :: MIT License"
+    ],
+    "project_url": [],
+    "license_files": [
+      "onnxruntime/LICENSE"
+    ]
+  },
+  {
+    "name": "cffi",
+    "version": "2.1.1",
+    "license_expression": "MIT-0",
+    "license": null,
+    "classifiers": [],
+    "project_url": [
+      "Documentation, https://cffi.readthedocs.io/",
+      "Changelog, https://cffi.readthedocs.io/en/latest/whatsnew.html",
+      "Download, https://github.com/python-cffi/cffi/releases",
+      "Contact, https://groups.google.com/forum/#!forum/python-cffi",
+      "Source Code, https://github.com/python-cffi/cffi",
+      "Issue Tracker, https://github.com/python-cffi/cffi/issues"
+    ],
+    "license_files": [
+      "cffi-2.1.1.dist-info/licenses/LICENSE"
+    ]
+  },
+  {
+    "name": "PyAudio",
+    "installed": false
+  }
+]

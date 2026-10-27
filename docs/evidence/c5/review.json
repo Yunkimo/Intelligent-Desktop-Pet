@@ -1,0 +1,40 @@
+{
+  "baseline_commit_short": "c5a0f26",
+  "baseline_commit_url": "https://github.com/Yunkimo/Intelligent-Desktop-Pet/commit/c5a0f2683ffe2e01d10277b81507a325b5aa7d58",
+  "baseline_ci_url": "https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/40184618616",
+  "tested": "working-tree corrections stored in the same commit as this review evidence",
+  "deployment": {
+    "passed": 41,
+    "failed": 0,
+    "skipped": 0,
+    "elapsed_seconds": 105.93
+  },
+  "backend": {
+    "passed": 252,
+    "coverage_percent": 95,
+    "elapsed_seconds": 18.85,
+    "warnings": 1,
+    "warning_kind": "upstream Starlette TestClient httpx deprecation"
+  },
+  "tls_same_interpreter": {
+    "cycles": 10,
+    "checks": 140,
+    "failed": 0
+  },
+  "checksum_convention": "SHA-256 after CRLF to LF normalization; all other bytes preserved",
+  "source_manifest": "source-checksums.sha256",
+  "original_worktree_vs_git_blob_mismatches": 18,
+  "production_services_accessed": false,
+  "pending_remote_validation": "latest PR #63 run for the correction commit; prior successful CI applies only to its own SHA",
+  "documentation": {
+    "documents": 34,
+    "local_links": 278,
+    "source_checksums": 20
+  },
+  "lint": "scripts and tests_deployment passed; 29 Python files format checked",
+  "evidence_redaction": {
+    "file": "review-backend.xml",
+    "url_userinfo_replaced": 1,
+    "reason": "dummy URL credentials embedded in parametrized test names; preserve results and redact userinfo for publication"
+  }
+}
