@@ -2,7 +2,7 @@
 
 本项目遵循[语义化版本](https://semver.org/lang/zh-CN/)与 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 规范。
 
-## [未发布]
+## [v1.0.0] - 2026-10-28
 
 ### 新增
 
