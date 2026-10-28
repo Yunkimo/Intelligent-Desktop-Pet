@@ -191,6 +191,11 @@ class Settings:
         self.voice_hotkey = hotkey
         self._save_json(voice_hotkey=hotkey)
 
+    def update_voice_enabled(self, enabled: bool) -> None:
+        """更新语音输出开关并写回 config.json，使设置重启后仍然生效。"""
+        self.enable_voice = bool(enabled)
+        self._save_json(enable_voice=self.enable_voice)
+
     def update_health(self, enabled: bool | None = None, sedentary_min: int | None = None) -> None:
         """更新健康关怀配置并写回 config.json（复用 _save_json）。"""
         updates: dict[str, object] = {}

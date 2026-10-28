@@ -2,6 +2,12 @@
 
 本项目遵循[语义化版本](https://semver.org/lang/zh-CN/)与 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 规范。
 
+## [未发布]
+
+### 新增
+
+- **桌宠端**：右键菜单新增「语音输出」开关，可随时关闭回复朗读；关闭时立即停止当前播放，合成中被关闭生成的临时文件会被丢弃。开关持久化到 `config.json` 的 `enable_voice`。
+
 ## [v1.0.0] - 2026-10-28
 
 ### 新增
