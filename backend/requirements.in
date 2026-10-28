@@ -1,0 +1,11 @@
+# 后端直接运行依赖；使用 uv 生成 requirements.txt 锁文件。
+fastapi==0.143.0
+uvicorn[standard]==0.54.0
+pydantic==2.14.0
+python-dotenv==1.2.4
+httpx==0.28.1
+# TLS CA 信任库安全下限：修复 PYSEC-2026-4320，防止重新锁定受影响版本。
+certifi>=2026.10.19
+python-multipart==0.0.32
+websockets==15.0.1; python_version < '3.11'
+websockets==17.2; python_version >= '3.11'

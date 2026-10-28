@@ -1,0 +1,4 @@
+2026-10-25 progress documentation and evidence checks
+PASS scripts/check_c4_docs.py: 6 documents, 59 relative file links; shell LF checked. External URLs/anchors not checked.
+PASS pre_commit --files for explicit 52-file C4 inventory: Ruff check, Ruff format, whitespace, secrets.
+No files staged or committed. Full 26-test deployment regression is prior evidence, not rerun for these documentation-only changes.

@@ -1,0 +1,35 @@
+{
+  "mode": "live",
+  "timestamp": "2026-10-14T12:54:34.151433+00:00",
+  "python": "3.13.0",
+  "transport": "real Uvicorn + curl, loopback, single worker",
+  "database": "temporary",
+  "unauthorized_status": 401,
+  "proxy_used": true,
+  "results": [
+    {
+      "kind": "weather",
+      "curl_exit_code": 0,
+      "elapsed_ms": 1861.9,
+      "response": {
+        "status": "ok",
+        "query": "Beijing",
+        "provider": "wttr.in",
+        "summary": "Beijing, China：Smoky haze，气温 20°C，体感 18°C，湿度 26%。",
+        "source_url": "https://wttr.in/Beijing",
+        "fetched_at": "2026-10-14T12:54:33.298397+00:00",
+        "observed_at": "12:15 PM",
+        "results": []
+      }
+    },
+    {
+      "kind": "search",
+      "curl_exit_code": 22,
+      "elapsed_ms": 838.7,
+      "response": {
+        "detail": "upstream_unavailable"
+      }
+    }
+  ],
+  "passed": false
+}

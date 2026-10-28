@@ -1,0 +1,87 @@
+{
+  "checked_at": "2026-10-25T00:05:18.807486+08:00",
+  "base_url": "http://8.148.29.9:8080",
+  "source": "collaborating Windows computer, direct public HTTP/WS",
+  "key_source": "ignored local miniprogram/config.js; key not stored in evidence or command arguments",
+  "suite": [
+    {
+      "check": "健康检查",
+      "passed": true
+    },
+    {
+      "check": "REST 无凭据拒绝",
+      "passed": true
+    },
+    {
+      "check": "REST 错误凭据拒绝",
+      "passed": true
+    },
+    {
+      "check": "REST 正确凭据放行",
+      "passed": true
+    },
+    {
+      "check": "WS 正确凭据握手",
+      "passed": true
+    },
+    {
+      "check": "WS 无凭据拒绝",
+      "passed": true
+    },
+    {
+      "check": "WS 错误凭据拒绝",
+      "passed": true
+    },
+    {
+      "check": "tasks 写入并读回",
+      "passed": true
+    },
+    {
+      "check": "tasks WebSocket 业务事件",
+      "passed": true
+    },
+    {
+      "check": "courses 写入并读回",
+      "passed": true
+    },
+    {
+      "check": "courses WebSocket 业务事件",
+      "passed": true
+    },
+    {
+      "check": "主动断开后重连并 REST 校正",
+      "passed": true
+    },
+    {
+      "check": "courses 临时数据清理并读回",
+      "passed": true
+    },
+    {
+      "check": "tasks 临时数据清理并读回",
+      "passed": true
+    }
+  ],
+  "supplemental_put": [
+    {
+      "check": "tasks PUT persisted",
+      "passed": true
+    },
+    {
+      "check": "courses PUT persisted",
+      "passed": true
+    },
+    {
+      "check": "courses PUT data cleanup and readback",
+      "passed": true
+    },
+    {
+      "check": "tasks PUT data cleanup and readback",
+      "passed": true
+    }
+  ],
+  "suite_passed": 14,
+  "suite_total": 14,
+  "put_passed": 4,
+  "put_total": 4,
+  "boundary": "temporary no-reminder business records only; not WeChat runtime or normal HTTPS/WSS acceptance"
+}

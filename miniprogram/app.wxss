@@ -1,0 +1,163 @@
+/* 全局样式：页面底色、卡片、按钮、表单与弹层（各页面共用） */
+
+page {
+  background: #f5f6f8;
+  font-size: 28rpx;
+  color: #2f3542;
+  line-height: 1.5;
+}
+
+/* 卡片 */
+.card {
+  background: #fff;
+  border-radius: 16rpx;
+  margin: 16rpx 24rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+/* 区块标题 */
+.section-title {
+  margin: 32rpx 24rpx 8rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #57606f;
+}
+
+/* 空态 */
+.empty {
+  margin: 24rpx;
+  padding: 48rpx 0;
+  text-align: center;
+  color: #a4b0be;
+  font-size: 26rpx;
+}
+
+/* 按钮（去掉原生边框） */
+button::after {
+  border: none;
+}
+
+.btn {
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  line-height: 2.4;
+  padding: 0 32rpx;
+}
+
+.btn-primary {
+  background: #4a90d9;
+  color: #fff;
+}
+
+.btn-ghost {
+  background: #f1f2f6;
+  color: #57606f;
+}
+
+.btn-danger {
+  background: #fff;
+  color: #e74c3c;
+  border: 1rpx solid #f5c6c6;
+  line-height: 2.2;
+}
+
+/* 错误横幅 */
+.error-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 24rpx;
+  padding: 16rpx 24rpx;
+  background: #fdf2f2;
+  border: 1rpx solid #f5c6c6;
+  border-radius: 12rpx;
+  color: #c0392b;
+  font-size: 26rpx;
+}
+
+.retry {
+  color: #c0392b;
+  font-weight: 600;
+  padding-left: 24rpx;
+}
+
+/* 悬浮添加按钮 */
+.fab {
+  position: fixed;
+  right: 40rpx;
+  bottom: 64rpx;
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 50%;
+  background: #4a90d9;
+  color: #fff;
+  font-size: 56rpx;
+  text-align: center;
+  line-height: 104rpx;
+  box-shadow: 0 8rpx 24rpx rgba(74, 144, 217, 0.4);
+  z-index: 10;
+}
+
+/* 表单弹层 */
+.mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  width: 640rpx;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  box-sizing: border-box;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-bottom: 24rpx;
+}
+
+.form-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.form-item .label {
+  width: 140rpx;
+  flex-shrink: 0;
+  color: #57606f;
+}
+
+.form-item .input,
+.form-item .picker-value {
+  flex: 1;
+  background: #f1f2f6;
+  border-radius: 8rpx;
+  padding: 12rpx 20rpx;
+  min-height: 48rpx;
+  box-sizing: border-box;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8rpx;
+}
+
+.modal-actions .btn {
+  flex: 1;
+  margin: 0 8rpx;
+}

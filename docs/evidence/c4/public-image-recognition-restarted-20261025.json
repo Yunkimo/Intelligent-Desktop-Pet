@@ -1,0 +1,42 @@
+{
+  "checked_at": "2026-10-25T13:40:29.373057+08:00",
+  "base_url": "http://8.148.29.9:8080",
+  "fixture": "synthetic English schedule, one Monday C4 Test Math / Weeks 1-16 / 08:00-09:40 / A101",
+  "file_bytes": 1154843,
+  "size_note": "valid PNG; added tEXt metadata to exceed 1 MiB; not a real user's large photograph",
+  "business_import_requested": false,
+  "http_status": 200,
+  "recognized_courses": [
+    {
+      "name": "C4 Test Math",
+      "day_of_week": 1,
+      "start_time": "08:00",
+      "end_time": "09:40",
+      "location": "A101",
+      "teacher": "",
+      "weeks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ]
+    }
+  ],
+  "expected_course_observed": true,
+  "elapsed_seconds": 17.13,
+  "recognition_passed": true,
+  "expected_all_fields_match": true,
+  "fixture_checksum_file": "vision-upload-fixture.sha256"
+}

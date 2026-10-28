@@ -1,0 +1,32 @@
+{
+  "title": "C4-PC-reminder-de83dace",
+  "reminder_id": 1,
+  "created_at": "2026-10-25T04:31:13.729369+00:00",
+  "due_at": "2026-10-25T04:31:43.729369+00:00",
+  "channel": "pc",
+  "create_status": "confirmed",
+  "human_observation": {
+    "source": "user reply in this conversation",
+    "bubble_visible": true,
+    "audio_heard": true,
+    "duplicates_observed": false,
+    "desktop_source": "C4 working tree with develop 9bca38f merged, no commit",
+    "timing": "human observation; exact display/audio timestamps not measured"
+  },
+  "checked_at": "2026-10-25T04:33:29.679360+00:00",
+  "exists": true,
+  "seconds_after_due": 105.9,
+  "done": true,
+  "delivery_http_status": 200,
+  "delivery": {
+    "status": "sent",
+    "attempts": 1,
+    "event_id": "a9232c83-0e16-45d4-a1d0-a5917ffcc2f1"
+  },
+  "cleanup_confirmed": true,
+  "boundary": "Delivery state is server evidence; actual bubble, audio and duplication require separate human observation.",
+  "scheduler_interval_seconds": 30,
+  "display_latency_measured": false,
+  "seconds_after_due_meaning": "Time of server diagnostic/cleanup, not bubble or speech display latency.",
+  "normal_domain_route_tested": false
+}

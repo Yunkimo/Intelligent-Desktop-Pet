@@ -1,0 +1,42 @@
+{
+  "checked_at": "2026-10-25T00:07:41.869804+08:00",
+  "base_url": "https://shynb.beer",
+  "connect_ip": "8.148.29.9",
+  "process_only_dns_override": true,
+  "strict_certificate_validation": true,
+  "normal_dns_verified": false,
+  "business_mutations": false,
+  "results": [
+    {
+      "check": "健康检查",
+      "passed": false
+    },
+    {
+      "check": "REST 无凭据拒绝",
+      "passed": false
+    },
+    {
+      "check": "REST 错误凭据拒绝",
+      "passed": false
+    },
+    {
+      "check": "REST 正确凭据放行",
+      "passed": false
+    },
+    {
+      "check": "WS 正确凭据握手",
+      "passed": false
+    },
+    {
+      "check": "WS 无凭据拒绝",
+      "passed": false
+    },
+    {
+      "check": "WS 错误凭据拒绝",
+      "passed": false
+    }
+  ],
+  "passed": 0,
+  "total": 7,
+  "boundary": "SNI/Host retained with system trust; no hosts-file edits; does not prove normal DNS, filing or WeChat acceptance"
+}

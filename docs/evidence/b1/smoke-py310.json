@@ -1,0 +1,1 @@
+﻿{"clients": 2, "events_per_client": 30, "matching_event_ids": 30, "rejected_handshakes": 2, "rejection_http_status": 403, "query_redacted": true, "database": "temporary", "transport": "real Uvicorn HTTP Upgrade"}

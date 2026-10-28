@@ -1,0 +1,12 @@
+{
+  "source": "user supplied server diagnostic after systemctl restart",
+  "date": "2026-10-25",
+  "key_present": true,
+  "key_is_example": true,
+  "api_host": "api.siliconflow.cn",
+  "api_path": "/v1",
+  "model": "Qwen/Qwen3-VL-32B-Instruct",
+  "recognition_passed": false,
+  "next_step": "user replaces server LLM_API_KEY and restarts; no repeated model calls until done",
+  "business_import_requested": false
+}

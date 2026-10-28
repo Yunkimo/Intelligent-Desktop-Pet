@@ -1,0 +1,291 @@
+{
+  "run_id": "eeaf7405ac7d",
+  "base_url": "http://8.148.29.9:8080",
+  "samples": 5,
+  "limit_seconds": 5,
+  "rows": [
+    {
+      "number": 1,
+      "title": "C4-latency-eeaf7405ac7d-1",
+      "body": "C4 到期展示时延核验",
+      "due_epoch": 1792906077.015286,
+      "due_at": "2026-10-25T05:27:57.015286+00:00",
+      "expected_text": "⏰ C4-latency-eeaf7405ac7d-1 C4 到期展示时延核验",
+      "create_attempted": true,
+      "id": 2,
+      "notifications": 1,
+      "events": [
+        {
+          "event_id": "450ebd54-269d-4bd9-9c45-405b44535156",
+          "epoch": 1792906078.939329
+        }
+      ],
+      "painted_epoch": 1792906078.9825401,
+      "visible": true,
+      "bubble_capture": "desktop-latency-20261025-1.png",
+      "capture_saved": true,
+      "done": true,
+      "delivery": {
+        "status": "sent",
+        "attempts": 1,
+        "event_id": "450ebd54-269d-4bd9-9c45-405b44535156"
+      },
+      "delay_lower_seconds": 1.8090453147888184,
+      "delay_upper_seconds": 2.0688610076904297,
+      "passed": true
+    },
+    {
+      "number": 2,
+      "title": "C4-latency-eeaf7405ac7d-2",
+      "body": "C4 到期展示时延核验",
+      "due_epoch": 1792906085.3852859,
+      "due_at": "2026-10-25T05:28:05.385286+00:00",
+      "expected_text": "⏰ C4-latency-eeaf7405ac7d-2 C4 到期展示时延核验",
+      "create_attempted": true,
+      "id": 3,
+      "notifications": 1,
+      "events": [
+        {
+          "event_id": "14b1fa59-9b41-445d-89ed-f1c774399ef4",
+          "epoch": 1792906086.7676544
+        }
+      ],
+      "painted_epoch": 1792906086.7994773,
+      "visible": true,
+      "bubble_capture": "desktop-latency-20261025-2.png",
+      "capture_saved": true,
+      "done": true,
+      "delivery": {
+        "status": "sent",
+        "attempts": 1,
+        "event_id": "14b1fa59-9b41-445d-89ed-f1c774399ef4"
+      },
+      "delay_lower_seconds": 1.2559826374053955,
+      "delay_upper_seconds": 1.5157983303070068,
+      "passed": true
+    },
+    {
+      "number": 3,
+      "title": "C4-latency-eeaf7405ac7d-3",
+      "body": "C4 到期展示时延核验",
+      "due_epoch": 1792906093.755286,
+      "due_at": "2026-10-25T05:28:13.755286+00:00",
+      "expected_text": "⏰ C4-latency-eeaf7405ac7d-3 C4 到期展示时延核验",
+      "create_attempted": true,
+      "id": 4,
+      "notifications": 1,
+      "events": [
+        {
+          "event_id": "792630c2-a6c8-452a-9c6c-6ad475cdb3e2",
+          "epoch": 1792906094.5407484
+        }
+      ],
+      "painted_epoch": 1792906094.543187,
+      "visible": true,
+      "bubble_capture": "desktop-latency-20261025-3.png",
+      "capture_saved": true,
+      "done": true,
+      "delivery": {
+        "status": "sent",
+        "attempts": 1,
+        "event_id": "792630c2-a6c8-452a-9c6c-6ad475cdb3e2"
+      },
+      "delay_lower_seconds": 0.6296920776367188,
+      "delay_upper_seconds": 0.8895077705383301,
+      "passed": true
+    },
+    {
+      "number": 4,
+      "title": "C4-latency-eeaf7405ac7d-4",
+      "body": "C4 到期展示时延核验",
+      "due_epoch": 1792906102.1252859,
+      "due_at": "2026-10-25T05:28:22.125286+00:00",
+      "expected_text": "⏰ C4-latency-eeaf7405ac7d-4 C4 到期展示时延核验",
+      "create_attempted": true,
+      "id": 5,
+      "notifications": 1,
+      "events": [
+        {
+          "event_id": "6c78942e-2fdf-450b-88d7-0b7b7de84b65",
+          "epoch": 1792906102.5978084
+        }
+      ],
+      "painted_epoch": 1792906102.59906,
+      "visible": true,
+      "bubble_capture": "desktop-latency-20261025-4.png",
+      "capture_saved": true,
+      "done": true,
+      "delivery": {
+        "status": "sent",
+        "attempts": 1,
+        "event_id": "6c78942e-2fdf-450b-88d7-0b7b7de84b65"
+      },
+      "delay_lower_seconds": 0.3155653476715088,
+      "delay_upper_seconds": 0.5753810405731201,
+      "passed": true
+    },
+    {
+      "number": 5,
+      "title": "C4-latency-eeaf7405ac7d-5",
+      "body": "C4 到期展示时延核验",
+      "due_epoch": 1792906110.495286,
+      "due_at": "2026-10-25T05:28:30.495286+00:00",
+      "expected_text": "⏰ C4-latency-eeaf7405ac7d-5 C4 到期展示时延核验",
+      "create_attempted": true,
+      "id": 6,
+      "notifications": 1,
+      "events": [
+        {
+          "event_id": "7490409b-343c-4464-8bd1-82e5f10cca3e",
+          "epoch": 1792906111.6464503
+        }
+      ],
+      "painted_epoch": 1792906111.6494117,
+      "visible": true,
+      "bubble_capture": "desktop-latency-20261025-5.png",
+      "capture_saved": true,
+      "done": true,
+      "delivery": {
+        "status": "sent",
+        "attempts": 1,
+        "event_id": "7490409b-343c-4464-8bd1-82e5f10cca3e"
+      },
+      "delay_lower_seconds": 0.9959168434143066,
+      "delay_upper_seconds": 1.255732536315918,
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "measurement": "real WsListener -> PetWindow REST reconciliation -> visible bubble Paint callback",
+  "voice_measured": false,
+  "completed": true,
+  "cleanup_confirmed": true,
+  "clock_assumption": "Nginx HTTP Date and backend scheduler use the same host clock; no clock step during run",
+  "clock_before": {
+    "lower_seconds": -0.14723873138427734,
+    "upper_seconds": 0.10160684585571289,
+    "probes": [
+      {
+        "start": 1792906055.2117333,
+        "end": 1792906055.3054914,
+        "date_epoch": 1792906055.0,
+        "lower": -0.30549144744873047,
+        "upper": 0.788266658782959
+      },
+      {
+        "start": 1792906055.476141,
+        "end": 1792906055.5164843,
+        "date_epoch": 1792906055.0,
+        "lower": -0.516484260559082,
+        "upper": 0.5238590240478516
+      },
+      {
+        "start": 1792906055.6866913,
+        "end": 1792906055.7278216,
+        "date_epoch": 1792906055.0,
+        "lower": -0.7278215885162354,
+        "upper": 0.3133087158203125
+      },
+      {
+        "start": 1792906055.8983932,
+        "end": 1792906055.9378247,
+        "date_epoch": 1792906055.0,
+        "lower": -0.9378247261047363,
+        "upper": 0.10160684585571289
+      },
+      {
+        "start": 1792906056.108368,
+        "end": 1792906056.1472387,
+        "date_epoch": 1792906056.0,
+        "lower": -0.14723873138427734,
+        "upper": 0.891632080078125
+      },
+      {
+        "start": 1792906056.317557,
+        "end": 1792906056.3584833,
+        "date_epoch": 1792906056.0,
+        "lower": -0.35848331451416016,
+        "upper": 0.6824429035186768
+      },
+      {
+        "start": 1792906056.5289133,
+        "end": 1792906056.5683022,
+        "date_epoch": 1792906056.0,
+        "lower": -0.5683021545410156,
+        "upper": 0.4710867404937744
+      },
+      {
+        "start": 1792906056.738507,
+        "end": 1792906056.7775283,
+        "date_epoch": 1792906056.0,
+        "lower": -0.7775282859802246,
+        "upper": 0.2614929676055908
+      }
+    ]
+  },
+  "qt_platform": "windows",
+  "clock_after": {
+    "lower_seconds": -0.15820884704589844,
+    "upper_seconds": 0.034052371978759766,
+    "probes": [
+      {
+        "start": 1792906124.5576348,
+        "end": 1792906124.8383162,
+        "date_epoch": 1792906124.0,
+        "lower": -0.8383162021636963,
+        "upper": 0.4423651695251465
+      },
+      {
+        "start": 1792906125.0088212,
+        "end": 1792906125.1582088,
+        "date_epoch": 1792906125.0,
+        "lower": -0.15820884704589844,
+        "upper": 0.9911787509918213
+      },
+      {
+        "start": 1792906125.328548,
+        "end": 1792906125.370541,
+        "date_epoch": 1792906125.0,
+        "lower": -0.3705410957336426,
+        "upper": 0.6714520454406738
+      },
+      {
+        "start": 1792906125.541229,
+        "end": 1792906125.5826354,
+        "date_epoch": 1792906125.0,
+        "lower": -0.5826354026794434,
+        "upper": 0.4587709903717041
+      },
+      {
+        "start": 1792906125.7531173,
+        "end": 1792906125.7953322,
+        "date_epoch": 1792906125.0,
+        "lower": -0.7953321933746338,
+        "upper": 0.24688267707824707
+      },
+      {
+        "start": 1792906125.9659476,
+        "end": 1792906126.0203195,
+        "date_epoch": 1792906125.0,
+        "lower": -1.0203194618225098,
+        "upper": 0.034052371978759766
+      },
+      {
+        "start": 1792906126.1918921,
+        "end": 1792906126.2369957,
+        "date_epoch": 1792906126.0,
+        "lower": -0.23699569702148438,
+        "upper": 0.808107852935791
+      },
+      {
+        "start": 1792906126.4073007,
+        "end": 1792906126.4487174,
+        "date_epoch": 1792906126.0,
+        "lower": -0.4487173557281494,
+        "upper": 0.5926992893218994
+      }
+    ]
+  },
+  "local_clock_step_seconds": -0.001413774531101808,
+  "passed": true
+}

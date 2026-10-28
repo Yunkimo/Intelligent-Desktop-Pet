@@ -1,0 +1,27 @@
+{
+  "readback": {
+    "action": "task",
+    "expected_label": "C4-手机日程1025-已修改",
+    "matching_records": 1,
+    "runtime": "phone",
+    "checked_at": "2026-10-25T01:25:02.074100+08:00",
+    "source": "read-only API check following user UI operation",
+    "passed": true,
+    "record_id": 8,
+    "done": true,
+    "has_due_date": true,
+    "no_reminder": true
+  },
+  "deletion": {
+    "action": "absence-task",
+    "expected_label": "C4-手机日程1025-已修改",
+    "matching_records": 0,
+    "runtime": "phone",
+    "checked_at": "2026-10-25T01:27:27.165409+08:00",
+    "source": "read-only API check following user UI operation",
+    "saved_id_absent": true,
+    "passed": true
+  },
+  "boundary": "Phone UI actions and cloud REST readback in IP development mode; formal route not included.",
+  "human_operation_confirmed": true
+}

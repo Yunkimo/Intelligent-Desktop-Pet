@@ -1,0 +1,70 @@
+{
+  "checked_at": "2026-10-25T13:59:09.320860+08:00",
+  "domain": "shynb.beer",
+  "expected_ip": "8.148.29.9",
+  "dns": [
+    {
+      "provider": "Google",
+      "type": "A",
+      "error_type": "ConnectTimeout"
+    },
+    {
+      "provider": "AliDNS",
+      "type": "A",
+      "dns_status": 0,
+      "answer": [],
+      "authority": [
+        {
+          "name": "shynb.beer.",
+          "TTL": 600,
+          "type": 6,
+          "data": "dns19.hichina.com. hostmaster.hichina.com. 2026101819 3600 1200 86400 600"
+        }
+      ]
+    },
+    {
+      "provider": "Google",
+      "type": "NS",
+      "error_type": "ConnectTimeout"
+    },
+    {
+      "provider": "AliDNS",
+      "type": "NS",
+      "dns_status": 0,
+      "answer": [
+        {
+          "name": "shynb.beer.",
+          "TTL": 3600,
+          "type": 2,
+          "data": "dns19.hichina.com."
+        },
+        {
+          "name": "shynb.beer.",
+          "TTL": 3600,
+          "type": 2,
+          "data": "dns20.hichina.com."
+        }
+      ],
+      "authority": []
+    }
+  ],
+  "http": [
+    {
+      "url": "https://shynb.beer/api/health",
+      "process_only_dns_override": true,
+      "certificate_verification_disabled": false,
+      "exit_code": 35,
+      "response": "",
+      "error": "curl: (35) Recv failure: Connection was reset\n"
+    },
+    {
+      "url": "http://shynb.beer/api/health",
+      "process_only_dns_override": true,
+      "certificate_verification_disabled": false,
+      "exit_code": 0,
+      "response": "HTTP/1.1 403 Forbidden\nServer: Beaver\nCache-Control: no-cache\nContent-Type: text/html\nContent-Length: 640\nConnection: close\n\n<html>\n<head>\n<meta http-equiv=\"Content-Type\" content=\"textml;charset=UTF-8\" />\n   <style>body{background-color:#FFFFFF}</style> \n<title>Non-compliance ICP Filing</title>\n  <script language=\"javascript\" type=\"text/javascript\">\n         window.onload = function () { \n           document.getElementById(\"mainFrame\").src= \"http://www.aliyun.com/beian/beian-block?id=00000000005990501896\";\n            }\n</script>   \n</head>\n  <body>\n    <iframe style=\"width:860px; height:500px;position:absolute;margin-left:-430px;margin-top:-250px;top:50%;left:50%;\" id=\"mainFrame\" src=\"\" frameborder=\"0\" scrolling=\"no\"></iframe>\n    </body>\n      </html>\n\n",
+      "error": ""
+    }
+  ],
+  "credentials_sent": false
+}

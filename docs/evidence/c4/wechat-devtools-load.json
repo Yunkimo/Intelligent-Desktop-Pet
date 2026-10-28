@@ -1,0 +1,11 @@
+{
+  "source": "user observation in this conversation",
+  "project": "D:/IDP/worktrees/c3-subscription/miniprogram",
+  "base_url": "http://8.148.29.9:8080",
+  "user_confirmed_recompiled_and_page_loads": true,
+  "local_connection_config_ignored": true,
+  "business_source_modified_for_connection": false,
+  "automatic_refresh_observation": "passed, user confirmed no interaction; see ui-refresh-1ffddd87.json",
+  "phone_runtime_observation": "pending",
+  "boundary": "Developer-tool page loading only; not phone, normal-domain, subscription or complete CRUD acceptance."
+}

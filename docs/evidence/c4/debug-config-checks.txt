@@ -1,0 +1,21 @@
+CHECK node --check miniprogram/config.server-debug.example.js
+EXIT 0
+
+CHECK D:\IDP\worktrees\c4-deployment\backend\.venv\Scripts\python.exe scripts/check_c4_docs.py
+PASS 6 份文档、37 个相对文件链接、Shell LF；外链与锚点未纳入
+EXIT 0
+
+CHECK D:\IDP\worktrees\c4-deployment\backend\.venv\Scripts\python.exe -m pre_commit run --files
+Ruff 检查................................................................Passed
+Ruff 格式检查............................................................Passed
+暂存区空白检查...........................................................Passed
+密钥扫描.................................................................Passed
+EXIT 0
+
+CHECK git diff --check
+warning: in the working copy of 'docs/deploy.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/check_deployment.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/reset_demo.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/run-backend.ps1', LF will be replaced by CRLF the next time Git touches it
+EXIT 0
+All 24 source checksums verified

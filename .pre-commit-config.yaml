@@ -1,0 +1,25 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: Ruff 检查
+        entry: python -m ruff check
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: Ruff 格式检查
+        entry: python -m ruff format --check
+        language: system
+        types: [python]
+      - id: whitespace
+        name: 暂存区空白检查
+        entry: git diff --cached --check
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: secrets
+        name: 密钥扫描
+        entry: python -X utf8 -m detect_secrets.pre_commit_hook
+        args: [--baseline, .secrets.baseline]
+        language: system
+        exclude: ^(assets/|.*requirements.*\.txt$)

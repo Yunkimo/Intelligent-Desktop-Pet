@@ -1,0 +1,40 @@
+{
+  "checked_at": "2026-10-25T14:07:54.615694+08:00",
+  "base_url": "http://8.148.29.9:8080",
+  "read_only": true,
+  "purpose": "post vision-key service restart final IP route health/auth/WS check",
+  "results": [
+    {
+      "check": "健康检查",
+      "passed": true
+    },
+    {
+      "check": "REST 无凭据拒绝",
+      "passed": true
+    },
+    {
+      "check": "REST 错误凭据拒绝",
+      "passed": true
+    },
+    {
+      "check": "REST 正确凭据放行",
+      "passed": true
+    },
+    {
+      "check": "WS 正确凭据握手",
+      "passed": true
+    },
+    {
+      "check": "WS 无凭据拒绝",
+      "passed": true
+    },
+    {
+      "check": "WS 错误凭据拒绝",
+      "passed": true
+    }
+  ],
+  "passed": 7,
+  "total": 7,
+  "formal_https_wss_verified": false,
+  "business_mutations": false
+}

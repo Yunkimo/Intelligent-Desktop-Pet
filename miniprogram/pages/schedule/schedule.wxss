@@ -1,0 +1,101 @@
+.day-group {
+  margin-top: 8rpx;
+}
+
+.day-title {
+  margin: 24rpx 24rpx 0;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #57606f;
+}
+
+.day-count {
+  font-size: 24rpx;
+  font-weight: 400;
+  color: #a4b0be;
+}
+
+.course-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.course-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.course-name {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.course-meta {
+  margin-top: 8rpx;
+  color: #747d8c;
+  font-size: 26rpx;
+}
+
+.course-actions {
+  display: flex;
+  flex-direction: column;
+  margin-left: 16rpx;
+}
+
+.mini {
+  font-size: 24rpx;
+  padding: 0 24rpx;
+  line-height: 2;
+  margin: 8rpx 0;
+}
+
+/* 本周周次选择条 */
+.week-bar {
+  display: flex;
+  align-items: center;
+  margin: 16rpx 24rpx 0;
+  padding: 16rpx 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.week-label {
+  color: #57606f;
+  margin-right: 16rpx;
+}
+
+.week-value {
+  color: #4a90d9;
+  font-weight: 600;
+  padding: 4rpx 20rpx;
+  background: #eef4fb;
+  border-radius: 8rpx;
+}
+
+.week-hint {
+  margin-left: auto;
+  color: #a4b0be;
+  font-size: 24rpx;
+}
+
+/* 本周不上课的课程置灰 */
+.course-card.inactive {
+  opacity: 0.5;
+}
+
+.inactive-tag {
+  color: #e67e22;
+}
+
+/* 识别导入按钮：悬浮在添加按钮上方，绿色区分 */
+.fab-import {
+  bottom: 188rpx;
+  width: 88rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  font-size: 32rpx;
+  background: #2f9e44;
+  box-shadow: 0 8rpx 24rpx rgba(47, 158, 68, 0.4);
+}

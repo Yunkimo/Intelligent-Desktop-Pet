@@ -1,0 +1,12 @@
+{
+  "checked_at": "2026-10-25T00:27:06.401936+08:00",
+  "base_url": "http://8.148.29.9:8080",
+  "fixture": "synthetic English schedule, one Monday C4 Test Math / Weeks 1-16 / 08:00-09:40 / A101",
+  "file_bytes": 1154843,
+  "size_note": "valid PNG; added tEXt metadata to exceed 1 MiB; not a real user's large photograph",
+  "business_import_requested": false,
+  "http_status": 502,
+  "unconfigured_vision_message": false,
+  "elapsed_seconds": 9.3,
+  "recognition_passed": false
+}

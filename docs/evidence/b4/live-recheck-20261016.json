@@ -1,0 +1,58 @@
+{
+  "mode": "live",
+  "timestamp": "2026-10-15T16:05:08.569799+00:00",
+  "python": "3.13.0",
+  "transport": "real Uvicorn + curl, loopback, single worker",
+  "database": "temporary",
+  "unauthorized_status": 401,
+  "proxy_used": true,
+  "results": [
+    {
+      "kind": "weather",
+      "curl_exit_code": 0,
+      "elapsed_ms": 3877.44,
+      "response": {
+        "status": "ok",
+        "query": "Beijing",
+        "provider": "wttr.in",
+        "summary": "Beijing, China：Haze，气温 19°C，体感 16°C，湿度 20%。",
+        "source_url": "https://wttr.in/Beijing",
+        "fetched_at": "2026-10-15T16:05:04.790658+00:00",
+        "observed_at": "03:16 PM",
+        "results": []
+      }
+    },
+    {
+      "kind": "search",
+      "curl_exit_code": 0,
+      "elapsed_ms": 3766.51,
+      "response": {
+        "status": "ok",
+        "query": "Python asyncio official documentation",
+        "provider": "DuckDuckGo",
+        "summary": "1. asyncio — Asynchronous I/O — Python 3.15.0 documentation：asyncio is a library to write concurrent code using the async/await syntax. asyncio is used as a foundation for multiple Python asynchronous frameworks that provide high-performance network and web-servers, database connection libraries, distributed task queues, etc. asyncio is often a perfect fit for IO-bound and high-level structured network code.\nhttps://docs.python.org/3/library/asyncio.html\n2. A conceptual overview of asyncio — Python 3.15.0 documentation：A conceptual overview part 1: the high-level ¶ In part 1, we'll cover the main, high-level building blocks of asyncio: the event loop, coroutine functions, coroutine objects, tasks, and await. Event loop ¶ Everything in asyncio happens relative to the event loop. It's the star of the show, but prefers to work behind the scenes, managing and coordinating resources. It's like an ...\nhttps://docs.python.org/3/howto/a-conceptual-overview-of-asyncio.html\n3. Python's asyncio: A Hands-On Walkthrough - Real Python：Explore how Python asyncio works and when to use it. Follow hands-on examples to build efficient programs with coroutines and awaitable tasks.\nhttps://realpython.com/async-io-python/",
+        "source_url": "https://html.duckduckgo.com/html/?q=Python+asyncio+official+documentation",
+        "fetched_at": "2026-10-15T16:05:08.562313+00:00",
+        "observed_at": null,
+        "results": [
+          {
+            "title": "asyncio — Asynchronous I/O — Python 3.15.0 documentation",
+            "url": "https://docs.python.org/3/library/asyncio.html",
+            "snippet": "asyncio is a library to write concurrent code using the async/await syntax. asyncio is used as a foundation for multiple Python asynchronous frameworks that provide high-performance network and web-servers, database connection libraries, distributed task queues, etc. asyncio is often a perfect fit for IO-bound and high-level structured network code."
+          },
+          {
+            "title": "A conceptual overview of asyncio — Python 3.15.0 documentation",
+            "url": "https://docs.python.org/3/howto/a-conceptual-overview-of-asyncio.html",
+            "snippet": "A conceptual overview part 1: the high-level ¶ In part 1, we'll cover the main, high-level building blocks of asyncio: the event loop, coroutine functions, coroutine objects, tasks, and await. Event loop ¶ Everything in asyncio happens relative to the event loop. It's the star of the show, but prefers to work behind the scenes, managing and coordinating resources. It's like an ..."
+          },
+          {
+            "title": "Python's asyncio: A Hands-On Walkthrough - Real Python",
+            "url": "https://realpython.com/async-io-python/",
+            "snippet": "Explore how Python asyncio works and when to use it. Follow hands-on examples to build efficient programs with coroutines and awaitable tasks."
+          }
+        ]
+      }
+    }
+  ],
+  "passed": true
+}

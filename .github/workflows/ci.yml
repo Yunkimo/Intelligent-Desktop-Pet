@@ -1,0 +1,204 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  miniprogram-c3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: miniprogram/package-lock.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install C3 test dependencies
+        run: |
+          npm ci --prefix miniprogram
+          python -m pip install -r backend/requirements-dev.txt
+      - name: C3 lint, format and logic regression
+        run: |
+          set -o pipefail
+          mkdir -p ci-results
+          npm run lint --prefix miniprogram
+          npm run format:check --prefix miniprogram
+          npm test --prefix miniprogram | tee ci-results/miniprogram-logic.txt
+      - name: C3 real backend recovery regression (mock WeChat only)
+        run: |
+          set -o pipefail
+          python scripts/check_c3_integration.py | tee ci-results/c3-integration.txt
+      - name: Keep miniprogram results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miniprogram-results
+          path: ci-results/
+          retention-days: 14
+          if-no-files-found: warn
+  # 后端：FastAPI + SQLite，轻量，无需系统依赖，单独跑 backend/tests
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Backend formatting and static checks
+        run: |
+          ruff check . ../scripts
+          ruff format --check . ../scripts
+
+      - name: Test backend (pytest)
+        run: pytest --cov=app --cov-report=term --cov-report=xml:../ci-results/backend-coverage.xml --junitxml=../ci-results/backend.xml
+
+      - name: Real WebSocket smoke test
+        run: python ../scripts/smoke_backend_ws.py
+
+      - name: Reminder scheduling smoke test
+        run: python ../scripts/smoke_backend_scheduler.py --interval 1 --samples 30 --max-delay 5
+
+      - name: WeChat subscription smoke test (mock upstream)
+        run: python ../scripts/smoke_backend_wechat.py --samples 30
+      - name: Weather and search curl smoke test (mock upstream)
+        run: python ../scripts/smoke_backend_web_query.py
+
+      - name: Compression boundary checks (mock upstream)
+        run: python ../scripts/check_backend_compression.py
+
+      - name: Secret scan and whitespace check
+        # ruff 已在本 job 直接跑过，此处只保留 pre-commit 独有的两步
+        if: matrix.python-version == '3.12'
+        working-directory: .
+        run: SKIP=ruff-check,ruff-format pre-commit run --all-files
+
+      - name: Audit backend dependencies
+        if: matrix.python-version == '3.12'
+        run: pip-audit -r requirements.txt --format=json --output=../ci-results/backend-audit.json
+
+      - name: Keep backend results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-py${{ matrix.python-version }}-results
+          path: ci-results/
+          retention-days: 14
+          if-no-files-found: warn
+
+  # 桌宠：PyQt6 + pynput + faster-whisper 等，需 Qt offscreen 与虚拟 X 服务器
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libegl1 libgl1 libxkbcommon-x11-0 libxcb-xinerama0 \
+            libdbus-1-3 libfontconfig1 libportaudio2 libpulse0 \
+            xvfb xauth
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: |
+          ruff check main.py pet tests
+          ruff format --check main.py pet tests
+
+      - name: Test (pytest)
+        # xvfb-run 提供虚拟 X 显示器，供 pynput 探测 X 连接；Qt 走 offscreen 平台
+        run: xvfb-run -a pytest tests/ --cov=pet --cov-report=term-missing --cov-report=xml:ci-results/desktop-coverage.xml --junitxml=ci-results/desktop.xml
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+      - name: Audit desktop dependencies
+        run: pip-audit -r requirements.txt --format=json --output=ci-results/desktop-audit.json
+
+      - name: Keep desktop results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-results
+          path: ci-results/
+          retention-days: 14
+          if-no-files-found: warn
+
+  # 复用 C4 回归；不连接真实服务器、微信或模型，不执行自动部署。
+  deployment-docs:
+    runs-on: ubuntu-latest
+    env:
+      API_TOKEN: ci-only-isolated-token
+      WX_ENABLED: "false"
+      LLM_API_KEY: ""
+      LLM_BASE_URL: ""
+      LLM_VISION_MODEL: ""
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # 历史 schema/代码回滚回归需要已有 Git 对象。
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install isolated deployment test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nginx openssl
+          python -m pip install -r backend/requirements-dev.txt
+          command -v nginx
+          command -v openssl
+      - name: Check deployment test formatting and lint
+        run: |
+          python -m ruff check tests_deployment
+          python -m ruff format --check tests_deployment
+      - name: Check maintained documents
+        run: |
+          set -o pipefail
+          mkdir -p ci-results
+          python scripts/check_docs.py | tee ci-results/documents.txt
+          python scripts/check_c4_docs.py | tee ci-results/c4-documents.txt
+      - name: Deployment and documentation regressions
+        run: python -m pytest tests_deployment -q -o addopts= -o junit_family=legacy --junitxml=ci-results/deployment.xml
+      - name: Keep deployment results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-docs-results
+          path: ci-results/
+          retention-days: 14
+          if-no-files-found: warn

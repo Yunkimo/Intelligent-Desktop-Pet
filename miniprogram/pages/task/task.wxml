@@ -1,0 +1,62 @@
+<view class="page">
+  <view wx:if="{{error}}" class="error-banner">
+    <text>{{error}}</text>
+    <text class="retry" bindtap="retry">重试</text>
+  </view>
+
+  <view wx:if="{{!loading && tasks.length === 0}}" class="empty">还没有日程，点右下角「＋」添加</view>
+  <view wx:for="{{tasks}}" wx:key="id" class="card task-card">
+    <checkbox class="task-check" checked="{{item.checked}}" data-id="{{item.id}}" data-done="{{item.done}}" bindtap="toggleDone" />
+    <view class="task-body">
+      <view class="task-title {{item.done ? 'finished' : ''}}">{{item.title}}</view>
+      <view wx:if="{{item.note}}" class="task-note">{{item.note}}</view>
+      <view class="task-meta">
+        <text wx:if="{{item.overdue}}" class="badge-overdue">已逾期</text>
+        <text>{{item.dueText}}</text>
+        <text wx:if="{{item.remindText}}" class="remind-meta">⏰ {{item.remindText}} 提醒</text>
+        <text wx:if="{{item.subscriptionText}}" class="remind-meta">{{item.subscriptionText}}</text>
+      </view>
+    </view>
+    <view class="task-actions">
+      <button wx:if="{{item.remind_at}}" class="btn btn-subscribe mini" disabled="{{subscribingId !== null}}" loading="{{subscribingId === item.id}}" data-task="{{item}}" bindtap="subscribeTask">订阅提醒</button>
+      <button class="btn btn-ghost mini" data-task="{{item}}" bindtap="openEdit">编辑</button>
+      <button class="btn btn-danger mini" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="remove">删除</button>
+    </view>
+  </view>
+
+  <view class="fab" bindtap="openAdd">＋</view>
+
+  <view wx:if="{{editing}}" class="mask">
+    <view class="modal">
+      <view class="modal-title">{{form.id ? '编辑日程' : '添加日程'}}</view>
+      <view class="form-item">
+        <text class="label">标题</text>
+        <input class="input" value="{{form.title}}" data-field="title" bindinput="onFormInput" placeholder="如：交实验报告" />
+      </view>
+      <view class="form-item">
+        <text class="label">备注</text>
+        <input class="input" value="{{form.note}}" data-field="note" bindinput="onFormInput" placeholder="选填" />
+      </view>
+      <view class="form-item">
+        <text class="label">截止日期</text>
+        <picker mode="date" value="{{form.due_at}}" data-field="due_at" bindchange="onFormInput">
+          <view class="picker-value">{{form.due_at || '选择日期'}}</view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="label">提醒时间</text>
+        <picker mode="date" value="{{form.remind_date}}" data-field="remind_date" bindchange="onFormInput">
+          <view class="picker-value">{{form.remind_date || '选择日期'}}</view>
+        </picker>
+        <picker mode="time" value="{{form.remind_time}}" data-field="remind_time" bindchange="onFormInput">
+          <view class="picker-value">{{form.remind_time}}</view>
+        </picker>
+      </view>
+      <view class="modal-actions">
+        <button class="btn btn-ghost" bindtap="clearReminder">清除提醒时间</button>
+        <button class="btn btn-ghost" bindtap="closeForm">取消</button>
+        <button class="btn btn-primary" bindtap="submit">保存</button>
+      </view>
+    </view>
+  </view>
+</view>

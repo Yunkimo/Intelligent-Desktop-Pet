@@ -1,0 +1,8 @@
+qt.multimedia.ffmpeg: Using Qt multimedia with FFmpeg version 7.1.5 LGPL version 2.1 or later
+Online speech unavailable; using local Chinese voice
+Input #0, wav, from '<temporary.wav>':
+  Duration: 00:00:05.78, bitrate: 352 kb/s
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 22050 Hz, 1 channels, s16, 352 kb/s
+[h264_mf @ 000001D931A66540] MFT name: 'H264 Encoder MFT'
+[hevc_mf @ 000001D931A64B80] could not find any MFT for the given media type
+[hevc_mf @ 000001D931A64B80] could not create MFT

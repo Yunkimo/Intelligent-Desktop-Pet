@@ -1,0 +1,1020 @@
+{
+  "head_sha": "61abdf2482c37745bc44e04a5fc82f4f9ba92741",
+  "interval_seconds": 1.0,
+  "lead_seconds": 8.0,
+  "fault_after_first_send": false,
+  "voice_enabled": false,
+  "reconnect": false,
+  "samples": 30,
+  "capture_window": true,
+  "measurement": "real WsListener -> PetWindow -> REST -> bubble paint callback",
+  "events": [
+    {
+      "event_id": "df308f55-74a4-4496-a309-6106ca601468",
+      "id": 1,
+      "handled_epoch": 1791792225.9081967
+    },
+    {
+      "event_id": "b736d3ca-161e-433d-9617-da966f2ec33d",
+      "id": 2,
+      "handled_epoch": 1791792226.2319446
+    },
+    {
+      "event_id": "4da613f5-964f-43b3-a19f-1d9f82f62b11",
+      "id": 3,
+      "handled_epoch": 1791792226.6311584
+    },
+    {
+      "event_id": "60945bfb-5217-47b9-a8a2-2d88da91d122",
+      "id": 4,
+      "handled_epoch": 1791792228.5748928
+    },
+    {
+      "event_id": "1bb1f8a5-9e49-4db3-bf6a-c0f161c9778a",
+      "id": 5,
+      "handled_epoch": 1791792230.6267853
+    },
+    {
+      "event_id": "67998845-e357-4965-87c0-a91be414c62f",
+      "id": 6,
+      "handled_epoch": 1791792232.6287618
+    },
+    {
+      "event_id": "35564e9a-d7d4-4a6a-96e8-2c3d800c3fe4",
+      "id": 7,
+      "handled_epoch": 1791792234.682264
+    },
+    {
+      "event_id": "7daac33b-31d6-4bfe-93db-1199a1992cb9",
+      "id": 8,
+      "handled_epoch": 1791792236.8651547
+    },
+    {
+      "event_id": "120beb66-a4b1-4335-97b4-f020067f5457",
+      "id": 9,
+      "handled_epoch": 1791792238.802474
+    },
+    {
+      "event_id": "33a8ff8b-aaa5-44e6-8755-5951b6505a7c",
+      "id": 10,
+      "handled_epoch": 1791792240.8315322
+    },
+    {
+      "event_id": "529fe55c-062b-46e4-9fb4-977424c8f8ad",
+      "id": 11,
+      "handled_epoch": 1791792242.8766863
+    },
+    {
+      "event_id": "4ce78e20-eb34-410b-913c-082ec7d669ef",
+      "id": 12,
+      "handled_epoch": 1791792245.013408
+    },
+    {
+      "event_id": "499483a3-6774-463f-90eb-0a6ed2e240bb",
+      "id": 13,
+      "handled_epoch": 1791792245.9865017
+    },
+    {
+      "event_id": "a27a708f-7e3a-499b-941f-df0fee611fe0",
+      "id": 14,
+      "handled_epoch": 1791792248.0423627
+    },
+    {
+      "event_id": "978c6e79-93d8-4729-b649-e30c36f2876f",
+      "id": 15,
+      "handled_epoch": 1791792250.0588741
+    },
+    {
+      "event_id": "db4a8883-d6db-4750-8643-3cb9e582ee81",
+      "id": 16,
+      "handled_epoch": 1791792252.0979533
+    },
+    {
+      "event_id": "1e57ad03-1df5-4919-a90d-9d577e21fbc4",
+      "id": 17,
+      "handled_epoch": 1791792254.1739082
+    },
+    {
+      "event_id": "04bcba98-de0a-45b8-9622-d263a50db2ba",
+      "id": 18,
+      "handled_epoch": 1791792256.2270067
+    },
+    {
+      "event_id": "a8a44fc2-0a06-4d69-81eb-c75d42f7d80c",
+      "id": 19,
+      "handled_epoch": 1791792258.2642932
+    },
+    {
+      "event_id": "b87dd51e-f658-4f4b-a589-d350a671c5e1",
+      "id": 20,
+      "handled_epoch": 1791792260.3479006
+    },
+    {
+      "event_id": "eb8417ea-e7be-49ab-9916-eec7226d4e2c",
+      "id": 21,
+      "handled_epoch": 1791792262.3830953
+    },
+    {
+      "event_id": "42c3a4c7-a300-4dd8-9f83-9684e0e5f28c",
+      "id": 22,
+      "handled_epoch": 1791792264.4203234
+    },
+    {
+      "event_id": "f7dc48bd-9476-41a7-b667-3c5fcabe23d4",
+      "id": 23,
+      "handled_epoch": 1791792266.412586
+    },
+    {
+      "event_id": "344caf5c-be9d-406e-b14e-dd887aa57d3d",
+      "id": 24,
+      "handled_epoch": 1791792268.5170205
+    },
+    {
+      "event_id": "37d6fbcf-cc93-4625-992e-618666845a0c",
+      "id": 25,
+      "handled_epoch": 1791792270.5284367
+    },
+    {
+      "event_id": "b03197b2-29d0-419d-bef8-0c90d281b802",
+      "id": 26,
+      "handled_epoch": 1791792272.7130997
+    },
+    {
+      "event_id": "86d97a18-a74c-48d5-972f-26ad68381aef",
+      "id": 27,
+      "handled_epoch": 1791792274.6496744
+    },
+    {
+      "event_id": "51374794-0128-4964-b20e-ca31719220ab",
+      "id": 28,
+      "handled_epoch": 1791792276.6898246
+    },
+    {
+      "event_id": "da581131-03f5-4b12-9dfe-002d5459afae",
+      "id": 29,
+      "handled_epoch": 1791792278.7478209
+    },
+    {
+      "event_id": "8ad9ddf7-2b60-4882-845a-6ded1b9f06d7",
+      "id": 30,
+      "handled_epoch": 1791792280.811764
+    }
+  ],
+  "paints": [
+    {
+      "reminder_id": 2,
+      "painted_epoch": 1791792226.262902,
+      "from_created_seconds": 12.640756130218506,
+      "from_due_seconds": 2.640756130218506,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 2 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 3,
+      "painted_epoch": 1791792226.633894,
+      "from_created_seconds": 13.01174807548523,
+      "from_due_seconds": 1.0117480754852295,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 3 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 4,
+      "painted_epoch": 1791792228.5924966,
+      "from_created_seconds": 14.970350742340088,
+      "from_due_seconds": 0.9703507423400879,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 4 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 5,
+      "painted_epoch": 1791792230.6289403,
+      "from_created_seconds": 17.006794452667236,
+      "from_due_seconds": 1.0067944526672363,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 5 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 6,
+      "painted_epoch": 1791792232.6313167,
+      "from_created_seconds": 19.00917077064514,
+      "from_due_seconds": 1.0091707706451416,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 6 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 7,
+      "painted_epoch": 1791792234.6847928,
+      "from_created_seconds": 21.062646865844727,
+      "from_due_seconds": 1.0626468658447266,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 7 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 8,
+      "painted_epoch": 1791792236.8681576,
+      "from_created_seconds": 23.24601173400879,
+      "from_due_seconds": 1.246011734008789,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 8 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 9,
+      "painted_epoch": 1791792238.8052213,
+      "from_created_seconds": 25.183075428009033,
+      "from_due_seconds": 1.1830754280090332,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 9 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 10,
+      "painted_epoch": 1791792240.8402958,
+      "from_created_seconds": 27.2181499004364,
+      "from_due_seconds": 1.2181499004364014,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 10 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 11,
+      "painted_epoch": 1791792242.8796544,
+      "from_created_seconds": 29.257508516311646,
+      "from_due_seconds": 1.2575085163116455,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 11 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 12,
+      "painted_epoch": 1791792245.0171838,
+      "from_created_seconds": 31.39503788948059,
+      "from_due_seconds": 1.3950378894805908,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 12 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 13,
+      "painted_epoch": 1791792245.9892113,
+      "from_created_seconds": 32.3670654296875,
+      "from_due_seconds": 0.3670654296875,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 13 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 14,
+      "painted_epoch": 1791792248.0454872,
+      "from_created_seconds": 34.423341274261475,
+      "from_due_seconds": 0.4233412742614746,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 14 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 15,
+      "painted_epoch": 1791792250.0611746,
+      "from_created_seconds": 36.4390287399292,
+      "from_due_seconds": 0.4390287399291992,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 15 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 16,
+      "painted_epoch": 1791792252.1009429,
+      "from_created_seconds": 38.47879695892334,
+      "from_due_seconds": 0.47879695892333984,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 16 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 17,
+      "painted_epoch": 1791792254.1788242,
+      "from_created_seconds": 40.5566782951355,
+      "from_due_seconds": 0.556678295135498,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 17 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 18,
+      "painted_epoch": 1791792256.2293706,
+      "from_created_seconds": 42.60722470283508,
+      "from_due_seconds": 0.607224702835083,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 18 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 19,
+      "painted_epoch": 1791792258.266003,
+      "from_created_seconds": 44.6438570022583,
+      "from_due_seconds": 0.6438570022583008,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 19 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 20,
+      "painted_epoch": 1791792260.351886,
+      "from_created_seconds": 46.729740142822266,
+      "from_due_seconds": 0.7297401428222656,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 20 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 21,
+      "painted_epoch": 1791792262.3864486,
+      "from_created_seconds": 48.7643027305603,
+      "from_due_seconds": 0.7643027305603027,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 21 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 22,
+      "painted_epoch": 1791792264.4222417,
+      "from_created_seconds": 50.80009579658508,
+      "from_due_seconds": 0.800095796585083,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 22 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 23,
+      "painted_epoch": 1791792266.4161177,
+      "from_created_seconds": 52.79397177696228,
+      "from_due_seconds": 0.7939717769622803,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 23 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 24,
+      "painted_epoch": 1791792268.5203123,
+      "from_created_seconds": 54.89816641807556,
+      "from_due_seconds": 0.8981664180755615,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 24 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 25,
+      "painted_epoch": 1791792270.5304847,
+      "from_created_seconds": 56.90833878517151,
+      "from_due_seconds": 0.9083387851715088,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 25 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 26,
+      "painted_epoch": 1791792272.71499,
+      "from_created_seconds": 59.092844009399414,
+      "from_due_seconds": 1.092844009399414,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 26 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 27,
+      "painted_epoch": 1791792274.6540625,
+      "from_created_seconds": 61.03191661834717,
+      "from_due_seconds": 1.031916618347168,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 27 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 28,
+      "painted_epoch": 1791792276.693863,
+      "from_created_seconds": 63.07171702384949,
+      "from_due_seconds": 1.0717170238494873,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 28 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 29,
+      "painted_epoch": 1791792278.751682,
+      "from_created_seconds": 65.12953615188599,
+      "from_due_seconds": 1.1295361518859863,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 29 请确认桌宠已显示到期提醒"
+    },
+    {
+      "reminder_id": 30,
+      "painted_epoch": 1791792280.8142803,
+      "from_created_seconds": 67.19213438034058,
+      "from_due_seconds": 1.1921343803405762,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 30 请确认桌宠已显示到期提醒"
+    }
+  ],
+  "notifications": [
+    {
+      "text": "⏰ B2 验收提醒 1 请确认桌宠已显示到期提醒",
+      "epoch": 1791792225.0716004
+    },
+    {
+      "text": "⏰ B2 验收提醒 2 请确认桌宠已显示到期提醒",
+      "epoch": 1791792226.229082
+    },
+    {
+      "text": "⏰ B2 验收提醒 3 请确认桌宠已显示到期提醒",
+      "epoch": 1791792226.6293237
+    },
+    {
+      "text": "⏰ B2 验收提醒 4 请确认桌宠已显示到期提醒",
+      "epoch": 1791792228.5728228
+    },
+    {
+      "text": "⏰ B2 验收提醒 5 请确认桌宠已显示到期提醒",
+      "epoch": 1791792230.6249425
+    },
+    {
+      "text": "⏰ B2 验收提醒 6 请确认桌宠已显示到期提醒",
+      "epoch": 1791792232.625945
+    },
+    {
+      "text": "⏰ B2 验收提醒 7 请确认桌宠已显示到期提醒",
+      "epoch": 1791792234.679403
+    },
+    {
+      "text": "⏰ B2 验收提醒 8 请确认桌宠已显示到期提醒",
+      "epoch": 1791792236.8636818
+    },
+    {
+      "text": "⏰ B2 验收提醒 9 请确认桌宠已显示到期提醒",
+      "epoch": 1791792238.7999575
+    },
+    {
+      "text": "⏰ B2 验收提醒 10 请确认桌宠已显示到期提醒",
+      "epoch": 1791792240.828894
+    },
+    {
+      "text": "⏰ B2 验收提醒 11 请确认桌宠已显示到期提醒",
+      "epoch": 1791792242.8736792
+    },
+    {
+      "text": "⏰ B2 验收提醒 12 请确认桌宠已显示到期提醒",
+      "epoch": 1791792245.009713
+    },
+    {
+      "text": "⏰ B2 验收提醒 13 请确认桌宠已显示到期提醒",
+      "epoch": 1791792245.9841905
+    },
+    {
+      "text": "⏰ B2 验收提醒 14 请确认桌宠已显示到期提醒",
+      "epoch": 1791792248.0403814
+    },
+    {
+      "text": "⏰ B2 验收提醒 15 请确认桌宠已显示到期提醒",
+      "epoch": 1791792250.0567937
+    },
+    {
+      "text": "⏰ B2 验收提醒 16 请确认桌宠已显示到期提醒",
+      "epoch": 1791792252.096286
+    },
+    {
+      "text": "⏰ B2 验收提醒 17 请确认桌宠已显示到期提醒",
+      "epoch": 1791792254.1707027
+    },
+    {
+      "text": "⏰ B2 验收提醒 18 请确认桌宠已显示到期提醒",
+      "epoch": 1791792256.2243092
+    },
+    {
+      "text": "⏰ B2 验收提醒 19 请确认桌宠已显示到期提醒",
+      "epoch": 1791792258.2625494
+    },
+    {
+      "text": "⏰ B2 验收提醒 20 请确认桌宠已显示到期提醒",
+      "epoch": 1791792260.3443341
+    },
+    {
+      "text": "⏰ B2 验收提醒 21 请确认桌宠已显示到期提醒",
+      "epoch": 1791792262.3812685
+    },
+    {
+      "text": "⏰ B2 验收提醒 22 请确认桌宠已显示到期提醒",
+      "epoch": 1791792264.4178598
+    },
+    {
+      "text": "⏰ B2 验收提醒 23 请确认桌宠已显示到期提醒",
+      "epoch": 1791792266.4083889
+    },
+    {
+      "text": "⏰ B2 验收提醒 24 请确认桌宠已显示到期提醒",
+      "epoch": 1791792268.514395
+    },
+    {
+      "text": "⏰ B2 验收提醒 25 请确认桌宠已显示到期提醒",
+      "epoch": 1791792270.5265346
+    },
+    {
+      "text": "⏰ B2 验收提醒 26 请确认桌宠已显示到期提醒",
+      "epoch": 1791792272.7113714
+    },
+    {
+      "text": "⏰ B2 验收提醒 27 请确认桌宠已显示到期提醒",
+      "epoch": 1791792274.6447365
+    },
+    {
+      "text": "⏰ B2 验收提醒 28 请确认桌宠已显示到期提醒",
+      "epoch": 1791792276.6877425
+    },
+    {
+      "text": "⏰ B2 验收提醒 29 请确认桌宠已显示到期提醒",
+      "epoch": 1791792278.743825
+    },
+    {
+      "text": "⏰ B2 验收提醒 30 请确认桌宠已显示到期提醒",
+      "epoch": 1791792280.8080244
+    }
+  ],
+  "voice_requests": [],
+  "playback_states": [],
+  "media_status": [],
+  "errors": [],
+  "rows": [
+    {
+      "id": 1,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792221.622146,
+      "expected_text": "⏰ B2 验收提醒 1 请确认桌宠已显示到期提醒"
+    },
+    {
+      "id": 2,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792223.622146,
+      "expected_text": "⏰ B2 验收提醒 2 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792226.262902
+    },
+    {
+      "id": 3,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792225.622146,
+      "expected_text": "⏰ B2 验收提醒 3 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792226.633894
+    },
+    {
+      "id": 4,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792227.622146,
+      "expected_text": "⏰ B2 验收提醒 4 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792228.5924966
+    },
+    {
+      "id": 5,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792229.622146,
+      "expected_text": "⏰ B2 验收提醒 5 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792230.6289403
+    },
+    {
+      "id": 6,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792231.622146,
+      "expected_text": "⏰ B2 验收提醒 6 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792232.6313167
+    },
+    {
+      "id": 7,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792233.622146,
+      "expected_text": "⏰ B2 验收提醒 7 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792234.6847928
+    },
+    {
+      "id": 8,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792235.622146,
+      "expected_text": "⏰ B2 验收提醒 8 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792236.8681576
+    },
+    {
+      "id": 9,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792237.622146,
+      "expected_text": "⏰ B2 验收提醒 9 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792238.8052213
+    },
+    {
+      "id": 10,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792239.622146,
+      "expected_text": "⏰ B2 验收提醒 10 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792240.8402958
+    },
+    {
+      "id": 11,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792241.622146,
+      "expected_text": "⏰ B2 验收提醒 11 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792242.8796544
+    },
+    {
+      "id": 12,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792243.622146,
+      "expected_text": "⏰ B2 验收提醒 12 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792245.0171838
+    },
+    {
+      "id": 13,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792245.622146,
+      "expected_text": "⏰ B2 验收提醒 13 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792245.9892113
+    },
+    {
+      "id": 14,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792247.622146,
+      "expected_text": "⏰ B2 验收提醒 14 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792248.0454872
+    },
+    {
+      "id": 15,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792249.622146,
+      "expected_text": "⏰ B2 验收提醒 15 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792250.0611746
+    },
+    {
+      "id": 16,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792251.622146,
+      "expected_text": "⏰ B2 验收提醒 16 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792252.1009429
+    },
+    {
+      "id": 17,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792253.622146,
+      "expected_text": "⏰ B2 验收提醒 17 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792254.1788242
+    },
+    {
+      "id": 18,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792255.622146,
+      "expected_text": "⏰ B2 验收提醒 18 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792256.2293706
+    },
+    {
+      "id": 19,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792257.622146,
+      "expected_text": "⏰ B2 验收提醒 19 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792258.266003
+    },
+    {
+      "id": 20,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792259.622146,
+      "expected_text": "⏰ B2 验收提醒 20 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792260.351886
+    },
+    {
+      "id": 21,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792261.622146,
+      "expected_text": "⏰ B2 验收提醒 21 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792262.3864486
+    },
+    {
+      "id": 22,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792263.622146,
+      "expected_text": "⏰ B2 验收提醒 22 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792264.4222417
+    },
+    {
+      "id": 23,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792265.622146,
+      "expected_text": "⏰ B2 验收提醒 23 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792266.4161177
+    },
+    {
+      "id": 24,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792267.622146,
+      "expected_text": "⏰ B2 验收提醒 24 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792268.5203123
+    },
+    {
+      "id": 25,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792269.622146,
+      "expected_text": "⏰ B2 验收提醒 25 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792270.5304847
+    },
+    {
+      "id": 26,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792271.622146,
+      "expected_text": "⏰ B2 验收提醒 26 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792272.71499
+    },
+    {
+      "id": 27,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792273.622146,
+      "expected_text": "⏰ B2 验收提醒 27 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792274.6540625
+    },
+    {
+      "id": 28,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792275.622146,
+      "expected_text": "⏰ B2 验收提醒 28 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792276.693863
+    },
+    {
+      "id": 29,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792277.622146,
+      "expected_text": "⏰ B2 验收提醒 29 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792278.751682
+    },
+    {
+      "id": 30,
+      "created_epoch": 1791792213.622146,
+      "due_epoch": 1791792279.622146,
+      "expected_text": "⏰ B2 验收提醒 30 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791792280.8142803
+    }
+  ],
+  "reminders": [
+    {
+      "id": 1,
+      "title": "B2 验收提醒 1",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:03:41.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 2,
+      "title": "B2 验收提醒 2",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:03:43.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 3,
+      "title": "B2 验收提醒 3",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:03:45.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 4,
+      "title": "B2 验收提醒 4",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:03:47.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 5,
+      "title": "B2 验收提醒 5",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:03:49.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 6,
+      "title": "B2 验收提醒 6",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:03:51.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 7,
+      "title": "B2 验收提醒 7",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:03:53.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 8,
+      "title": "B2 验收提醒 8",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:03:55.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 9,
+      "title": "B2 验收提醒 9",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:03:57.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 10,
+      "title": "B2 验收提醒 10",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:03:59.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 11,
+      "title": "B2 验收提醒 11",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:01.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 12,
+      "title": "B2 验收提醒 12",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:03.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 13,
+      "title": "B2 验收提醒 13",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:05.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 14,
+      "title": "B2 验收提醒 14",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:07.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 15,
+      "title": "B2 验收提醒 15",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:09.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 16,
+      "title": "B2 验收提醒 16",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:11.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 17,
+      "title": "B2 验收提醒 17",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:13.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 18,
+      "title": "B2 验收提醒 18",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:15.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 19,
+      "title": "B2 验收提醒 19",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:17.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 20,
+      "title": "B2 验收提醒 20",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:19.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 21,
+      "title": "B2 验收提醒 21",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:21.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 22,
+      "title": "B2 验收提醒 22",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:23.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 23,
+      "title": "B2 验收提醒 23",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:25.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 24,
+      "title": "B2 验收提醒 24",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:27.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 25,
+      "title": "B2 验收提醒 25",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:29.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 26,
+      "title": "B2 验收提醒 26",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:31.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 27,
+      "title": "B2 验收提醒 27",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:33.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 28,
+      "title": "B2 验收提醒 28",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:35.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 29,
+      "title": "B2 验收提醒 29",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:37.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    },
+    {
+      "id": 30,
+      "title": "B2 验收提醒 30",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T08:04:39.622146+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    }
+  ],
+  "duplicate_events": 0,
+  "summary": {
+    "received": 30,
+    "displayed": 29,
+    "notifications": 30,
+    "duplicates_suppressed": 0,
+    "done": 30,
+    "within_limit": 29,
+    "max_delay_seconds": 5,
+    "p50_seconds": 1.0067944526672363,
+    "p95_seconds": 1.3950378894805908,
+    "max_seconds": 2.640756130218506
+  },
+  "completed": true
+}

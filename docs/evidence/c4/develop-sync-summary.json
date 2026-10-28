@@ -1,0 +1,19 @@
+{
+  "merged_develop": "9bca38f",
+  "working_tree_base": "f58f07b",
+  "merge_commit_created": false,
+  "conflicts_resolved": 5,
+  "backend_passed": 252,
+  "desktop_passed": 301,
+  "deployment_passed": 26,
+  "c3_real_backend_integration_passed": 10,
+  "ws_logic_passed": 7,
+  "c3_logic_passed": 13,
+  "frontend_lint_and_format_passed": true,
+  "ruff_formatted_files": 160,
+  "server_code_updated_by_this_merge": false,
+  "phone_manual_results": "earlier verified C3 client and deployed server; not automatically relabeled as new server deployment",
+  "precommit_passed": true,
+  "unresolved_conflicts": 0,
+  "private_config_ignored": true
+}

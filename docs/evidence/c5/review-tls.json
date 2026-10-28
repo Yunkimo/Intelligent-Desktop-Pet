@@ -1,0 +1,57 @@
+{
+  "scope": "local TLS, same interpreter and backend, ten sequential readonly/business/reconnect/cleanup cycles",
+  "passed": true,
+  "cycles": [
+    {
+      "attempt": 1,
+      "passed": 14,
+      "checks": 14
+    },
+    {
+      "attempt": 2,
+      "passed": 14,
+      "checks": 14
+    },
+    {
+      "attempt": 3,
+      "passed": 14,
+      "checks": 14
+    },
+    {
+      "attempt": 4,
+      "passed": 14,
+      "checks": 14
+    },
+    {
+      "attempt": 5,
+      "passed": 14,
+      "checks": 14
+    },
+    {
+      "attempt": 6,
+      "passed": 14,
+      "checks": 14
+    },
+    {
+      "attempt": 7,
+      "passed": 14,
+      "checks": 14
+    },
+    {
+      "attempt": 8,
+      "passed": 14,
+      "checks": 14
+    },
+    {
+      "attempt": 9,
+      "passed": 14,
+      "checks": 14
+    },
+    {
+      "attempt": 10,
+      "passed": 14,
+      "checks": 14
+    }
+  ],
+  "production_accessed": false
+}

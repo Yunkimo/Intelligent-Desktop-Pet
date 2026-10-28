@@ -1,0 +1,116 @@
+
+> lint
+> eslint utils/api.js utils/datetime.js utils/subscribe.js pages/task/task.js pages/index/index.js pages/reminder/reminder.js tests/runtime.js tests/subscribe-logic.test.js tests/subscribe-contract.test.js
+
+
+
+> format:check
+> prettier --check utils/subscribe.js pages/reminder/reminder.js tests/runtime.js tests/subscribe-logic.test.js tests/subscribe-contract.test.js
+
+Checking formatting...
+All matched files use Prettier code style!
+
+
+> test
+> node --test tests/subscribe-logic.test.js
+
+TAP version 13
+# Subtest: UUID、会话临界期和非同意结果
+ok 1 - UUID、会话临界期和非同意结果
+  ---
+  duration_ms: 9.2235
+  type: 'test'
+  ...
+# Subtest: 并发入口合并且授权在点击同步调用链触发
+ok 2 - 并发入口合并且授权在点击同步调用链触发
+  ---
+  duration_ms: 6.9471
+  type: 'test'
+  ...
+# Subtest: 拒绝、取消和调用失败不误报成功
+ok 3 - 拒绝、取消和调用失败不误报成功
+  ---
+  duration_ms: 19.1212
+  type: 'test'
+  ...
+# Subtest: 缺模板和登录失败不登记
+ok 4 - 缺模板和登录失败不登记
+  ---
+  duration_ms: 9.7009
+  type: 'test'
+  ...
+# Subtest: 已有记录每次查询：不依赖旧 done 缓存，也不重复登记
+ok 5 - 已有记录每次查询：不依赖旧 done 缓存，也不重复登记
+  ---
+  duration_ms: 5.7975
+  type: 'test'
+  ...
+# Subtest: 任意 409 不算成功；rejected 冲突保持拒绝
+ok 6 - 任意 409 不算成功；rejected 冲突保持拒绝
+  ---
+  duration_ms: 5.236
+  type: 'test'
+  ...
+# Subtest: 已有有效登记时再次拒绝，区分本次选择和旧登记状态
+ok 7 - 已有有效登记时再次拒绝，区分本次选择和旧登记状态
+  ---
+  duration_ms: 3.8803
+  type: 'test'
+  ...
+# Subtest: 提交后丢响应，模块重载后查询已发送状态，不再弹窗或提交
+ok 8 - 提交后丢响应，模块重载后查询已发送状态，不再弹窗或提交
+  ---
+  duration_ms: 7.5677
+  type: 'test'
+  ...
+# Subtest: 提交前断网，重进复用 request_id；改期不会重放旧授权
+ok 9 - 提交前断网，重进复用 request_id；改期不会重放旧授权
+  ---
+  duration_ms: 5.9181
+  type: 'test'
+  ...
+# Subtest: 创建丢响应后改期，旧选择不会应用于新时间
+ok 10 - 创建丢响应后改期，旧选择不会应用于新时间
+  ---
+  duration_ms: 4.5019
+  type: 'test'
+  ...
+# Subtest: 401 只重登录一次；账号变化禁止重放旧操作
+ok 11 - 401 只重登录一次；账号变化禁止重放旧操作
+  ---
+  duration_ms: 9.063
+  type: 'test'
+  ...
+# Subtest: failed/uncertain/sending 不自动重发
+ok 12 - failed/uncertain/sending 不自动重发
+  ---
+  duration_ms: 10.223
+  type: 'test'
+  ...
+# Subtest: UTC、旧格式、跨日和输入偏移
+ok 13 - UTC、旧格式、跨日和输入偏移
+  ---
+  duration_ms: 1.5054
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 235.8565
+
+PASS 真实登记、拒绝两次后同意、409 不变成功
+PASS 登记提交后丢响应、调度后重进，只有一次平台调用
+PASS 创建提交后丢响应重试和两个并发入口不会重复创建
+PASS 等价 UTC 写入不重置事件或完成状态
+PASS 页面真实保存改期、清除及删除同步使旧提醒失效
+PASS 服务端改期后本地 done 不遮蔽当前事件
+PASS 会话撤销自动重登录一次，其他账号和伪造身份被拒绝
+PASS 真实今日页面 UTC 转换覆盖 10:00、凌晨 01:00
+PASS 真实 WS 阳性对照：pc 有事件，phone 仅微信渠道
+PASS 消息目标不含凭据；详情页重新读取和资源删除反馈
+C3 real-backend integration passed: 10

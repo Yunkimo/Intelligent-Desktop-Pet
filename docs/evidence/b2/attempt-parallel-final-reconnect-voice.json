@@ -1,0 +1,87 @@
+{
+  "head_sha": "65759f6ef8bd027d57d53e82b0b8a2a91e558e9a",
+  "interval_seconds": 1.0,
+  "lead_seconds": 5.0,
+  "fault_after_first_send": true,
+  "voice_enabled": true,
+  "reconnect": true,
+  "samples": 1,
+  "capture_window": true,
+  "measurement": "real WsListener -> PetWindow -> REST -> bubble paint callback",
+  "events": [
+    {
+      "event_id": "d162ee35-d696-4850-8d3b-4f452aa44e20",
+      "id": 1,
+      "handled_epoch": 1791791824.3823369
+    },
+    {
+      "event_id": "d162ee35-d696-4850-8d3b-4f452aa44e20",
+      "id": 1,
+      "handled_epoch": 1791791826.040529
+    }
+  ],
+  "paints": [
+    {
+      "reminder_id": 1,
+      "painted_epoch": 1791791824.4294622,
+      "from_created_seconds": 6.691718339920044,
+      "from_due_seconds": 1.691718339920044,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 1 请确认桌宠已显示到期提醒"
+    }
+  ],
+  "notifications": [
+    {
+      "text": "⏰ B2 验收提醒 1 请确认桌宠已显示到期提醒",
+      "epoch": 1791791823.3617961
+    }
+  ],
+  "voice_requests": [
+    {
+      "text": "⏰ B2 验收提醒 1 请确认桌宠已显示到期提醒",
+      "epoch": 1791791824.380775
+    }
+  ],
+  "playback_states": [],
+  "media_status": [],
+  "errors": [
+    {
+      "value": "tts:str",
+      "epoch": 1791791824.8002722
+    }
+  ],
+  "rows": [
+    {
+      "id": 1,
+      "created_epoch": 1791791817.7377439,
+      "due_epoch": 1791791822.7377439,
+      "expected_text": "⏰ B2 验收提醒 1 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791791824.4294622
+    }
+  ],
+  "reminders": [
+    {
+      "id": 1,
+      "title": "B2 验收提醒 1",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T07:57:02.737744+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    }
+  ],
+  "duplicate_events": 1,
+  "summary": {
+    "received": 1,
+    "displayed": 1,
+    "notifications": 1,
+    "duplicates_suppressed": 1,
+    "done": 1,
+    "within_limit": 1,
+    "max_delay_seconds": 5,
+    "p50_seconds": 1.691718339920044,
+    "p95_seconds": 1.691718339920044,
+    "max_seconds": 1.691718339920044
+  },
+  "completed": true
+}

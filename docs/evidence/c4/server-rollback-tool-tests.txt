@@ -1,0 +1,14 @@
+Command: D:\IDP\worktrees\c4-deployment\backend\.venv\Scripts\python.exe -m pytest tests_deployment/test_version_rollback.py -o addopts= -q --basetemp D:\IDP\reviews\c4-20261024\after-develop-9bca38f\tmp-server-rollback-bcb32cfb8e --junitxml D:\IDP\reviews\c4-20261024\after-develop-9bca38f\server-rollback.xml
+Exit: 0
+....                                                                     [100%]
+============================== warnings summary ===============================
+tests_deployment/test_version_rollback.py::test_old_release_upgrade_and_restore
+  tests_deployment\test_version_rollback.py:43: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_old_release_upgrade_and_restore(tmp_path, isolated_env, record_property):
+
+tests_deployment/test_version_rollback.py::test_tools_with_current_develop_backend
+  tests_deployment\test_version_rollback.py:116: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_tools_with_current_develop_backend(tmp_path, isolated_env, record_property):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+4 passed, 2 warnings in 19.40s

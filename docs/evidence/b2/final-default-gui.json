@@ -1,0 +1,72 @@
+{
+  "head_sha": "65759f6ef8bd027d57d53e82b0b8a2a91e558e9a",
+  "interval_seconds": 30.0,
+  "lead_seconds": 60.0,
+  "fault_after_first_send": false,
+  "voice_enabled": false,
+  "reconnect": false,
+  "samples": 1,
+  "capture_window": false,
+  "measurement": "real WsListener -> PetWindow -> REST -> bubble paint callback",
+  "events": [
+    {
+      "event_id": "319aa124-e3f7-4738-bb66-512803a642e2",
+      "id": 1,
+      "handled_epoch": 1791791903.8061807
+    }
+  ],
+  "paints": [
+    {
+      "reminder_id": 1,
+      "painted_epoch": 1791791903.8340316,
+      "from_created_seconds": 87.34790086746216,
+      "from_due_seconds": 27.347900867462158,
+      "visible": true,
+      "text": "⏰ B2 验收提醒 1 请确认桌宠已显示到期提醒"
+    }
+  ],
+  "notifications": [
+    {
+      "text": "⏰ B2 验收提醒 1 请确认桌宠已显示到期提醒",
+      "epoch": 1791791903.517206
+    }
+  ],
+  "voice_requests": [],
+  "playback_states": [],
+  "media_status": [],
+  "errors": [],
+  "rows": [
+    {
+      "id": 1,
+      "created_epoch": 1791791816.4861307,
+      "due_epoch": 1791791876.4861307,
+      "expected_text": "⏰ B2 验收提醒 1 请确认桌宠已显示到期提醒",
+      "painted_epoch": 1791791903.8340316
+    }
+  ],
+  "reminders": [
+    {
+      "id": 1,
+      "title": "B2 验收提醒 1",
+      "body": "请确认桌宠已显示到期提醒",
+      "remind_at": "2026-10-12T07:57:56.486131+00:00",
+      "channel": "pc",
+      "done": 1,
+      "task_id": null
+    }
+  ],
+  "duplicate_events": 0,
+  "summary": {
+    "received": 1,
+    "displayed": 1,
+    "notifications": 1,
+    "duplicates_suppressed": 0,
+    "done": 1,
+    "within_limit": 1,
+    "max_delay_seconds": 35.0,
+    "p50_seconds": 27.347900867462158,
+    "p95_seconds": 27.347900867462158,
+    "max_seconds": 27.347900867462158
+  },
+  "completed": true
+}

@@ -1,0 +1,35 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/schedule/schedule",
+    "pages/task/task",
+    "pages/reminder/reminder"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#4a90d9",
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "智能桌宠",
+    "backgroundColor": "#f5f6f8"
+  },
+  "tabBar": {
+    "color": "#8a8f99",
+    "selectedColor": "#4a90d9",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "今日"
+      },
+      {
+        "pagePath": "pages/schedule/schedule",
+        "text": "课表"
+      },
+      {
+        "pagePath": "pages/task/task",
+        "text": "日程"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json"
+}

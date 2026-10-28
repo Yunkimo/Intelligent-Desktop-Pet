@@ -1,0 +1,258 @@
+{
+  "interval_seconds": 1.0,
+  "samples": 30,
+  "received": 30,
+  "timeouts": 0,
+  "duplicates": 0,
+  "receive_success_rate": 1.0,
+  "max_delay_seconds": 5.0,
+  "within_limit": 30,
+  "done_count": 30,
+  "p50_ms": 190.935,
+  "p95_ms": 1005.892,
+  "max_ms": 1017.326,
+  "clock_drift_ms": 0.001,
+  "measurement": "scheduled UTC due time to local WebSocket receive; not GUI display",
+  "rows": [
+    {
+      "reminder_id": 1,
+      "due_at_utc": "2026-10-12T01:31:19.078309+00:00",
+      "event_id": "4e718772-7c0a-453a-bb14-cb3e14a14fec",
+      "received_at_utc": "2026-10-12T01:31:19.369635+00:00",
+      "latency_ms": 291.325,
+      "done": true
+    },
+    {
+      "reminder_id": 2,
+      "due_at_utc": "2026-10-12T01:31:19.111643+00:00",
+      "event_id": "c2f17a68-4d9f-4bef-8f64-7e85223e2eaf",
+      "received_at_utc": "2026-10-12T01:31:19.386324+00:00",
+      "latency_ms": 274.681,
+      "done": true
+    },
+    {
+      "reminder_id": 3,
+      "due_at_utc": "2026-10-12T01:31:19.144976+00:00",
+      "event_id": "6d51fbee-42fc-4926-9390-e76b2ef2fc97",
+      "received_at_utc": "2026-10-12T01:31:19.402453+00:00",
+      "latency_ms": 257.477,
+      "done": true
+    },
+    {
+      "reminder_id": 4,
+      "due_at_utc": "2026-10-12T01:31:19.178309+00:00",
+      "event_id": "5a64273b-2b19-44dc-86df-c09aff856fd0",
+      "received_at_utc": "2026-10-12T01:31:19.420434+00:00",
+      "latency_ms": 242.125,
+      "done": true
+    },
+    {
+      "reminder_id": 5,
+      "due_at_utc": "2026-10-12T01:31:19.211643+00:00",
+      "event_id": "2722e99b-00f1-4d1f-b98d-b66736d8b4cd",
+      "received_at_utc": "2026-10-12T01:31:19.437520+00:00",
+      "latency_ms": 225.877,
+      "done": true
+    },
+    {
+      "reminder_id": 6,
+      "due_at_utc": "2026-10-12T01:31:19.244976+00:00",
+      "event_id": "5e196766-47d4-418e-936f-be8dee7b2969",
+      "received_at_utc": "2026-10-12T01:31:19.454589+00:00",
+      "latency_ms": 209.613,
+      "done": true
+    },
+    {
+      "reminder_id": 7,
+      "due_at_utc": "2026-10-12T01:31:19.278309+00:00",
+      "event_id": "6a96b1d9-3908-41ce-bda1-85b8b5b9b3aa",
+      "received_at_utc": "2026-10-12T01:31:19.469244+00:00",
+      "latency_ms": 190.935,
+      "done": true
+    },
+    {
+      "reminder_id": 8,
+      "due_at_utc": "2026-10-12T01:31:19.311643+00:00",
+      "event_id": "542cb700-5b62-4514-976d-28455b1d41f5",
+      "received_at_utc": "2026-10-12T01:31:19.483969+00:00",
+      "latency_ms": 172.326,
+      "done": true
+    },
+    {
+      "reminder_id": 9,
+      "due_at_utc": "2026-10-12T01:31:19.344976+00:00",
+      "event_id": "202e8ac3-454c-423a-b590-05fb66cfa687",
+      "received_at_utc": "2026-10-12T01:31:19.501622+00:00",
+      "latency_ms": 156.646,
+      "done": true
+    },
+    {
+      "reminder_id": 10,
+      "due_at_utc": "2026-10-12T01:31:19.378309+00:00",
+      "event_id": "a1ce0045-66ea-48f0-98a4-1763fa4b011a",
+      "received_at_utc": "2026-10-12T01:31:19.518635+00:00",
+      "latency_ms": 140.325,
+      "done": true
+    },
+    {
+      "reminder_id": 11,
+      "due_at_utc": "2026-10-12T01:31:19.411643+00:00",
+      "event_id": "53b5ea56-0e31-4228-81f0-fc00115c1b23",
+      "received_at_utc": "2026-10-12T01:31:19.536079+00:00",
+      "latency_ms": 124.437,
+      "done": true
+    },
+    {
+      "reminder_id": 12,
+      "due_at_utc": "2026-10-12T01:31:19.444976+00:00",
+      "event_id": "290c9d49-f8b2-4612-990a-057ce9230108",
+      "received_at_utc": "2026-10-12T01:31:19.553925+00:00",
+      "latency_ms": 108.949,
+      "done": true
+    },
+    {
+      "reminder_id": 13,
+      "due_at_utc": "2026-10-12T01:31:19.478309+00:00",
+      "event_id": "e28b5481-94a8-4d6b-af9f-6dd19586ea11",
+      "received_at_utc": "2026-10-12T01:31:19.570916+00:00",
+      "latency_ms": 92.606,
+      "done": true
+    },
+    {
+      "reminder_id": 14,
+      "due_at_utc": "2026-10-12T01:31:19.511643+00:00",
+      "event_id": "f48bb2b4-a374-4fbc-86a7-5ed3e3470577",
+      "received_at_utc": "2026-10-12T01:31:19.591963+00:00",
+      "latency_ms": 80.32,
+      "done": true
+    },
+    {
+      "reminder_id": 15,
+      "due_at_utc": "2026-10-12T01:31:19.544976+00:00",
+      "event_id": "38f40d9a-61c4-4666-911b-376fcdf2e81d",
+      "received_at_utc": "2026-10-12T01:31:19.614374+00:00",
+      "latency_ms": 69.398,
+      "done": true
+    },
+    {
+      "reminder_id": 16,
+      "due_at_utc": "2026-10-12T01:31:19.578309+00:00",
+      "event_id": "7f41d1eb-40a7-457b-b21c-a10a785ddafe",
+      "received_at_utc": "2026-10-12T01:31:19.635843+00:00",
+      "latency_ms": 57.533,
+      "done": true
+    },
+    {
+      "reminder_id": 17,
+      "due_at_utc": "2026-10-12T01:31:19.611643+00:00",
+      "event_id": "634a9bff-1c00-4ab8-b6e7-a23b35f06c4d",
+      "received_at_utc": "2026-10-12T01:31:19.660438+00:00",
+      "latency_ms": 48.795,
+      "done": true
+    },
+    {
+      "reminder_id": 18,
+      "due_at_utc": "2026-10-12T01:31:19.644976+00:00",
+      "event_id": "b5f8cee1-b767-4079-9ea7-0734d75820bf",
+      "received_at_utc": "2026-10-12T01:31:19.693479+00:00",
+      "latency_ms": 48.503,
+      "done": true
+    },
+    {
+      "reminder_id": 19,
+      "due_at_utc": "2026-10-12T01:31:19.678309+00:00",
+      "event_id": "0efa2376-4ee6-4894-a5ea-5c83d6d669e6",
+      "received_at_utc": "2026-10-12T01:31:19.720247+00:00",
+      "latency_ms": 41.937,
+      "done": true
+    },
+    {
+      "reminder_id": 20,
+      "due_at_utc": "2026-10-12T01:31:19.711643+00:00",
+      "event_id": "9e79d520-04ff-48e2-9e27-dd3e3a6af816",
+      "received_at_utc": "2026-10-12T01:31:19.740249+00:00",
+      "latency_ms": 28.606,
+      "done": true
+    },
+    {
+      "reminder_id": 21,
+      "due_at_utc": "2026-10-12T01:31:19.744976+00:00",
+      "event_id": "aa33f71c-da04-4a21-b43f-b2766ec83890",
+      "received_at_utc": "2026-10-12T01:31:19.761949+00:00",
+      "latency_ms": 16.973,
+      "done": true
+    },
+    {
+      "reminder_id": 22,
+      "due_at_utc": "2026-10-12T01:31:19.778309+00:00",
+      "event_id": "32375e50-6a39-436c-a41c-3ff69206e521",
+      "received_at_utc": "2026-10-12T01:31:20.795635+00:00",
+      "latency_ms": 1017.326,
+      "done": true
+    },
+    {
+      "reminder_id": 23,
+      "due_at_utc": "2026-10-12T01:31:19.811643+00:00",
+      "event_id": "31c47e21-d08a-4455-aaa9-ac339374a621",
+      "received_at_utc": "2026-10-12T01:31:20.817534+00:00",
+      "latency_ms": 1005.892,
+      "done": true
+    },
+    {
+      "reminder_id": 24,
+      "due_at_utc": "2026-10-12T01:31:19.844976+00:00",
+      "event_id": "57eacdee-f416-4a5c-89d8-085af7b2b02f",
+      "received_at_utc": "2026-10-12T01:31:20.839584+00:00",
+      "latency_ms": 994.608,
+      "done": true
+    },
+    {
+      "reminder_id": 25,
+      "due_at_utc": "2026-10-12T01:31:19.878309+00:00",
+      "event_id": "04ba60c3-0731-45c3-9300-260c8452cc91",
+      "received_at_utc": "2026-10-12T01:31:20.861761+00:00",
+      "latency_ms": 983.452,
+      "done": true
+    },
+    {
+      "reminder_id": 26,
+      "due_at_utc": "2026-10-12T01:31:19.911643+00:00",
+      "event_id": "b84710c5-0aa0-41e6-90da-c7a59bbea348",
+      "received_at_utc": "2026-10-12T01:31:20.883900+00:00",
+      "latency_ms": 972.257,
+      "done": true
+    },
+    {
+      "reminder_id": 27,
+      "due_at_utc": "2026-10-12T01:31:19.944976+00:00",
+      "event_id": "a42a2148-ded2-4b5f-82ab-f389ec560108",
+      "received_at_utc": "2026-10-12T01:31:20.904901+00:00",
+      "latency_ms": 959.925,
+      "done": true
+    },
+    {
+      "reminder_id": 28,
+      "due_at_utc": "2026-10-12T01:31:19.978309+00:00",
+      "event_id": "c51a2930-cb20-407a-8355-9ffa365d35f4",
+      "received_at_utc": "2026-10-12T01:31:20.926229+00:00",
+      "latency_ms": 947.919,
+      "done": true
+    },
+    {
+      "reminder_id": 29,
+      "due_at_utc": "2026-10-12T01:31:20.011643+00:00",
+      "event_id": "cb76b87b-d8de-406d-9564-101b488ef55f",
+      "received_at_utc": "2026-10-12T01:31:20.946122+00:00",
+      "latency_ms": 934.48,
+      "done": true
+    },
+    {
+      "reminder_id": 30,
+      "due_at_utc": "2026-10-12T01:31:20.044976+00:00",
+      "event_id": "b6eb4eea-6312-4782-a2ca-f92e7bc9dfde",
+      "received_at_utc": "2026-10-12T01:31:20.964875+00:00",
+      "latency_ms": 919.899,
+      "done": true
+    }
+  ]
+}

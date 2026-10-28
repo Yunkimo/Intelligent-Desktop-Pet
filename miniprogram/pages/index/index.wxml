@@ -1,0 +1,41 @@
+<view class="page">
+  <view class="week-bar">
+    <text class="week-label">本周</text>
+    <picker mode="selector" range="{{weekOptions}}" value="{{currentWeek - 1}}" bindchange="onWeekPick">
+      <view class="week-value">第{{currentWeek}}周 ▾</view>
+    </picker>
+    <text class="week-hint">课程按周次过滤</text>
+  </view>
+
+  <view wx:if="{{error}}" class="error-banner">
+    <text>{{error}}</text>
+    <text class="retry" bindtap="retry">重试</text>
+  </view>
+
+  <view class="section-title">今日课表 · {{todayLabel}}</view>
+  <view wx:if="{{!loading && courses.length === 0}}" class="empty">今天没有课，去「课表」页添加吧</view>
+  <view wx:for="{{courses}}" wx:key="id" class="card">
+    <view class="course-name">{{item.name}}</view>
+    <view class="course-meta">{{item.start_time}} - {{item.end_time}}</view>
+    <view wx:if="{{item.location}}" class="course-meta">📍 {{item.location}}</view>
+  </view>
+
+  <block wx:if="{{reminders.length > 0}}">
+    <view class="section-title">今日提醒</view>
+    <view wx:for="{{reminders}}" wx:key="id" class="card reminder-card">
+      <view class="reminder-title">⏰ {{item.title}}</view>
+      <view wx:if="{{item.body}}" class="reminder-body">{{item.body}}</view>
+      <view class="task-meta">{{item.remindTime}}</view>
+    </view>
+  </block>
+
+  <view class="section-title">今日待办</view>
+  <view wx:if="{{!loading && tasks.length === 0}}" class="empty">没有到期待办，去「日程」页看看吧</view>
+  <view wx:for="{{tasks}}" wx:key="id" class="card task-card">
+    <checkbox class="task-check" checked="{{item.checked}}" data-id="{{item.id}}" data-done="{{item.done}}" bindtap="toggleTask" />
+    <view class="task-body">
+      <view class="task-title">{{item.title}}</view>
+      <view class="task-meta {{item.overdue ? 'overdue' : ''}}">{{item.overdue ? '已逾期' : '今日截止'}} · {{item.dueText}}</view>
+    </view>
+  </view>
+</view>

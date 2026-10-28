@@ -1,0 +1,11 @@
+{
+  "python": "3.13.0",
+  "forced_terminal_colors": true,
+  "health_status": 200,
+  "pid_and_url_interpolated": true,
+  "access_log_formatted": true,
+  "query_redacted": true,
+  "logging_errors": false,
+  "isolated_temporary_database": true,
+  "log": "INFO:     Started server process [2052]\nINFO:     Waiting for application startup.\nINFO:     Application startup complete.\nINFO:     Uvicorn running on http://127.0.0.1:63583 (Press CTRL+C to quit)\nINFO:     127.0.0.1:63586 - \"GET /api/health?[REDACTED] HTTP/1.1\" 200 OK\n"
+}

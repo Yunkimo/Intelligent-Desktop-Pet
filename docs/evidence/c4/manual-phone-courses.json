@@ -1,0 +1,25 @@
+{
+  "readback": {
+    "action": "course",
+    "expected_label": "C4-手机课程1025-已修改",
+    "matching_records": 1,
+    "runtime": "phone",
+    "checked_at": "2026-10-25T01:23:42.088705+08:00",
+    "source": "read-only API check following user UI operation",
+    "passed": true,
+    "record_id": 4,
+    "location_is_C4_test_room": true
+  },
+  "deletion": {
+    "action": "absence-course",
+    "expected_label": "C4-手机课程1025-已修改",
+    "matching_records": 0,
+    "runtime": "phone",
+    "checked_at": "2026-10-25T01:27:28.368158+08:00",
+    "source": "read-only API check following user UI operation",
+    "saved_id_absent": true,
+    "passed": true
+  },
+  "boundary": "Phone UI actions and cloud REST readback in IP development mode; formal route not included.",
+  "human_operation_confirmed": true
+}

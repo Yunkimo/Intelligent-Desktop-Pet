@@ -1,0 +1,106 @@
+{
+  "date": "2026-10-17T07:01:28.561900+00:00",
+  "backend": {
+    "port": 13318,
+    "temp_db": true,
+    "scheduler": false,
+    "health": {
+      "status": "ok"
+    }
+  },
+  "A1": {
+    "result": {
+      "status": "ok"
+    },
+    "elapsed_ms": 1261.8
+  },
+  "A2": {
+    "weather": "Beijing：🌧️  +17°C，体感 +17°C",
+    "tool_calls": [
+      {
+        "tool": "get_weather",
+        "args": {
+          "city": "Beijing"
+        },
+        "result": "Beijing：🌧️  +17°C，体感 +17°C"
+      },
+      {
+        "tool": "create_task",
+        "args": {
+          "title": "A2 验收：交作业",
+          "remind_at": "2026-10-18T15:00:00+00:00"
+        },
+        "result": "已新增日程「A2 验收：交作业」"
+      },
+      {
+        "tool": "get_weather",
+        "args": {
+          "city": "北京"
+        },
+        "result": "北京：🌧️  +17°C，体感 +17°C"
+      },
+      {
+        "tool": "create_task",
+        "args": {
+          "title": "交作业",
+          "due_at": "2026-10-11T15:00"
+        },
+        "result": "已新增日程「交作业」"
+      }
+    ],
+    "create_task_result": "已新增日程「A2 验收：交作业」",
+    "tasks_in_db": [
+      {
+        "id": 1,
+        "title": "A2 验收：交作业",
+        "note": "",
+        "due_at": null,
+        "remind_at": "2026-10-18T15:00:00+00:00",
+        "done": 0,
+        "created_at": "2026-10-17T15:01:37"
+      }
+    ],
+    "llm_agent": {
+      "ok": true,
+      "reply": "已经帮您办好两件事：\n\n🌧️ **北京天气**：目前小雨，气温 17°C，体感也是 17°C。出门记得带伞，注意别着凉。\n\n📅 **新增日程**：已创建「交作业」，时间为**明天（10月11日）下午 3:00**。\n\n还有什么需要我帮忙的吗？",
+      "elapsed_ms": 9542.9,
+      "tool_calls": [
+        "get_weather",
+        "create_task",
+        "get_weather",
+        "create_task"
+      ]
+    }
+  },
+  "A3": {
+    "exit_code": 0,
+    "stdout": "......                                                                   [100%]",
+    "elapsed_ms": 431.8
+  },
+  "A4": {
+    "ws_url_scheme": "ws://127.0.0.1:13318/ws",
+    "created_task": {
+      "id": 3,
+      "title": "A4 验收：真实事件",
+      "note": "",
+      "due_at": null,
+      "remind_at": null,
+      "done": 0,
+      "created_at": "2026-10-17T15:01:59"
+    },
+    "events_received": [
+      {
+        "version": 1,
+        "event_id": "f23431b2-f873-4c81-80d0-d5ec05babebe",
+        "type": "task.created",
+        "occurred_at": "2026-10-17T07:01:59.526908Z",
+        "data": {
+          "id": 3
+        }
+      }
+    ],
+    "listener_errors": [],
+    "received": true
+  },
+  "ok": true
+}

@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-25",
+  "scope": "C5 stage documentation, local startup and verification evidence",
+  "verified_commit_short": "8b2fe83",
+  "verified_commit_url": "https://github.com/Yunkimo/Intelligent-Desktop-Pet/commit/8b2fe83962bd0cbde7e0880e1648083be01bd1b4",
+  "human_confirmation": {
+    "actor": "user, member C",
+    "statement": "人工核验通过了",
+    "passed": true
+  },
+  "user_terminal_evidence": {
+    "health_http_status": 200,
+    "health_body": {"status": "ok"},
+    "courses_without_credentials_http_status": 401,
+    "documentation_files": 34,
+    "relative_links": 278,
+    "paired_fences_passed": true,
+    "source_checksums_passed": 20
+  },
+  "diagram_display": {
+    "source": "user confirmation after following the rendered GitHub document instructions",
+    "three_end_data_flow": "passed",
+    "ip_deployment_topology": "passed",
+    "image_import_sequence": "passed"
+  },
+  "ci_artifact_verification": {
+    "actor": "assistant, downloaded and inspected actual artifact",
+    "run_url": "https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/40198518539",
+    "artifact_id": 12600564908,
+    "tests": 41,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "documents_output_passed": true,
+    "c4_documents_output_passed": true,
+    "zip_digest_matches_github": true,
+    "ci_jobs_passed": 5
+  },
+  "independent_member_review_claimed": false,
+  "production_acceptance_added": false,
+  "third_party_license_unknowns_remain_documented": true
+}

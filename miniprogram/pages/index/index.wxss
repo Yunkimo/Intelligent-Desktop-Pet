@@ -1,0 +1,78 @@
+/* 本周周次选择条 */
+.week-bar {
+  display: flex;
+  align-items: center;
+  margin: 16rpx 24rpx 0;
+  padding: 16rpx 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.week-label {
+  color: #57606f;
+  margin-right: 16rpx;
+}
+
+.week-value {
+  color: #4a90d9;
+  font-weight: 600;
+  padding: 4rpx 20rpx;
+  background: #eef4fb;
+  border-radius: 8rpx;
+}
+
+.week-hint {
+  margin-left: auto;
+  color: #a4b0be;
+  font-size: 24rpx;
+}
+
+.course-name {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.course-meta {
+  margin-top: 8rpx;
+  color: #747d8c;
+  font-size: 26rpx;
+}
+
+.task-card {
+  display: flex;
+  align-items: center;
+}
+
+.task-check {
+  margin-right: 16rpx;
+}
+
+.task-body {
+  flex: 1;
+}
+
+.task-title {
+  font-size: 30rpx;
+}
+
+.task-meta {
+  margin-top: 4rpx;
+  color: #a4b0be;
+  font-size: 24rpx;
+}
+
+.task-meta.overdue {
+  color: #e74c3c;
+}
+
+.reminder-title {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.reminder-body {
+  margin-top: 4rpx;
+  color: #747d8c;
+  font-size: 24rpx;
+}

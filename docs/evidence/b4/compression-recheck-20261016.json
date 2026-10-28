@@ -1,0 +1,489 @@
+{
+  "python": "3.13.0",
+  "budget_bytes": 1024,
+  "network": "mock only",
+  "passed": 80,
+  "failed": 0,
+  "cases": [
+    {
+      "encoding": "gzip",
+      "case": "valid",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "valid",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "valid",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "valid",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "exact_output_limit",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "exact_output_limit",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "exact_output_limit",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "exact_output_limit",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "output_one_byte_over",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "output_one_byte_over",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "output_one_byte_over",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "output_one_byte_over",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "expansion_bomb",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "expansion_bomb",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "expansion_bomb",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "expansion_bomb",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "raw_overlimit",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "raw_overlimit",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "raw_overlimit",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "raw_overlimit",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "invalid_stream",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "invalid_stream",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "invalid_stream",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "invalid_stream",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "truncated",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "truncated",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "truncated",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "truncated",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "corrupted_checksum",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "corrupted_checksum",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "corrupted_checksum",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "corrupted_checksum",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "trailing_data",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "trailing_data",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "trailing_data",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "trailing_data",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "concatenated_streams",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "concatenated_streams",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "concatenated_streams",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "gzip",
+      "case": "concatenated_streams",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "valid",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "valid",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "valid",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "valid",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "exact_output_limit",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "exact_output_limit",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "exact_output_limit",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "exact_output_limit",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "output_one_byte_over",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "output_one_byte_over",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "output_one_byte_over",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "output_one_byte_over",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "expansion_bomb",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "expansion_bomb",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "expansion_bomb",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "expansion_bomb",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "raw_overlimit",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "raw_overlimit",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "raw_overlimit",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "raw_overlimit",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "invalid_stream",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "invalid_stream",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "invalid_stream",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "invalid_stream",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "truncated",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "truncated",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "truncated",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "truncated",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "corrupted_checksum",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "corrupted_checksum",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "corrupted_checksum",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "corrupted_checksum",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "trailing_data",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "trailing_data",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "trailing_data",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "trailing_data",
+      "chunk_size": 4096,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "concatenated_streams",
+      "chunk_size": 1,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "concatenated_streams",
+      "chunk_size": 7,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "concatenated_streams",
+      "chunk_size": 64,
+      "passed": true
+    },
+    {
+      "encoding": "deflate",
+      "case": "concatenated_streams",
+      "chunk_size": 4096,
+      "passed": true
+    }
+  ]
+}

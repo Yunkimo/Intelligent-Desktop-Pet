@@ -1,0 +1,15 @@
+{
+  "checked_at": "2026-10-25T00:20:27.539082+08:00",
+  "base_url": "http://8.148.29.9:8080",
+  "prepared_at": "2026-10-25T00:16:03.856524+08:00",
+  "before_restart_readback": true,
+  "after_restart_readback": true,
+  "ws_after_restart_101": true,
+  "cleanup_confirmed": true,
+  "reminder_created": false,
+  "boundary": "service restart itself is performed by the human; record its actual PID change separately; not a phone/UI reconnect test",
+  "before_service_pid": 59473,
+  "after_service_pid": 62174,
+  "auto_start_enabled": true,
+  "restart_confirmation_source": "user provided systemctl and local curl output"
+}

@@ -1,0 +1,41 @@
+CHECK D:\IDP\worktrees\c4-deployment\backend\.venv\Scripts\python.exe -m ruff check .
+All checks passed!
+EXIT 0
+CHECK D:\IDP\worktrees\c4-deployment\backend\.venv\Scripts\python.exe -m ruff format --check .
+123 files already formatted
+EXIT 0
+CHECK E:\Git\Git\bin\bash.exe -n scripts/run-backend.sh
+EXIT 0
+CHECK E:\Git\Git\bin\bash.exe -n scripts/deploy-server.sh
+EXIT 0
+CHECK E:\Git\Git\bin\bash.exe scripts/deploy-server.sh /d/IDP/worktrees/c4-review-package-20261024 --check
+源码检查通过。首次安装目标：/home/idp/idp；代理先仅监听 127.0.0.1:8080。
+EXIT 0
+CHECK D:\IDP\worktrees\c4-deployment\backend\.venv\Scripts\python.exe scripts/check_c4_docs.py
+PASS 5 份文档、25 个相对文件链接、Shell LF；外链与锚点未纳入
+EXIT 0
+CHECK D:\IDP\worktrees\c4-deployment\backend\.venv\Scripts\python.exe -m pre_commit run --files .gitattributes ...
+Ruff 检查................................................................Passed
+Ruff 格式检查............................................................Passed
+暂存区空白检查...........................................................Passed
+密钥扫描.................................................................Passed
+EXIT 0
+CHECK git diff --check
+warning: in the working copy of 'docs/deploy.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/check_deployment.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/reset_demo.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/run-backend.ps1', LF will be replaced by CRLF the next time Git touches it
+EXIT 0
+CHECK git diff --cached --check
+EXIT 0
+
+Final documentation check: scripts/check_c4_docs.py
+PASS 5 份文档、25 个相对文件链接、Shell LF；外链与锚点未纳入
+EXIT 0
+
+Final documentation check: -m pre_commit run --files docs/deploy.md docs/evidence/c4/source-checksums.sha256
+Ruff 检查............................................(no files to check)Skipped
+Ruff 格式检查........................................(no files to check)Skipped
+暂存区空白检查...........................................................Passed
+密钥扫描.................................................................Passed
+EXIT 0

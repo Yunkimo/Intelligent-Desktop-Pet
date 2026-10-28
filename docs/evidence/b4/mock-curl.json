@@ -1,0 +1,48 @@
+{
+  "mode": "mock upstream",
+  "timestamp": "2026-10-14T16:44:10.466726+00:00",
+  "python": "3.10.22",
+  "transport": "real Uvicorn + curl, loopback, single worker",
+  "database": "temporary",
+  "unauthorized_status": 401,
+  "proxy_used": false,
+  "results": [
+    {
+      "kind": "weather",
+      "curl_exit_code": 0,
+      "elapsed_ms": 78.0,
+      "response": {
+        "status": "ok",
+        "query": "Beijing",
+        "provider": "wttr.in",
+        "summary": "Beijing, China：Sunny，气温 20°C，体感 19°C，湿度 50%。",
+        "source_url": "https://wttr.in/Beijing",
+        "fetched_at": "2026-10-14T16:44:10.397883+00:00",
+        "observed_at": "2040-01-01 12:00 PM",
+        "results": []
+      }
+    },
+    {
+      "kind": "search",
+      "curl_exit_code": 0,
+      "elapsed_ms": 62.0,
+      "response": {
+        "status": "ok",
+        "query": "Python asyncio official documentation",
+        "provider": "DuckDuckGo",
+        "summary": "1. Python documentation：Official Python documentation.\nhttps://docs.python.org/3/",
+        "source_url": "https://html.duckduckgo.com/html/?q=Python+asyncio+official+documentation",
+        "fetched_at": "2026-10-14T16:44:10.456826+00:00",
+        "observed_at": null,
+        "results": [
+          {
+            "title": "Python documentation",
+            "url": "https://docs.python.org/3/",
+            "snippet": "Official Python documentation."
+          }
+        ]
+      }
+    }
+  ],
+  "passed": true
+}

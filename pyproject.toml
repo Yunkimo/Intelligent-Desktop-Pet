@@ -1,0 +1,25 @@
+[project]
+name = "intelligent-desk-pet"
+version = "0.1.0"
+description = "智能桌面宠物：PyQt6 + DeepSeek 桌面宠物，支持文字与双向语音对话"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Yunkimo" }]
+keywords = ["desktop-pet", "pyqt6", "deepseek", "tts", "asr", "llm"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

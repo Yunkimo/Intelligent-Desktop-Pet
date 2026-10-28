@@ -1,0 +1,35 @@
+{
+  "checked_at": "2026-10-25T00:10:59.329612+08:00",
+  "base_url": "http://8.148.29.9:8080",
+  "scope": "empty/oversized multipart rejection paths; not a normal valid-image or recognition test",
+  "business_mutations": false,
+  "vision_model_calls_intended": false,
+  "results": [
+    {
+      "check": "empty_file_rejected_before_model",
+      "file_bytes": 0,
+      "expected_status": 422,
+      "actual_status": 422,
+      "content_type": "application/json",
+      "passed": true
+    },
+    {
+      "check": "backend_10MiB_limit",
+      "file_bytes": 11010048,
+      "expected_status": 413,
+      "actual_status": 413,
+      "content_type": "application/json",
+      "passed": true
+    },
+    {
+      "check": "nginx_11MiB_request_limit",
+      "file_bytes": 12582912,
+      "expected_status": 413,
+      "actual_status": 413,
+      "content_type": "text/html",
+      "passed": true
+    }
+  ],
+  "passed": 3,
+  "total": 3
+}

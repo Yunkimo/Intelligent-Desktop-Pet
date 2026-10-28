@@ -1,0 +1,18 @@
+[Unit]
+Description=IDP backend (single worker)
+After=network.target
+
+[Service]
+User=idp
+Group=idp
+WorkingDirectory=/home/idp/idp/backend
+EnvironmentFile=/home/idp/idp/backend/.env
+ExecStart=/home/idp/venvs/idp/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 1
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

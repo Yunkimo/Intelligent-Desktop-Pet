@@ -1,0 +1,11 @@
+{
+  "test": "test_locked_database_does_not_block_event_loop_and_recovers",
+  "python": "3.10.22",
+  "platform": "win32",
+  "isolated_process_runs": 30,
+  "passed": 30,
+  "failed": 0,
+  "seconds": 54.0,
+  "database": "fresh temporary SQLite per run",
+  "scope": "test observation synchronization; no production code change"
+}

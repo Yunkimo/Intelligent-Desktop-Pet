@@ -1,0 +1,82 @@
+<view class="page">
+  <view class="week-bar">
+    <text class="week-label">本周</text>
+    <picker mode="selector" range="{{weekPickerOptions}}" value="{{currentWeek - 1}}" bindchange="onWeekPick">
+      <view class="week-value">第{{currentWeek}}周 ▾</view>
+    </picker>
+    <text class="week-hint">灰色为本周不上</text>
+  </view>
+
+  <view wx:if="{{error}}" class="error-banner">
+    <text>{{error}}</text>
+    <text class="retry" bindtap="retry">重试</text>
+  </view>
+
+  <view wx:for="{{weekDays}}" wx:key="day" class="day-group">
+    <view class="day-title">
+      {{item.label}}<text wx:if="{{item.courses.length}}" class="day-count">（{{item.courses.length}} 节）</text>
+    </view>
+    <view wx:if="{{!loading && item.courses.length === 0}}" class="empty">暂无课程</view>
+    <view wx:for="{{item.courses}}" wx:for-item="course" wx:key="id" class="card course-card {{course.active ? '' : 'inactive'}}">
+      <view class="course-main">
+        <view class="course-name">{{course.name}}</view>
+        <view class="course-meta">{{course.start_time}} - {{course.end_time}}</view>
+        <view wx:if="{{course.location}}" class="course-meta">📍 {{course.location}}</view>
+        <view wx:if="{{course.teacher}}" class="course-meta">👤 {{course.teacher}}</view>
+        <view class="course-meta">{{course.weeksText}}周</view>
+        <view wx:if="{{!course.active}}" class="course-meta inactive-tag">本周不上</view>
+      </view>
+      <view class="course-actions">
+        <button class="btn btn-ghost mini" data-course="{{course}}" bindtap="openEdit">编辑</button>
+        <button class="btn btn-danger mini" data-id="{{course.id}}" data-name="{{course.name}}" bindtap="remove">删除</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="fab fab-import" bindtap="importImage">识</view>
+  <view class="fab" bindtap="openAdd">＋</view>
+
+  <view wx:if="{{editing}}" class="mask">
+    <view class="modal">
+      <view class="modal-title">{{form.id ? '编辑课程' : '添加课程'}}</view>
+      <view class="form-item">
+        <text class="label">名称</text>
+        <input class="input" value="{{form.name}}" data-field="name" bindinput="onFormInput" placeholder="如：高等数学" />
+      </view>
+      <view class="form-item">
+        <text class="label">星期</text>
+        <picker mode="selector" range="{{weekOptions}}" value="{{form.day_of_week - 1}}" bindchange="onWeekPicker">
+          <view class="picker-value">{{weekOptions[form.day_of_week - 1]}}</view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="label">开始时间</text>
+        <picker mode="time" value="{{form.start_time}}" data-field="start_time" bindchange="onFormInput">
+          <view class="picker-value">{{form.start_time}}</view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="label">结束时间</text>
+        <picker mode="time" value="{{form.end_time}}" data-field="end_time" bindchange="onFormInput">
+          <view class="picker-value">{{form.end_time}}</view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="label">地点</text>
+        <input class="input" value="{{form.location}}" data-field="location" bindinput="onFormInput" placeholder="选填，如：教三 301" />
+      </view>
+      <view class="form-item">
+        <text class="label">教师</text>
+        <input class="input" value="{{form.teacher}}" data-field="teacher" bindinput="onFormInput" placeholder="选填" />
+      </view>
+      <view class="form-item">
+        <text class="label">周次</text>
+        <input class="input" value="{{form.weeksText}}" data-field="weeksText" bindinput="onFormInput" placeholder="如：1-16（留空为全周）" />
+      </view>
+      <view class="modal-actions">
+        <button class="btn btn-ghost" bindtap="closeForm">取消</button>
+        <button class="btn btn-primary" bindtap="submit">保存</button>
+      </view>
+    </view>
+  </view>
+</view>
