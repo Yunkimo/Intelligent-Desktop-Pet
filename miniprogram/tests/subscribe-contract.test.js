@@ -70,7 +70,7 @@ async function task(time = '2000-01-01T08:00+08:00') {
   return api.createTask({ title: 'C3 集成回归', remind_at: time, note: '当前内容' });
 }
 async function reminder(t) {
-  return (await api.getReminders()).find((r) => r.task_id === t.id);
+  return (await api.getReminders()).find((r) => r.task_id === t.id && r.channel === 'phone');
 }
 async function state(r) {
   return (await raw('/api/reminders/' + r.id + '/delivery')).data;
@@ -115,14 +115,21 @@ async function main() {
     remainingDrops = 1;
     await assert.rejects(sub.subscribeTaskReminder(t));
     assert.equal((await sub.subscribeTaskReminder(t)).status, 'pending');
-    assert.equal((await api.getReminders()).filter((r) => r.task_id === t.id).length, 1);
+    assert.equal(
+      (await api.getReminders()).filter((r) => r.task_id === t.id && r.channel === 'phone').length,
+      1
+    );
     await api.deleteTask(t.id);
     const concurrent = await task();
     await Promise.all([
       sub.subscribeTaskReminder(concurrent),
       sub.subscribeTaskReminder(concurrent),
     ]);
-    assert.equal((await api.getReminders()).filter((r) => r.task_id === concurrent.id).length, 1);
+    assert.equal(
+      (await api.getReminders()).filter((r) => r.task_id === concurrent.id && r.channel === 'phone')
+        .length,
+      1
+    );
     await api.deleteTask(concurrent.id);
   });
   await check('等价 UTC 写入不重置事件或完成状态', async () => {
@@ -200,7 +207,9 @@ async function main() {
     }
     const page = rt.loadPage('pages/index/index.js');
     await page.loadToday();
-    const times = tasks.map((t) => page.data.reminders.find((r) => r.task_id === t.id).remindTime);
+    const times = tasks.map(
+      (t) => page.data.reminders.find((r) => r.task_id === t.id && r.channel === 'phone').remindTime
+    );
     assert.equal(times[0], '10:00');
     assert.equal(times[1], '01:00');
     for (const t of tasks) {
