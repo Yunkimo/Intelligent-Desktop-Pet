@@ -40,7 +40,8 @@ def test_concurrent_creation_and_replay(wx_app):
         )
     assert {r["id"] for r in rows} == {reminder["id"]}
     assert {r["event_id"] for r in rows} == {reminder["event_id"]}
-    assert len(db.list_reminders()) == 1
+    assert len([r for r in db.list_reminders() if r["channel"] == "phone"]) == 1
+    assert len([r for r in db.list_reminders() if r["channel"] == "pc"]) == 1
     # 即使响应被丢弃，再请求仍返回同一资源。
     again = client.post("/api/wechat/reminders", headers=headers, json={"task_id": task["id"]})
     assert again.json()["id"] == reminder["id"]
