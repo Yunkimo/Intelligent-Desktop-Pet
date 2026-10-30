@@ -65,6 +65,7 @@ LLM_MODEL=deepseek-flash
 | 点输入框右侧 🎤 | 开始录音（变 ⏹）；再点停止，转写后发送 |
 | 按 Esc | 收起输入框 |
 | 右键宠物 | 弹出命令菜单，顶部为「隐藏至托盘」 |
+| 右键勾选「语音输出」 | 关闭后不再朗读回复（仍可正常对话）；状态写入 `config.json` 的 `enable_voice` |
 | 右键勾选「显示状态角标」 | 独立控制 Claude / Codex 角标是否显示；桌宠隐藏至托盘时角标不受影响 |
 | 左键点击托盘图标 | 显示 / 隐藏桌宠 |
 | 右键托盘图标 | 弹出与桌宠一致的命令菜单，可勾选「开机自启动」；「退出」固定在菜单最下方 |
@@ -170,7 +171,7 @@ Codex 使用与 Claude 独立的「监控 Codex」右键开关和角标。运行
   "tts_voice": "zh-CN-XiaoxiaoNeural", // 音色；旧默认 Xiaoyou 在加载时迁移
   "tts_rate": "+10%", "tts_pitch": "+20Hz",
   "whisper_model": "base",        // 识别精度：base/small/medium
-  "enable_voice": true,           // 关闭语音播报
+  "enable_voice": true,           // 语音输出总开关；右键菜单「语音输出」可随时切换
   "monitor_claude": false,        // Claude Code 回合状态角标（右键可切换）
   "monitor_codex": false,         // Codex 回合状态角标（右键可切换）
   "status_badges_visible": true,  // 状态角标总开关；false 时不显示角标，监控仍运行

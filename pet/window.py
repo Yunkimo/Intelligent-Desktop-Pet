@@ -320,6 +320,14 @@ class PetWindow(QWidget):
         commands.append(Command("设置语音快捷键…", self._set_voice_hotkey))
         commands.append(
             Command(
+                "语音输出",
+                self._toggle_voice,
+                checkable=True,
+                checked=lambda: self.settings.enable_voice,
+            )
+        )
+        commands.append(
+            Command(
                 "监控 Claude",
                 self._toggle_claude_monitor,
                 checkable=True,
@@ -456,13 +464,36 @@ class PetWindow(QWidget):
         self.bubble.set_text(f"呜…出错了：{msg}")
 
     # ---------- 语音合成 ----------
+    def _toggle_voice(self) -> None:
+        """切换语音输出开关并持久化；关闭时立即停止当前播放。"""
+        enabled = not self.settings.enable_voice
+        self.settings.update_voice_enabled(enabled)
+        if not enabled:
+            self._stop_voice()
+        self.bubble.set_text("语音输出已开启" if enabled else "语音输出已关闭")
+
+    def _stop_voice(self) -> None:
+        """停止当前语音播放并清理临时文件。"""
+        self.player.stop()
+        self.player.setSource(QUrl())
+        self._cleanup_tts_tmp()
+
     def _speak(self, text: str) -> None:
+        if not self.settings.enable_voice:
+            return
         self.tts_worker = TTSWorker(self.tts_engine, text, parent=self)
         self.tts_worker.ready.connect(self._play_voice)
         self.tts_worker.error.connect(lambda e: print(f"[TTS] {e}"))
         self.tts_worker.start()
 
     def _play_voice(self, path: str) -> None:
+        if not self.settings.enable_voice:
+            # 合成期间被关闭：丢弃已生成的文件，避免继续播放或泄漏临时文件
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+            return
         self._tts_tmp = path
         self.player.setSource(QUrl.fromLocalFile(path))
         self.player.play()
