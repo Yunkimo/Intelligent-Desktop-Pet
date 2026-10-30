@@ -156,7 +156,7 @@ def test_server_rollback_cli(tmp_path, isolated_env):
             "--repo",
             ROOT,
             "--current-ref",
-            "origin/develop",
+            "HEAD",
             "--output-parent",
             tmp_path,
         ],
