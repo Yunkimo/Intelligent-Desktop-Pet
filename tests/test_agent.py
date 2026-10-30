@@ -86,3 +86,75 @@ def test_unknown_tool_fed_back_as_result():
     agent = Agent(client, {})
     agent.run([{"role": "user", "content": "x"}])
     assert client.chat_with_tools_calls == 2  # 未知工具当作结果喂回，进入第二轮
+
+
+# ---------- 未调用工具时的强制重试 ----------
+class _ScriptedClient:
+    """按顺序返回预设回复，并记录每次调用是否带 force。"""
+
+    def __init__(self, replies):
+        self._replies = list(replies)
+        self.forces: list[bool] = []
+
+    def chat_with_tools(self, messages, tools, on_chunk=None, force=False):
+        self.forces.append(force)
+        return self._replies.pop(0)
+
+    def chat(self, messages, on_chunk=None):
+        return "最终回复"
+
+
+def _tool(name="get_weather"):
+    from pet.tools import Tool
+
+    return Tool(
+        name, "测试工具", {"type": "object", "properties": {}}, lambda **_: "工具结果", "正在查…"
+    )
+
+
+def test_forced_retry_when_model_gives_up_without_calling_tool():
+    from pet.agent import Agent
+
+    client = _ScriptedClient(
+        [
+            {"content": "我这边查不到天气预报呢", "tool_calls": []},
+            {
+                "content": "",
+                "tool_calls": [
+                    {
+                        "id": "t1",
+                        "type": "function",
+                        "function": {"name": "get_weather", "arguments": "{}"},
+                    }
+                ],
+            },
+            {"content": "查到了", "tool_calls": []},
+        ]
+    )
+    agent = Agent(client, {"get_weather": _tool()})
+
+    agent.run([{"role": "user", "content": "北京明天天气怎么样"}])
+
+    assert client.forces == [False, True, False]  # 第二次被强制调用
+
+
+def test_no_forced_retry_for_ordinary_chat():
+    from pet.agent import Agent
+
+    client = _ScriptedClient([{"content": "哈哈，我不太懂呢", "tool_calls": []}])
+    agent = Agent(client, {"get_weather": _tool()})
+
+    agent.run([{"role": "user", "content": "讲个笑话"}])
+
+    assert client.forces == [False]
+
+
+def test_no_forced_retry_when_reply_is_not_giving_up():
+    from pet.agent import Agent
+
+    client = _ScriptedClient([{"content": "今天适合出门走走", "tool_calls": []}])
+    agent = Agent(client, {"get_weather": _tool()})
+
+    agent.run([{"role": "user", "content": "今天天气真好"}])
+
+    assert client.forces == [False]  # 没调工具但也没说查不到，不强制

@@ -210,7 +210,7 @@ def test_chat_with_tools_empty_tool_calls(monkeypatch):
 
 def test_llm_client_chat_with_tools_passthrough():
     class _Prov:
-        def chat_with_tools(self, messages, tools, on_chunk=None):
+        def chat_with_tools(self, messages, tools, on_chunk=None, force=False):
             return {"content": "ok", "tool_calls": []}
 
     out = LLMClient(_Prov()).chat_with_tools([{"role": "user", "content": "hi"}], [])
@@ -219,7 +219,7 @@ def test_llm_client_chat_with_tools_passthrough():
 
 def test_llm_client_chat_with_tools_wraps_error():
     class _Boom:
-        def chat_with_tools(self, messages, tools, on_chunk=None):
+        def chat_with_tools(self, messages, tools, on_chunk=None, force=False):
             raise RuntimeError("boom")
 
     with pytest.raises(LLMError):
