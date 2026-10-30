@@ -74,7 +74,7 @@ class PetWindow(QWidget):
         # 用量记账是旁路：provider 每次调用回来顺手记一笔，失败不影响对话
         self.usage_store = UsageStore(settings.usage_path, settings.usage_retention_days)
         self.llm = LLMClient(create_chat_provider(settings, on_usage=self.usage_store.record_usage))
-        self.asr_engine = ASREngine(settings.whisper_model)
+        self.asr_engine = ASREngine(settings.whisper_model, hotwords=settings.asr_hotwords)
         self.tts_engine = TTSEngine(
             settings.tts_voice,
             settings.tts_rate,
