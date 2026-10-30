@@ -149,7 +149,7 @@ def build_tools(backend: BackendClient) -> dict[str, Tool]:
         ),
         "create_task": Tool(
             "create_task",
-            "新增一条日程/待办。due_at/remind_at 用 ISO 格式（如 2026-10-11T14:00）。",
+            "新增一条日程/待办。填写 remind_at 后后端自动安排桌面提醒，不要再调用 create_reminder。due_at/remind_at 用 ISO 格式（如 2026-10-11T14:00）。",
             {
                 "type": "object",
                 "properties": {
@@ -194,7 +194,7 @@ def build_tools(backend: BackendClient) -> dict[str, Tool]:
         ),
         "create_reminder": Tool(
             "create_reminder",
-            "设置提醒。remind_at 用 ISO 格式（如 2026-10-11T14:00）。",
+            "设置独立提醒；日程已有 remind_at 时不要重复调用。remind_at 用 ISO 格式（如 2026-10-11T14:00）。",
             {
                 "type": "object",
                 "properties": {

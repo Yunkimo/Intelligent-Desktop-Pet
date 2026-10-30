@@ -49,6 +49,14 @@ class TaskUpdate(BaseModel):
     remind_at: str | None = None
     done: bool | None = None
 
+    @model_validator(mode="after")
+    def validate_non_null(self) -> "TaskUpdate":
+        """显式空值仅用于清除日期；必填业务字段不可清空。"""
+        for field in self.model_fields_set & {"title", "note", "done"}:
+            if getattr(self, field) is None:
+                raise ValueError(f"{field} 不能为 null")
+        return self
+
     @field_validator("remind_at")
     @classmethod
     def validate_reminder(cls, value: str | None) -> str | None:

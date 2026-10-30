@@ -32,6 +32,8 @@ def delivery_status(reminder_id: int) -> dict:
 def create_reminder(payload: ReminderIn):
     try:
         return db.create_reminder(**payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=422, detail="微信接收用户不存在") from None
 
@@ -40,6 +42,8 @@ def create_reminder(payload: ReminderIn):
 def update_reminder(reminder_id: int, payload: ReminderUpdate):
     try:
         reminder = db.update_reminder(reminder_id, payload.model_dump(exclude_unset=True))
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=422, detail="微信接收用户不存在") from None
     if reminder is None:
