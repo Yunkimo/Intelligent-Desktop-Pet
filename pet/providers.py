@@ -28,10 +28,13 @@ class ChatProvider(ABC):
         """流式对话。on_chunk(str) 每收到一个增量被调用；返回完整文本。"""
 
     @abstractmethod
-    def chat_with_tools(self, messages: list[dict], tools: list[dict], on_chunk=None) -> dict:
+    def chat_with_tools(
+        self, messages: list[dict], tools: list[dict], on_chunk=None, force: bool = False
+    ) -> dict:
         """带工具的单次非流式调用。返回 {"content": str, "tool_calls": [...]}。
 
-        on_chunk 仅为接口对齐保留（非流式下不使用）。
+        force=True 时用 tool_choice="required" 强制模型必须调用工具，用于用户明确
+        要求查实时信息、模型却直接作答的场景。on_chunk 仅为接口对齐保留。
         """
 
 
@@ -125,12 +128,14 @@ class OpenAICompatProvider(ChatProvider):
             raise
         return "".join(parts)
 
-    def chat_with_tools(self, messages: list[dict], tools: list[dict], on_chunk=None) -> dict:
+    def chat_with_tools(
+        self, messages: list[dict], tools: list[dict], on_chunk=None, force: bool = False
+    ) -> dict:
         resp = self._get_client().chat.completions.create(
             model=self.model,
             messages=messages,
             tools=tools,
-            tool_choice="auto",
+            tool_choice="required" if force else "auto",
             temperature=self.temperature,
             max_tokens=self.max_tokens,
             **self._chat_options(),
