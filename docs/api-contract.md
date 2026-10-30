@@ -186,3 +186,17 @@ C3 修复新增带 Bearer 的本人提醒创建/查询、event_id 校验和消�
 | 504 | 总请求超时（含等待并发槽位与读取响应） |
 
 业务失败体为 `{"detail":"稳定错误码"}`（如 `upstream_timeout`、`search_challenge`），不返回上游正文、异常 URL 或代理凭证。资源与配置：`WEB_QUERY_TIMEOUT_SECONDS` 默认 8、`WEB_QUERY_MAX_BYTES` 默认 262144（原始与解压后分别限制）、`WEB_QUERY_MAX_CONCURRENT` 默认 4。目标地址固定在 config（HTTPS 的 wttr.in 与 html.duckduckgo.com），不跟随重定向、无自动重试；只解码 gzip/deflate/identity 并限制解压输出；丢弃非 HTTP(S)、内网 IP、localhost、带账号口令的链接，不抓取结果页面。现有桌面本地联网工具接入方式待 A/B 评审，本次不修改其调用路径；示例见 `scripts/smoke_backend_web_query.py`。
+
+
+## B5 日程提醒联动（v1.0.0 后续迭代）
+
+- `POST /api/tasks` 带非空 `remind_at`：在同一事务创建日程和一条 `channel=pc` 的关联提醒，复用原调度器。响应结构不变。无时间时不创建提醒。
+- `PUT /api/tasks/{id}`：同步未发送提醒的 title/note 与 remind_at；等价 UTC 时间和重复更新不重置事件或发送次数。已发送提醒仅改内容不重发；明确改期或完成后重开会安排新事件。
+- 完成时取消未发事件；清空提醒时间或删除日程时删除关联提醒及授权。`task_id=null` 的独立提醒不变。已出站网络发送不能撤回；旧领取不能写回覆盖新计划。
+- 重开且仍有提醒时间时重新安排；过去时间允许，下一轮扫描发送（受扫描间隔/重试策略限制）。创建请求本身无幂等键，客户端不应盲目重试 POST task。
+- 微信继续使用 `/api/wechat/reminders` 和订阅接口，PC 与 phone 各自独立。完成任务不能新建手机提醒（409）。待发内容/时间改变使旧 event_id 和授权失效，需要重新获取并授权；不会自动重新订阅。
+- 兼容旧客户端：带有效 task_id 的 PC/both 创建请求在时间匹配时复用已有桌面提醒（仍返回 201），已有记录的内容及渠道为准；无效/已完成/无提醒时间任务或时间不匹配返回 409。请优先直接保存日程，不再额外创建桌面提醒。独立提醒仍走原接口。
+- 历史任务不在启动时补发；有有效时间的任务首次非空编辑时补齐缺失的 PC 关联。历史 PC/both 重复记录按最小 ID 保留一条，其他关联删除；手机记录按用户保留。非法历史时间允许编辑其他字段或清空，显式写入非法时间则 422。无 schema 变更。
+- 必填字段 title/note/done 的显式 null 返回 422；due_at/remind_at 的 null 用于清除。所有联动写入失败整体回滚。
+
+A/C 对接：A 调用 create_task 时不应再重复创建 PC 提醒；C 日程保存继续使用原 tasks 接口，订阅仍由用户点击。自动化联调不代表成员人工评审或真机实收，记录见 [B5 核验说明](b5-verification.md)。
