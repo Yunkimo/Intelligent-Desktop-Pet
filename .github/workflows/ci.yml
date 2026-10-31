@@ -81,6 +81,9 @@ jobs:
       - name: Real WebSocket smoke test
         run: python ../scripts/smoke_backend_ws.py
 
+      - name: Semester calendar and mutation events smoke test
+        run: python ../scripts/smoke_backend_semester.py
+
       - name: Reminder scheduling smoke test
         run: python ../scripts/smoke_backend_scheduler.py --interval 1 --samples 30 --max-delay 5
 
