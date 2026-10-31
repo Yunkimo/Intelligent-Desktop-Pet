@@ -1,14 +1,10 @@
-// 课表页：按星期分组展示课程，支持添加/编辑/删除，数据同步到后端 SQLite。
-// 非本周课程置灰并标注「本周不上」（weeks 不含当前周；无周次 = 全周）。
+// 课表页：按星期分组展示课程，支持添加/编辑/删除与图片识别导入，数据同步到后端 SQLite。
+// 周次口径与今日页一致（B6 学期设置）：顶部选择器仅用于「浏览其他周」，不改学期配置、
+// 不写入本地存储；重新进入页面默认回到真实本周。浏览周内不上课的课程置灰。
 const api = require('../../utils/api');
 const ws = require('../../utils/ws');
-const {
-  WEEKDAY_LABELS,
-  WEEK_OPTIONS,
-  getCurrentWeek,
-  setCurrentWeek,
-  isActiveWeek,
-} = require('../../utils/datetime');
+const semester = require('../../utils/semester');
+const { WEEKDAY_LABELS, isActiveWeek, weekNumberOptions } = require('../../utils/datetime');
 
 const EMPTY_FORM = {
   id: null,
@@ -77,8 +73,13 @@ function parseWeeks(text) {
 Page({
   data: {
     weekOptions: WEEKDAY_LABELS,
-    weekPickerOptions: WEEK_OPTIONS,
-    currentWeek: 6,
+    weekPickerOptions: weekNumberOptions(25),
+    browseWeek: 1,
+    realWeek: null,
+    isBrowsing: false,
+    statusText: '',
+    needSetup: false,
+    offline: false,
     weekDays: [],
     loading: false,
     error: '',
@@ -88,33 +89,47 @@ Page({
   },
 
   onShow() {
-    this.setData({ currentWeek: getCurrentWeek() });
+    // 重新进入默认回到本周：load() 内会把 browseWeek 重置为真实周
     ws.on('course.created', this.onWsEvent);
+    ws.on('course.updated', this.onWsEvent);
+    ws.on('course.deleted', this.onWsEvent);
+    ws.on('semester.updated', this.onWsEvent);
     ws.on('reconnect', this.onWsEvent);
     this.load();
   },
 
   onHide() {
     ws.off('course.created', this.onWsEvent);
+    ws.off('course.updated', this.onWsEvent);
+    ws.off('course.deleted', this.onWsEvent);
+    ws.off('semester.updated', this.onWsEvent);
     ws.off('reconnect', this.onWsEvent);
   },
 
   onUnload() {
-    ws.off('course.created', this.onWsEvent);
-    ws.off('reconnect', this.onWsEvent);
+    this.onHide();
   },
 
-  // 课表事件到达：REST 重读
+  // 课表/学期事件到达：REST 重读（删除事件后读列表，不请求已删除的详情）
   onWsEvent() {
     this.load();
   },
 
-  // 切换本周周次：保存后重新标注各课程是否本周上课
+  // 浏览其他周：仅切换页面展示，不修改学期配置、不写本地存储
   onWeekPick(e) {
     const week = Number(e.detail.value) + 1;
-    setCurrentWeek(week);
-    this.setData({ currentWeek: week });
-    this.load();
+    this.setData({ browseWeek: week, isBrowsing: week !== this.data.realWeek });
+    this.applyCourses();
+  },
+
+  // 回到本周
+  backToThisWeek() {
+    this.setData({ browseWeek: this.data.realWeek || 1, isBrowsing: false });
+    this.applyCourses();
+  },
+
+  openSemester() {
+    wx.navigateTo({ url: '/pages/semester/semester' });
   },
 
   onPullDownRefresh() {
@@ -124,25 +139,65 @@ Page({
   async load() {
     this.setData({ loading: true, error: '' });
     try {
-      const courses = await api.getCourses();
-      const weekDays = WEEKDAY_LABELS.map((label, i) => ({
-        day: i + 1,
-        label,
-        courses: courses
-          .filter((c) => c.day_of_week === i + 1)
-          .sort((a, b) => a.start_time.localeCompare(b.start_time))
-          .map((c) => ({
-            ...c,
-            weeksText: weeksToText(c.weeks) || '全周',
-            active: isActiveWeek(c, this.data.currentWeek),
-          })),
-      }));
-      this.setData({ weekDays });
+      const today = await semester.getToday();
+      const settingsResult = await semester.getSettings();
+      const totalWeeks =
+        settingsResult.ok && settingsResult.settings
+          ? settingsResult.settings.total_weeks
+          : (today.settings && today.settings.total_weeks) || 25;
+      const realWeek = today.ok && today.status === 'in_term' ? today.week : null;
+      const statusText = !today.ok
+        ? '无法确认学期（网络不可达）'
+        : today.status !== 'in_term'
+          ? today.status === 'unconfigured'
+            ? '未设置学期'
+            : today.status === 'before_term'
+              ? '当前在学期开始前'
+              : '当前在学期结束后'
+          : '';
+      this.setData({
+        weekPickerOptions: weekNumberOptions(totalWeeks),
+        browseWeek: realWeek || 1,
+        realWeek,
+        isBrowsing: false,
+        statusText,
+        needSetup: today.ok && today.status === 'unconfigured',
+        offline: !!today.offline,
+      });
+      let courses = [];
+      try {
+        courses = await api.getCourses();
+      } catch (err) {
+        // 离线时课表列表不可用：保留已计算好的周次并提示
+        this.setData({ weekDays: [], error: '课程列表加载失败：' + (err.message || '请检查网络') });
+        return;
+      }
+      this.setData({ allCourses: courses });
+      this.applyCourses();
     } catch (err) {
       this.setData({ error: err.message || '加载失败' });
     } finally {
       this.setData({ loading: false });
     }
+  },
+
+  // 按当前浏览周把课程按星期分组并标注是否该周上课
+  applyCourses() {
+    const courses = this.data.allCourses || [];
+    const browseWeek = this.data.browseWeek;
+    const weekDays = WEEKDAY_LABELS.map((label, i) => ({
+      day: i + 1,
+      label,
+      courses: courses
+        .filter((c) => c.day_of_week === i + 1)
+        .sort((a, b) => a.start_time.localeCompare(b.start_time))
+        .map((c) => ({
+          ...c,
+          weeksText: weeksToText(c.weeks) || '全周',
+          active: isActiveWeek(c, browseWeek),
+        })),
+    }));
+    this.setData({ weekDays });
   },
 
   openAdd() {
@@ -220,9 +275,11 @@ Page({
   // 确认弹窗列出课程名+星期+时间（最多 6 行，超出省略）
   confirmImport() {
     const { pendingCourses } = this.data;
-    const lines = pendingCourses.slice(0, 6).map(
-      (c) => `${c.name}（${WEEKDAY_LABELS[c.day_of_week - 1]} ${c.start_time}-${c.end_time}）`
-    );
+    const lines = pendingCourses
+      .slice(0, 6)
+      .map(
+        (c) => `${c.name}（${WEEKDAY_LABELS[c.day_of_week - 1]} ${c.start_time}-${c.end_time}）`
+      );
     const extra = pendingCourses.length > 6 ? `\n……共 ${pendingCourses.length} 节` : '';
     wx.showModal({
       title: `确认导入 ${pendingCourses.length} 节课？`,
@@ -245,11 +302,11 @@ Page({
               : `已导入 ${result.created.length} 节课`,
             icon: 'none',
           });
-          // 首次导入提示设置本周周次：今日页/本页按周次过滤显示
-          if (!wx.getStorageSync('current_week')) {
+          // 未设置学期时引导配置：周次过滤依赖学期设置
+          if (this.data.needSetup) {
             wx.showModal({
-              title: '设置本周周次',
-              content: '导入完成！请点顶部「第X周」选择当前是第几周，课表将按周次过滤显示。',
+              title: '设置学期',
+              content: '导入完成！请先设置学期（第一周的周一与总周数），课表才能按周次过滤显示。',
               showCancel: false,
               confirmText: '知道了',
             });

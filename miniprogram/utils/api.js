@@ -119,6 +119,12 @@ module.exports = {
   updateReminder: (id, data) => request(`/api/reminders/${id}`, { method: 'PUT', data }),
   deleteReminder: (id) => request(`/api/reminders/${id}`, { method: 'DELETE' }),
 
+  // 学期与日历（B6 契约见 docs/b6-contract.md；未配置时 GET 返回 settings=null）
+  getSemester: () => request('/api/semester'),
+  saveSemester: (settings) => request('/api/semester', { method: 'PUT', data: settings }),
+  getCalendar: (date) =>
+    request('/api/calendar' + (date ? '?date=' + encodeURIComponent(date) : '')),
+
   // 微信登录与订阅登记（B3；订阅接口需 Bearer 会话头，见契约）
   wechatLogin: (code) => request('/api/wechat/login', { method: 'POST', data: { code } }),
   ensurePhoneReminder: (taskId, token) =>

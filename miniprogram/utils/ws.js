@@ -16,8 +16,17 @@ const EVENT_THROTTLE_MS = 400;
 const EVENT_ID_HISTORY = 200;
 // ====================
 
-// 契约允许的事件类型（docs/api-contract.md；未知类型忽略）
-const KNOWN_TYPES = ['task.created', 'course.created', 'reminder.due'];
+// 契约允许的事件类型（docs/api-contract.md、docs/b6-contract.md；未知类型忽略）
+const KNOWN_TYPES = [
+  'task.created',
+  'course.created',
+  'reminder.due',
+  'semester.updated',
+  'course.updated',
+  'course.deleted',
+  'task.updated',
+  'task.deleted',
+];
 
 let socket = null; // wx.SocketTask
 let reconnectAttempts = 0;
@@ -168,7 +177,7 @@ function stop() {
 }
 
 /**
- * 订阅事件：type 为 'task.created' / 'course.created' / 'reminder.due' / 'reconnect'。
+ * 订阅事件：type 为 KNOWN_TYPES 之一或 'reconnect'。
  * 同一 handler 重复订阅只生效一次（Set 去重）。
  */
 function on(type, handler) {
