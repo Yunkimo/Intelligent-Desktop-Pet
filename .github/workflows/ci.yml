@@ -44,6 +44,10 @@ jobs:
         run: |
           set -o pipefail
           python scripts/check_c6_integration.py | tee ci-results/c6-integration.txt
+      - name: C7 course import draft/save regression (real backend, no vision key)
+        run: |
+          set -o pipefail
+          python scripts/check_c7_integration.py | tee ci-results/c7-integration.txt
       - name: Keep miniprogram results
         if: always()
         uses: actions/upload-artifact@v4
