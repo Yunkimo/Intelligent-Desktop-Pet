@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "test": "node tests/run-tests.js",
-    "lint": "eslint utils/api.js utils/datetime.js utils/subscribe.js utils/semester.js utils/ws.js pages/task/task.js pages/index/index.js pages/reminder/reminder.js pages/schedule/schedule.js pages/semester/semester.js tests/runtime.js tests/subscribe-logic.test.js tests/subscribe-contract.test.js tests/ws-logic.test.js tests/semester-logic.test.js tests/semester-contract.test.js tests/run-tests.js",
-    "format:check": "prettier --check utils/subscribe.js utils/semester.js pages/reminder/reminder.js pages/schedule/schedule.js pages/semester/semester.js tests/runtime.js tests/subscribe-logic.test.js tests/subscribe-contract.test.js tests/semester-logic.test.js tests/semester-contract.test.js"
+    "lint": "eslint utils/api.js utils/datetime.js utils/subscribe.js utils/semester.js utils/course_import.js utils/ws.js pages/task/task.js pages/index/index.js pages/reminder/reminder.js pages/schedule/schedule.js pages/semester/semester.js tests/runtime.js tests/subscribe-logic.test.js tests/subscribe-contract.test.js tests/ws-logic.test.js tests/semester-logic.test.js tests/semester-contract.test.js tests/course-import-logic.test.js tests/course-import-contract.test.js tests/run-tests.js",
+    "format:check": "prettier --check utils/subscribe.js utils/semester.js utils/course_import.js pages/reminder/reminder.js pages/schedule/schedule.js pages/semester/semester.js tests/runtime.js tests/subscribe-logic.test.js tests/subscribe-contract.test.js tests/semester-logic.test.js tests/semester-contract.test.js tests/course-import-logic.test.js tests/course-import-contract.test.js"
   },
   "devDependencies": {
     "eslint": "10.13.0",

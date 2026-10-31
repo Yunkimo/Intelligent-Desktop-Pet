@@ -10,6 +10,7 @@
 | `app.js` / `app.json` / `app.wxss` | 全局入口（启动 WebSocket 适配层）、页面注册与 TabBar、全局样式 |
 | `pages/index` | 今日课表 / 待办（真实教学周与当天课表来自 B6 日历接口、勾选完成、下拉刷新） |
 | `pages/schedule` | 课表增删改 + 图片识别导入（按星期分组，浏览其他周与「回到本周」，周次支持 `1-16` / `1,3,5` 写法） |
+| `utils/course_import.js` | 图片导入纯逻辑：草稿合并/缺项判定/节次时间映射/逐条保存结果核对与失败恢复（契约见 `docs/b7-parsing.md`） |
 | `pages/task` | 日程增删改（截止日期、勾选完成） |
 | `pages/semester` | 学期设置（第一周的周一 + 总周数，整体保存到后端） |
 | `utils/api.js` | `wx.request` / `wx.uploadFile` 封装：`baseUrl` 与 `X-API-Key` 集中配置于文件顶部 |
@@ -48,6 +49,14 @@
 - 实时刷新：`semester.updated`、`course.updated/deleted`、`task.updated/deleted` 已加入事件白名单，相关页面收到推送后 REST 重读；重连后同样重读快照。
 - 旧 `current_week` 本地固定周缓存已废弃，不反推开学日期。契约见 [B6 契约](https://github.com/Yunkimo/Intelligent-Desktop-Pet/blob/9e0dfed/docs/b6-contract.md)（B6 后端合入前，页面按契约开发、联调使用 B 的后端分支）。
 
+## 图片识别导入（C7）
+
+- 「识」入口：选图 → 预览 → 压缩（质量 80 / 宽 1920，不压糊文字）→ 上传识别。上传阶段显示真实阶段与**已等待秒数**（最长 70 秒，对应 B7 服务端 60 秒预算，由 `config.parseTimeoutMs` 控制），可点「取消识别」；取消/超时/退出页面都中止请求并忽略迟到响应，不残留转圈，也**不宣称上游计算与费用已撤销**。
+- 识别结果以可编辑草稿展示（时间完整的 `courses` + 需确认的 `pending_courses`），并列出后端警告；缺时间/周次/星期的条目高亮提示，**未补全前点「确认导入」会被阻止**（确认前不写数据库）。
+- 图中只有节次标签（如「1-2」「第3行」）没有具体时间时，自动按标准节次时间**预填**（第1节 08:00-09:40、第2节 10:00-11:40、第3节 13:00-14:40、第4节 16:00-17:40、第5节 19:00-20:40），草稿里可见可改；点「配置节次时间」可统一调整各节次时间。预填值在确认前都会展示，不静默套用；无节次标签的条目需手填。
+- 确认后走 bulk 落库并按实际返回**逐条核对**：成功/无效/明确失败/结果不明分别处理；部分失败只保留失败项供修正后重试，不整批盲重传；响应不明先按课表列表核对，无法确认的标「结果待确认」。完成后刷新课表，真实当前周不变。
+- 413=图片过大、422=无可识别内容或输入无效、503=后端未配置视觉模型、504=识别超时（可重试）、429=模型服务繁忙、502=上游异常。契约见 [B7 接口说明](../docs/b7-parsing.md)。
+
 ## 订阅提醒（C3）
 
 日程页设置提醒时间后，主动点击“订阅提醒”。按钮处理中不可重复触发。微信授权在点击同步调用链发起；随后获取后端会话、原子创建或复用本人的 phone 提醒，查询当前事件，再登记选择。页面加载不会弹出授权窗口。
@@ -74,6 +83,7 @@ npm test --prefix miniprogram
 python -m pytest -c backend/pytest.ini backend/tests -q
 python scripts/check_c3_integration.py
 python scripts/check_c6_integration.py
+python scripts/check_c7_integration.py
 ```
 
 `check_c6_integration.py` 在 B6 未合入时检测到 `/api/semester` 缺失会明确 SKIP（退出 0），合入后自动执行真实联调；合入前可用 `BACKEND_DIR` 指向含 B6 的后端检出做真实联调取证（见 [C6 验收记录](../docs/evidence/c6/c6-verification.md)）。

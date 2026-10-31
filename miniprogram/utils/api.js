@@ -55,46 +55,119 @@ function request(path, { method = 'GET', data, headers } = {}) {
   });
 }
 
-/** wx.uploadFile 封装：multipart 上传（课表图片识别），自动带 X-API-Key，返回 Promise。 */
-function upload(path, { filePath, name = 'image', formData } = {}) {
-  return new Promise((resolve, reject) => {
-    wx.uploadFile({
+/** 上传中止标记错误：页面据此区分「用户取消」与网络/服务错误。 */
+function cancelledError() {
+  const error = new Error('已取消');
+  error.cancelled = true;
+  return error;
+}
+
+/**
+ * wx.uploadFile 封装：multipart 上传（课表图片识别），自动带 X-API-Key。
+ * 返回 { task, done }：task 为 wx.UploadTask（可 abort），done 为 Promise；
+ * abort 后 done 以 cancelled 标记拒绝，迟到的成功/失败回调不会再次结算。
+ * 超时毫秒数默认取 config.parseTimeoutMs（B7 契约：客户端最多等 70 秒）。
+ */
+function uploadWithTask(path, { filePath, name = 'image', formData } = {}) {
+  let settled = false;
+  let task = null;
+  let rejectFn = null;
+  const done = new Promise((resolve, reject) => {
+    rejectFn = reject;
+    const finish = (fn, value) => {
+      if (settled) {
+        return; // 忽略迟到响应（已超时/已取消/已成功）
+      }
+      settled = true;
+      fn(value);
+    };
+    task = wx.uploadFile({
       url: baseUrl + path,
       filePath,
       name,
       formData,
-      timeout: 180000,
+      timeout: config.parseTimeoutMs || 70000,
       header: {
         'X-API-Key': apiKey,
       },
       success(res) {
         if (res.statusCode >= 200 && res.statusCode < 300) {
+          let data;
           try {
-            resolve(JSON.parse(res.data));
+            data = JSON.parse(res.data);
           } catch (err) {
-            reject(new Error('响应解析失败'));
+            finish(reject, new Error('响应解析失败'));
+            return;
           }
+          finish(resolve, data);
           return;
         }
         let detail = '';
+        let code = '';
         try {
-          const data = JSON.parse(res.data || '{}');
-          detail = typeof data.detail === 'string' ? data.detail : '';
+          const parsed = JSON.parse(res.data || '{}');
+          if (typeof parsed.detail === 'string') {
+            detail = parsed.detail;
+          } else if (parsed.detail && typeof parsed.detail.message === 'string') {
+            detail = parsed.detail.message;
+            code = parsed.detail.code || '';
+          }
         } catch (err) {
           /* 非 JSON 响应，保持通用错误提示 */
         }
-        reject(new Error(`HTTP ${res.statusCode}${detail ? `：${detail}` : ''}`));
+        const error = new Error(`HTTP ${res.statusCode}${detail ? `：${detail}` : ''}`);
+        error.statusCode = res.statusCode;
+        error.code = code;
+        finish(reject, error);
       },
       fail(err) {
-        reject(new Error(`上传失败：${err.errMsg || '请检查网络与后端服务'}`));
+        if (err && /abort|cancel/i.test(err.errMsg || '')) {
+          finish(reject, cancelledError());
+          return;
+        }
+        const message = (err && err.errMsg) || '';
+        const error = new Error(
+          /timeout/i.test(message)
+            ? '识别超时（已等待 70 秒），请重试'
+            : `上传失败：${message || '请检查网络与后端服务'}`
+        );
+        error.timeout = /timeout/i.test(message);
+        finish(reject, error);
       },
     });
   });
+  return {
+    get task() {
+      return task;
+    },
+    done,
+    abort() {
+      // 主动取消：中止底层任务并让 done 以 cancelled 标记拒绝；迟到回调被 finish 忽略
+      if (!settled) {
+        settled = true;
+        if (task) {
+          try {
+            task.abort();
+          } catch (err) {
+            /* 任务已结束时忽略 */
+          }
+        }
+        rejectFn(cancelledError());
+      }
+    },
+  };
+}
+
+/** 旧版 upload 封装：兼容普通上传场景，返回 Promise（不暴露 task）。 */
+function upload(path, { filePath, name = 'image', formData } = {}) {
+  return uploadWithTask(path, { filePath, name, formData }).done;
 }
 
 module.exports = {
   baseUrl,
   apiKey,
+  uploadWithTask,
+  cancelledError,
 
   // 课表
   getCourses: () => request('/api/courses'),
@@ -102,7 +175,7 @@ module.exports = {
   updateCourse: (id, data) => request(`/api/courses/${id}`, { method: 'PUT', data }),
   deleteCourse: (id) => request(`/api/courses/${id}`, { method: 'DELETE' }),
 
-  // 课表图片识别导入
+  // 课表图片识别导入（B7 契约见 docs/b7-parsing.md；可用 uploadWithTask 拿到任务句柄以取消）
   parseCourseImage: (filePath) => upload('/api/courses/parse-image', { filePath, name: 'image' }),
   bulkCreateCourses: (courses) =>
     request('/api/courses/bulk', { method: 'POST', data: { courses } }),
