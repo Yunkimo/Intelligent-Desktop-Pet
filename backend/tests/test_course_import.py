@@ -21,10 +21,13 @@ VALID_COURSE = {
 
 
 def upload(client, monkeypatch=None):
+    from pathlib import Path
+
+    data = (Path(__file__).resolve().parents[2] / "tests_fixtures/b7/schedule.png").read_bytes()
     return client.post(
         "/api/courses/parse-image",
         headers=HEADERS,
-        files={"image": ("timetable.jpg", b"fake-image", "image/jpeg")},
+        files={"image": ("timetable.jpg", data, "image/jpeg")},
     )
 
 

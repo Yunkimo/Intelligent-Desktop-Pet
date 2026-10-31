@@ -95,3 +95,6 @@ WEB_SEARCH_URL = "https://html.duckduckgo.com/html/"
 WEB_QUERY_TIMEOUT_SECONDS = positive_seconds("WEB_QUERY_TIMEOUT_SECONDS", "8")
 WEB_QUERY_MAX_BYTES = integer_setting("WEB_QUERY_MAX_BYTES", "262144", 1024, 1048576)
 WEB_QUERY_MAX_CONCURRENT = integer_setting("WEB_QUERY_MAX_CONCURRENT", "4", 1, 16)
+
+LLM_TEXT_MODEL = os.getenv("LLM_TEXT_MODEL", "").strip()
+PARSE_TIMEOUT_SECONDS = positive_seconds("PARSE_TIMEOUT_SECONDS", "60")

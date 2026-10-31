@@ -6,8 +6,15 @@ from starlette.concurrency import run_in_threadpool
 from .. import db
 from ..auth import require_token
 from ..schemas import TaskIn, TaskUpdate
+from ..task_parse import TextInput, parse_tasks
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"], dependencies=[Depends(require_token)])
+
+
+@router.post("/parse-text")
+async def parse_text(payload: TextInput):
+    """只返回待确认草稿，沿用 tasks 的鉴权。"""
+    return await parse_tasks(payload)
 
 
 @router.get("")

@@ -124,7 +124,7 @@ def test_parse_image_normalizes_and_drops_invalid(monkeypatch):
             AsyncMock(side_effect=[json.dumps(payload), json.dumps(payload)]),
         )
         result = await vision.parse_schedule_image(b"img", "image/jpeg")
-        assert result["skipped"] == 2  # 两轮各 1 条无效
+        assert result["skipped"] == 1
         assert len(result["courses"]) == 1
         course = result["courses"][0]
         assert course["name"] == "数学"
@@ -152,7 +152,7 @@ def test_parse_image_dedupes_duplicates(monkeypatch):
         )
         result = await vision.parse_schedule_image(b"img", "image/jpeg")
         assert len(result["courses"]) == 1
-        assert result["skipped"] == 4  # 两轮各去重 2 条
+        assert result["skipped"] == 2
 
     asyncio.run(scenario())
 
@@ -185,31 +185,17 @@ def test_parse_image_merges_notes_and_skips_unmatched(monkeypatch):
     asyncio.run(scenario())
 
 
-def test_parse_image_intersection_filters_single_run_entries(monkeypatch):
-    monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
-    monkeypatch.setattr(config, "LLM_BASE_URL", "https://api.siliconflow.cn/v1")
-    monkeypatch.setattr(config, "LLM_VISION_MODEL", "Qwen/Qwen3-VL-32B-Instruct")
-
-    async def scenario():
-        fabricated = {
-            "name": "体育课外测试",
-            "day_of_week": 1,
-            "start_time": "19:00",
-            "end_time": "20:40",
-            "location": "",
-            "weeks": [1, 2, 3],
-        }
-        run_a = {"grid": [GRID_COURSE, fabricated], "notes": []}
-        run_b = {"grid": [GRID_COURSE], "notes": []}
-        monkeypatch.setattr(
-            vision, "_call_vision", AsyncMock(side_effect=[json.dumps(run_a), json.dumps(run_b)])
-        )
-        result = await vision.parse_schedule_image(b"img", "image/jpeg")
-        assert len(result["courses"]) == 1
-        assert result["courses"][0]["name"] == "数学"
-        assert result["skipped"] == 1  # 只在单轮出现的臆造条目被交集过滤
-
-    asyncio.run(scenario())
+def test_single_model_call_retains_unmapped_slot(monkeypatch):
+    monkeypatch.setattr(vision, "is_configured", lambda: True)
+    row = {**GRID_COURSE, "slot": "第2行", "start_time": None, "end_time": None, "weeks": "7,11周"}
+    mocked = AsyncMock(return_value=json.dumps({"grid": [row]}))
+    monkeypatch.setattr(vision, "_call_vision", mocked)
+    result = asyncio.run(vision.parse_schedule_image(b"img", "image/jpeg"))
+    mocked.assert_awaited_once()
+    assert result["courses"] == []
+    draft = result["pending_courses"][0]
+    assert (draft["slot"], draft["weeks"], draft["start_time"]) == ("第2行", [7, 11], None)
+    assert "time" in draft["needs_confirmation"]
 
 
 def test_parse_image_missing_grid_raises(monkeypatch):
@@ -221,27 +207,6 @@ def test_parse_image_missing_grid_raises(monkeypatch):
         monkeypatch.setattr(vision, "_call_vision", AsyncMock(return_value='{"notes": []}'))
         with pytest.raises(vision.VisionError):
             await vision.parse_schedule_image(b"img", "image/jpeg")
-
-    asyncio.run(scenario())
-
-
-def test_parse_image_single_run_failure_falls_back(monkeypatch):
-    monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
-    monkeypatch.setattr(config, "LLM_BASE_URL", "https://api.siliconflow.cn/v1")
-    monkeypatch.setattr(config, "LLM_VISION_MODEL", "Qwen/Qwen3-VL-32B-Instruct")
-
-    async def scenario():
-        payload = {"grid": [GRID_COURSE], "notes": []}
-        monkeypatch.setattr(
-            vision,
-            "_call_vision",
-            AsyncMock(side_effect=[vision.VisionError("上游返回 HTTP 500"), json.dumps(payload)]),
-        )
-        result = await vision.parse_schedule_image(b"img", "image/jpeg")
-        # 一路失败 → 降级为单路结果，课程保留
-        assert len(result["courses"]) == 1
-        assert result["courses"][0]["name"] == "数学"
-        assert result["skipped"] == 0
 
     asyncio.run(scenario())
 

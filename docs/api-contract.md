@@ -207,3 +207,5 @@ C3 修复新增带 Bearer 的本人提醒创建/查询、event_id 校验和消�
 - 必填字段 title/note/done 的显式 null 返回 422；due_at/remind_at 的 null 用于清除。所有联动写入失败整体回滚。
 
 A/C 对接：A 调用 create_task 时不应再重复创建 PC 提醒；C 日程保存继续使用原 tasks 接口，订阅仍由用户点击。自动化联调不代表成员人工评审或真机实收，记录见 [B5 核验说明](b5-verification.md)。
+
+B7 图片课表与文本日程草稿的请求、返回及验收步骤见 [B7 解析接口](b7-parsing.md)。
