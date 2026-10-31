@@ -40,6 +40,10 @@ jobs:
         run: |
           set -o pipefail
           python scripts/check_c3_integration.py | tee ci-results/c3-integration.txt
+      - name: C6 semester/calendar regression (skips until B6 merges)
+        run: |
+          set -o pipefail
+          python scripts/check_c6_integration.py | tee ci-results/c6-integration.txt
       - name: Keep miniprogram results
         if: always()
         uses: actions/upload-artifact@v4
