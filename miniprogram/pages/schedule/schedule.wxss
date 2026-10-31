@@ -76,11 +76,52 @@
 
 .week-hint {
   margin-left: auto;
-  color: #a4b0be;
+  color: #4a90d9;
   font-size: 24rpx;
 }
 
-/* 本周不上课的课程置灰 */
+.back-btn {
+  margin-left: 16rpx;
+  color: #2f9e44;
+  font-size: 24rpx;
+  padding: 4rpx 16rpx;
+  background: #eefaf1;
+  border-radius: 8rpx;
+}
+
+/* 离线/未配置/学期外提示 */
+.offline-banner {
+  margin: 16rpx 24rpx 0;
+  padding: 12rpx 24rpx;
+  background: #fff7e6;
+  color: #b7791f;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+}
+
+.status-banner {
+  margin: 16rpx 24rpx 0;
+  padding: 12rpx 24rpx;
+  background: #eef4fb;
+  color: #4a90d9;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+}
+
+.setup-card {
+  margin: 16rpx 24rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.setup-text {
+  margin-bottom: 16rpx;
+  color: #57606f;
+  font-size: 28rpx;
+}
+
+/* 浏览周内不上课的课程置灰 */
 .course-card.inactive {
   opacity: 0.5;
 }

@@ -4,8 +4,8 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 
-// 同时保留 WebSocket 适配层和 C3 订阅恢复回归。
-const TEST_FILES = ['ws-logic.test.js', 'subscribe-logic.test.js'];
+// 同时保留 WebSocket 适配层、C3 订阅恢复回归与 C6 学期周数逻辑。
+const TEST_FILES = ['ws-logic.test.js', 'subscribe-logic.test.js', 'semester-logic.test.js'];
 
 let failed = 0;
 for (const file of TEST_FILES) {

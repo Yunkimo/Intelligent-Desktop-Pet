@@ -5,8 +5,14 @@ const ws = require('../../utils/ws');
 const subscribe = require('../../utils/subscribe');
 const { dateStr, reminderParts, reminderInput } = require('../../utils/datetime');
 
-// 日程页关心的后端事件
-const WS_EVENTS = ['task.created', 'reminder.due', 'reconnect'];
+// 日程页关心的后端事件（B6 起后端会在其他端增改删时推送更新/删除事件）
+const WS_EVENTS = [
+  'task.created',
+  'task.updated',
+  'task.deleted',
+  'reminder.due',
+  'reconnect',
+];
 
 const EMPTY_FORM = {
   id: null,

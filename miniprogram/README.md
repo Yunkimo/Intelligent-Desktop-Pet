@@ -8,12 +8,14 @@
 |---|---|
 | `project.config.json` | 微信开发者工具项目配置（请核对并使用你注册的小程序AppID，仓库中的值不代替账号权限） |
 | `app.js` / `app.json` / `app.wxss` | 全局入口（启动 WebSocket 适配层）、页面注册与 TabBar、全局样式 |
-| `pages/index` | 今日课表 / 待办（按本周周次过滤、勾选完成、下拉刷新） |
-| `pages/schedule` | 课表增删改 + 图片识别导入（按星期分组，周次支持 `1-16` / `1,3,5` 写法） |
+| `pages/index` | 今日课表 / 待办（真实教学周与当天课表来自 B6 日历接口、勾选完成、下拉刷新） |
+| `pages/schedule` | 课表增删改 + 图片识别导入（按星期分组，浏览其他周与「回到本周」，周次支持 `1-16` / `1,3,5` 写法） |
 | `pages/task` | 日程增删改（截止日期、勾选完成） |
+| `pages/semester` | 学期设置（第一周的周一 + 总周数，整体保存到后端） |
 | `utils/api.js` | `wx.request` / `wx.uploadFile` 封装：`baseUrl` 与 `X-API-Key` 集中配置于文件顶部 |
 | `utils/ws.js` | WebSocket 事件适配层：连接/重连/节流/去重集中管理（契约见 `docs/api-contract.md`） |
-| `utils/datetime.js` | 日期换算与本周周次工具（后端 `day_of_week` 1=周一 … 7=周日） |
+| `utils/semester.js` | 学期状态适配层：学期配置读取/保存/日历查询、离线推算与缓存（契约见 `docs/b6-contract.md`） |
+| `utils/datetime.js` | 日期换算、提醒时间偏移与学期周次纯日历推算（后端 `day_of_week` 1=周一 … 7=周日） |
 | `config.example.js` | 复制为 `config.js` 填入 `baseUrl` / `apiKey`（`config.js` 已 gitignore，密钥不入库） |
 
 ## 本地联调
@@ -36,6 +38,15 @@
 - 所有请求带 `X-API-Key` 头，由后端校验；401 = Key 无效，503 = 后端未配置 `API_TOKEN`。
 - 课表 `/api/courses`、日程 `/api/tasks`；字段以 `backend/app/schemas.py` 为准。
 - 课表 `weeks` 在后端是 JSON 字符串（如 `"[1,2,3]"`），提交时传数字数组，展示由页面解析。
+
+## 自动周数与今日课表（C6）
+
+- 首次使用引导设置学期：「学期设置」页填第一周的周一（必须是周一，如 2026-09-07）与总周数，整体保存到后端 `PUT /api/semester`；时区由后端默认 Asia/Shanghai。
+- 「今日」页显示真实教学周与当天课表（来自 `GET /api/calendar`，服务端按配置时区决定「今天」）；未配置、学期未开始、学期已结束分别提示，不显示固定的第 6/7 周。
+- 「课表」页顶部选择器只用于**浏览其他周**（不改学期配置、不写本地存储），出现「回到本周」按钮；重新进入页面默认回到本周。灰色为浏览周不上课，不表示数据丢失。
+- 周次由学期设置与日期推算（纯日历日差整除 7 加 1，与后端同算法）；断网时用已确认的学期配置按本机日期推算并提示「离线推算」，恢复网络后自动校准。跨午夜停留也会自动重算今天。
+- 实时刷新：`semester.updated`、`course.updated/deleted`、`task.updated/deleted` 已加入事件白名单，相关页面收到推送后 REST 重读；重连后同样重读快照。
+- 旧 `current_week` 本地固定周缓存已废弃，不反推开学日期。契约见 [B6 契约](https://github.com/Yunkimo/Intelligent-Desktop-Pet/blob/9e0dfed/docs/b6-contract.md)（B6 后端合入前，页面按契约开发、联调使用 B 的后端分支）。
 
 ## 订阅提醒（C3）
 
@@ -62,7 +73,10 @@ npm run format:check --prefix miniprogram
 npm test --prefix miniprogram
 python -m pytest -c backend/pytest.ini backend/tests -q
 python scripts/check_c3_integration.py
+python scripts/check_c6_integration.py
 ```
+
+`check_c6_integration.py` 在 B6 未合入时检测到 `/api/semester` 缺失会明确 SKIP（退出 0），合入后自动执行真实联调；合入前可用 `BACKEND_DIR` 指向含 B6 的后端检出做真实联调取证（见 [C6 验收记录](../docs/evidence/c6/c6-verification.md)）。
 
 Node 不在 PATH 时可设置 NODE_BINARY。逻辑回归和真实 HTTP 联调分别执行；后者使用真实页面逻辑、FastAPI、SQLite、会话和调度器，仅外部微信使用 MockTransport，数据库及凭据临时生成并清理，不覆盖 config.js。
 

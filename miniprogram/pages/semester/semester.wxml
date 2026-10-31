@@ -1,0 +1,29 @@
+<view class="page">
+  <view wx:if="{{error}}" class="error-banner">
+    <text>{{error}}</text>
+    <text class="retry" bindtap="retry">重试</text>
+  </view>
+
+  <view class="card intro">
+    <text class="intro-title">学期设置</text>
+    <text class="intro-text">设置第一周的周一和总周数后，小程序会按真实日期自动计算本周是第几周，不再需要每周手动调整。</text>
+  </view>
+
+  <view class="card form-card">
+    <view class="form-item">
+      <text class="label">第一周的周一</text>
+      <picker mode="date" value="{{startDate}}" bindchange="onDateChange">
+        <view class="picker-value {{startDate ? '' : 'placeholder'}}">{{startDate || '选择开学日期'}}</view>
+      </picker>
+      <text class="hint">必须是周一，例如 2026-09-07</text>
+    </view>
+    <view class="form-item">
+      <text class="label">总周数</text>
+      <picker mode="selector" range="{{weekCountOptions}}" value="{{weekIndex}}" bindchange="onWeekChange">
+        <view class="picker-value">{{weekCountOptions[weekIndex]}}</view>
+      </picker>
+    </view>
+    <view wx:if="{{currentText}}" class="current-text">{{currentText}}</view>
+    <button class="btn btn-primary save-btn" disabled="{{saving || loading}}" loading="{{saving}}" bindtap="save">保存学期</button>
+  </view>
+</view>

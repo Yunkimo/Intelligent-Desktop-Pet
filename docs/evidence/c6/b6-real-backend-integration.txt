@@ -1,0 +1,13 @@
+PASS 未配置：semester 与 calendar 的契约形态
+PASS 未认证请求返回 401
+PASS PUT 整体保存并读回（settings.id=1）
+PASS 非法设置 422 且不覆盖原配置（非周一/超范围/未知字段）
+PASS 任务书固定样例：10-25=第7周、10-26=第8周、10-30=第8周周五、10-31=第8周周六
+PASS 学期边界：开学前/最后一周/结束后 week=null 且 courses 为空
+PASS 课程按星期与周次过滤（单双周/空weeks/无课日）
+PASS semester.js 适配层：getSettings/saveSettings/getToday 走真实后端
+PASS 今日页真实加载：真实周次标签与当天课程来自 B6 日历
+PASS 课表页真实加载：浏览周与真实周一致、周视图来自课程列表分组
+PASS api.js 封装：getCalendar(date) 与无参数查询服务器今天
+
+全部通过：11 项
