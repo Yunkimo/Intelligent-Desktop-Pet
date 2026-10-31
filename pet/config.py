@@ -92,6 +92,10 @@ class Settings:
         self.sprite_size: int = int(data.get("sprite_size", 180))
 
         self.whisper_model: str = data.get("whisper_model", "base")
+        # 语音识别热词：空格分隔，作为识别提示注入；课设场景给一组通用词，用户可覆盖
+        self.asr_hotwords: str = str(
+            data.get("asr_hotwords", "课表 日程 提醒 待办 上课 考试 作业 会议 图书馆 老师")
+        )
         self.tts_voice: str = data.get("tts_voice", DEFAULT_TTS_VOICE)
         # 旧默认声音已不在服务声音列表中，仅迁移该旧值，保留其他自选声音。
         if self.tts_voice == "zh-CN-XiaoyouNeural":

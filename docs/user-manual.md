@@ -55,6 +55,8 @@ LLM_MODEL=deepseek-flash
 
 > 首次识别会按 `whisper_model` 下载模型，体积和许可证随具体模型与版本变化。下载期间需要网络；模型及在线语音服务的边界见[第三方说明](../THIRD_PARTY_NOTICES.md)。
 
+语音识别在送入模型前会做**峰值归一化**（音量过低也能稳定识别），识别时启用 **VAD**（过滤静音与噪音段），并用**领域热词**做提示引导——课表、日程、提醒等高频词默认已配好，可在 `config.json` 的 `asr_hotwords` 里改成自己的课程名、人名、地名（空格分隔），提升专有词识别率。首次使用 VAD 会额外下载一个小体积的 Silero VAD 模型。
+
 ## 4. 使用说明
 
 | 操作 | 效果 |
@@ -171,6 +173,7 @@ Codex 使用与 Claude 独立的「监控 Codex」右键开关和角标。运行
   "tts_voice": "zh-CN-XiaoxiaoNeural", // 音色；旧默认 Xiaoyou 在加载时迁移
   "tts_rate": "+10%", "tts_pitch": "+20Hz",
   "whisper_model": "base",        // 识别精度：base/small/medium
+  "asr_hotwords": "课表 日程 提醒 …", // 识别热词（空格分隔），引导专有词识别
   "enable_voice": true,           // 语音输出总开关；右键菜单「语音输出」可随时切换
   "monitor_claude": false,        // Claude Code 回合状态角标（右键可切换）
   "monitor_codex": false,         // Codex 回合状态角标（右键可切换）
