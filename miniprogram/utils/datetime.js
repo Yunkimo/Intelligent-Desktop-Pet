@@ -58,21 +58,78 @@ function todayDow() {
   return day === 0 ? 7 : day;
 }
 
-// 本学期可选周次（1-25 周，覆盖常见学期长度）
-const WEEK_OPTIONS = Array.from({ length: 25 }, (_, i) => `第${i + 1}周`);
+// ===== 学期周次推算（B6 契约，纯日历计算，不依赖服务端）=====
 
-const CURRENT_WEEK_KEY = 'current_week';
-
-/** 读取用户设置的「本周周次」，未设置默认第 6 周。 */
-function getCurrentWeek() {
-  const saved = wx.getStorageSync(CURRENT_WEEK_KEY);
-  const week = Number(saved);
-  return saved && Number.isInteger(week) && week >= 1 && week <= 25 ? week : 6;
+/** 解析 "YYYY-MM-DD" 为 {y, m, d}；格式错误或日期不存在（如 02-30）返回 null。 */
+function parseDate(text) {
+  if (typeof text !== 'string') {
+    return null;
+  }
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  const d = Number(match[3]);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) {
+    return null;
+  }
+  return { y, m, d };
 }
 
-/** 保存「本周周次」。 */
-function setCurrentWeek(week) {
-  wx.setStorageSync(CURRENT_WEEK_KEY, Number(week));
+/** 纯日历日差（a - b，天数）：用日期分量换算，不用毫秒差，夏令时地区也正确。非法日期返回 NaN。 */
+function daysBetween(aText, bText) {
+  const a = parseDate(aText);
+  const b = parseDate(bText);
+  if (!a || !b) {
+    return NaN;
+  }
+  const toDays = (p) => Date.UTC(p.y, p.m - 1, p.d) / 86400000;
+  return toDays(a) - toDays(b);
+}
+
+/**
+ * 按学期设置推算某日期的周次与状态（与后端同算法：日历日差整除 7 加 1）。
+ * 返回 { week, status }：status ∈ before_term / in_term / after_term / unconfigured；
+ * 只有 in_term 有真实 week，学期外 week=null（不夹到第 1/最后一周）。
+ */
+function computeWeek(startDate, totalWeeks, dateText) {
+  if (
+    !parseDate(startDate) ||
+    !Number.isInteger(totalWeeks) ||
+    totalWeeks < 1 ||
+    totalWeeks > 53 ||
+    !parseDate(dateText)
+  ) {
+    return { week: null, status: 'unconfigured' };
+  }
+  const diff = daysBetween(dateText, startDate);
+  if (diff < 0) {
+    return { week: null, status: 'before_term' };
+  }
+  if (diff >= totalWeeks * 7) {
+    return { week: null, status: 'after_term' };
+  }
+  return { week: Math.floor(diff / 7) + 1, status: 'in_term' };
+}
+
+/** 该日期是否为周一（用于学期设置校验：第一周起始日期必须为周一）。 */
+function isMonday(text) {
+  const p = parseDate(text);
+  return p !== null && new Date(Date.UTC(p.y, p.m - 1, p.d)).getUTCDay() === 1;
+}
+
+/** 本机当地日历今天（YYYY-MM-DD）；离线推算周次时作为「今天」。 */
+function localDateText() {
+  return dateStr(new Date());
+}
+
+/** 总周数（1-53）对应的周次选项，供「浏览其他周」选择器使用。 */
+function weekNumberOptions(totalWeeks) {
+  const count = Number.isInteger(totalWeeks) ? Math.min(Math.max(totalWeeks, 1), 53) : 25;
+  return Array.from({ length: count }, (_, i) => `第${i + 1}周`);
 }
 
 /** 后端 weeks 字段可能是 JSON 字符串（如 "[1,2,3]"）或数组；解析为数字数组，空/无返回 []。 */
@@ -99,11 +156,14 @@ module.exports = {
   reminderParts,
   reminderInput,
   WEEKDAY_LABELS,
-  WEEK_OPTIONS,
   dateStr,
   todayDow,
-  getCurrentWeek,
-  setCurrentWeek,
   parseWeeks,
   isActiveWeek,
+  parseDate,
+  daysBetween,
+  computeWeek,
+  isMonday,
+  localDateText,
+  weekNumberOptions,
 };

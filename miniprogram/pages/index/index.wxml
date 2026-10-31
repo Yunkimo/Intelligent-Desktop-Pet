@@ -1,23 +1,31 @@
 <view class="page">
   <view class="week-bar">
     <text class="week-label">本周</text>
-    <picker mode="selector" range="{{weekOptions}}" value="{{currentWeek - 1}}" bindchange="onWeekPick">
-      <view class="week-value">第{{currentWeek}}周 ▾</view>
-    </picker>
-    <text class="week-hint">课程按周次过滤</text>
+    <view class="week-value">{{todayLabel || '--'}}</view>
+    <text class="week-hint" bindtap="openSemester">设置</text>
   </view>
+
+  <view wx:if="{{offline}}" class="offline-banner">当前离线：周次按本机日期推算，课程列表暂不可用</view>
+
+  <view wx:if="{{needSetup}}" class="setup-card card">
+    <view class="setup-text">尚未设置学期，无法计算本周周次</view>
+    <button class="btn btn-primary" bindtap="openSemester">去设置学期</button>
+  </view>
+
+  <view wx:if="{{statusText}}" class="status-banner">当前状态：{{statusText}}</view>
 
   <view wx:if="{{error}}" class="error-banner">
     <text>{{error}}</text>
     <text class="retry" bindtap="retry">重试</text>
   </view>
 
-  <view class="section-title">今日课表 · {{todayLabel}}</view>
-  <view wx:if="{{!loading && courses.length === 0}}" class="empty">今天没有课，去「课表」页添加吧</view>
+  <view class="section-title">今日课表</view>
+  <view wx:if="{{!loading && courses.length === 0 && !offline && !needSetup && !statusText}}" class="empty">今天没有课，去「课表」页添加吧</view>
   <view wx:for="{{courses}}" wx:key="id" class="card">
     <view class="course-name">{{item.name}}</view>
     <view class="course-meta">{{item.start_time}} - {{item.end_time}}</view>
     <view wx:if="{{item.location}}" class="course-meta">📍 {{item.location}}</view>
+    <view wx:if="{{item.teacher}}" class="course-meta">👤 {{item.teacher}}</view>
   </view>
 
   <block wx:if="{{reminders.length > 0}}">

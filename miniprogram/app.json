@@ -3,7 +3,8 @@
     "pages/index/index",
     "pages/schedule/schedule",
     "pages/task/task",
-    "pages/reminder/reminder"
+    "pages/reminder/reminder",
+    "pages/semester/semester"
   ],
   "window": {
     "navigationBarBackgroundColor": "#4a90d9",

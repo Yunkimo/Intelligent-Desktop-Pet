@@ -124,6 +124,28 @@ async function main() {
     assert.strictEqual(got.length, 1);
   });
 
+  await check('B6 扩展事件类型（semester/course/task 增改删）正常分发', () => {
+    const got = [];
+    const h = (e) => got.push(e.type + ':' + e.data.id);
+    const types = [
+      'semester.updated',
+      'course.updated',
+      'course.deleted',
+      'task.updated',
+      'task.deleted',
+    ];
+    types.forEach((type) => ws.on(type, h));
+    types.forEach((type, i) => feed(sockets[0], makeEvent({ type, data: { id: i + 1 } })));
+    assert.deepStrictEqual(got.sort(), [
+      'course.deleted:3',
+      'course.updated:2',
+      'semester.updated:1',
+      'task.deleted:5',
+      'task.updated:4',
+    ]);
+    types.forEach((type) => ws.off(type, h));
+  });
+
   await check('同类型突发事件节流合并（首条立即 + 尾条补发）', async () => {
     const got = [];
     const h = (e) => got.push(e);
