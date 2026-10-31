@@ -2,7 +2,7 @@
 
 ## C7 课表图片
 
-沿用 POST /api/courses/parse-image、X-API-Key 和 multipart 字段 image。支持 JPEG/PNG/WebP，最大 10 MiB、1600 万像素、100 个课程格。默认 60 秒包含服务端收取 multipart 和模型调用，由 PARSE_TIMEOUT_SECONDS 控制。上传前的客户端压缩、客户端网络和反向代理排队应单独计时。一次图片至多调用模型一次。服务端记录上传读取、模型、结果处理的毫秒数。
+沿用 POST /api/courses/parse-image、X-API-Key 和 multipart 字段 image。支持 JPEG/PNG，最大 10 MiB、1600 万像素、100 个课程格。默认 60 秒包含服务端收取 multipart 和模型调用，由 PARSE_TIMEOUT_SECONDS 控制。上传前的客户端压缩、客户端网络和反向代理排队应单独计时。一次图片至多调用模型一次。服务端记录上传读取、模型、结果处理的毫秒数。
 
 200 响应的 courses 是时间完整且通过课程校验的条目。pending_courses 是待确认草稿，保留课程名、星期、教师、地点、weeks、slot 及 needs_confirmation（time/weeks/day_of_week）。没有时刻时 start_time/end_time 为 null。C7 根据用户确认的节次表映射或手填，再送现有 bulk 接口。请展示两个列表和 warnings，skipped 代表重复、无效或无匹配的条目。只有待补项也会返回 200。识别和展示草稿都不写数据库。
 

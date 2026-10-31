@@ -1,18 +1,17 @@
 """课表识别导入路由：图片解析（不落库）与批量落库。"""
 
 import asyncio
-import io
 import logging
 import time
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.routing import APIRoute
-from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 
 from .. import config, db, vision
 from ..auth import require_token
+from ..image_header import inspect_image
 from ..schemas import CourseIn
 
 
@@ -58,16 +57,12 @@ async def parse_course_image(request: Request, image: UploadFile = File(...)) ->
     if len(data) > vision.MAX_IMAGE_BYTES:
         raise HTTPException(status_code=413, detail="图片超过 10MB，请压缩后重试")
     try:
-        with Image.open(io.BytesIO(data), formats=["JPEG", "PNG", "WEBP"]) as header:
-            if header.width * header.height > 16_000_000:
-                raise HTTPException(413, detail="图片超过 1600 万像素")
-            mime = Image.MIME[header.format]
-            header.verify()
+        mime, width, height = inspect_image(data)
+        if width * height > 16_000_000:
+            raise HTTPException(413, detail="图片超过 1600 万像素")
         result = await vision.parse_schedule_image(data, mime)
-    except Image.DecompressionBombError:
-        raise HTTPException(413, detail="图片像素超限") from None
-    except (UnidentifiedImageError, OSError, SyntaxError):
-        raise HTTPException(422, detail="无法读取 JPEG、PNG 或 WebP 图片") from None
+    except ValueError:
+        raise HTTPException(422, detail="无法读取 JPEG 或 PNG 图片头") from None
     except vision.VisionRateLimited:
         raise HTTPException(
             429, detail={"code": "rate_limited", "message": "模型服务繁忙，请稍后重试"}

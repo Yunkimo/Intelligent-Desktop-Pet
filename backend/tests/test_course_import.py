@@ -1,13 +1,11 @@
 """课表识别导入接口测试：parse-image 错误映射与 bulk 批量落库。"""
 
-import io
 import sqlite3
 from unittest.mock import AsyncMock
 
 import pytest
 from app import config, db, vision
 from app.main import app
-from PIL import Image
 
 HEADERS = {"X-API-Key": "test-token"}
 
@@ -23,12 +21,13 @@ VALID_COURSE = {
 
 
 def upload(client, monkeypatch=None):
-    buf = io.BytesIO()
-    Image.new("RGB", (2, 2)).save(buf, format="JPEG")
+    from pathlib import Path
+
+    data = (Path(__file__).resolve().parents[2] / "tests_fixtures/b7/schedule.png").read_bytes()
     return client.post(
         "/api/courses/parse-image",
         headers=HEADERS,
-        files={"image": ("timetable.jpg", buf.getvalue(), "image/jpeg")},
+        files={"image": ("timetable.jpg", data, "image/jpeg")},
     )
 
 
