@@ -61,7 +61,6 @@ async def bulk_create_courses(payload: CourseBulkIn, request: Request) -> dict:
     if not valid:
         raise HTTPException(status_code=422, detail="没有可导入的有效课程（字段缺失或格式错误）")
     created = await run_in_threadpool(db.create_courses_bulk, valid)
-    for course in created:
-        # 事件契约只有单资源事件类型，逐条通知（notify 内部保证失败不影响已提交写入）
-        await request.app.state.push_service.notify("course.created", course["id"])
+    # 一批仅提示一次列表刷新，保持旧客户端认识的事件类型和信封。
+    await request.app.state.push_service.notify("course.created", created[0]["id"])
     return {"created": created, "skipped": skipped}

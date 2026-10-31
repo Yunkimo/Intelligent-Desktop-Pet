@@ -24,14 +24,18 @@ async def create_course(payload: CourseIn, request: Request) -> dict:
 
 
 @router.put("/{course_id}")
-def update_course(course_id: int, payload: CourseUpdate):
-    course = db.update_course(course_id, payload.model_dump(exclude_unset=True))
+async def update_course(course_id: int, payload: CourseUpdate, request: Request):
+    course = await run_in_threadpool(
+        db.update_course, course_id, payload.model_dump(exclude_unset=True)
+    )
     if course is None:
         raise HTTPException(status_code=404, detail="课表条目不存在")
+    await request.app.state.push_service.notify("course.updated", course_id)
     return course
 
 
 @router.delete("/{course_id}", status_code=204)
-def delete_course(course_id: int):
-    if not db.delete_course(course_id):
+async def delete_course(course_id: int, request: Request):
+    if not await run_in_threadpool(db.delete_course, course_id):
         raise HTTPException(status_code=404, detail="课表条目不存在")
+    await request.app.state.push_service.notify("course.deleted", course_id)

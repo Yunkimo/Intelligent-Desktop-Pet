@@ -26,7 +26,7 @@ B1 已由 PR #16 合并；B2 的时间、状态与验收口径补充仍需 A/C �
 |---|---|---|
 | `version` | 整数，当前为 1 | 不兼容变更递增版本，并先经 A/C 评审 |
 | `event_id` | 非空字符串，生成时为 UUID | 一次逻辑事件的标识；接收端可去重 |
-| `type` | 字符串 | 当前 schema 支持下表三类事件 |
+| `type` | 字符串 | 当前 schema 支持下表事件；未知类型应忽略并通过 REST 校正 |
 | `occurred_at` | 带时区的 ISO 8601 字符串 | 服务端产生通知的时间，默认 UTC；不是提醒计划到期时间 |
 | `data.id` | 正整数 | 由 `type` 确定资源类别的资源 ID；通知不包含业务正文 |
 
@@ -35,6 +35,13 @@ B1 已由 PR #16 合并；B2 的时间、状态与验收口径补充仍需 A/C �
 | `task.created` | `POST /api/tasks` 提交 SQLite 成功后 | `GET /api/tasks` |
 | `course.created` | `POST /api/courses` 提交 SQLite 成功后 | `GET /api/courses` |
 | `reminder.due` | B2 到期调度器领取提醒后 | `GET /api/reminders` |
+| `task.updated` / `task.deleted` | 日程更新（含完成/重开）/删除提交后 | `GET /api/tasks`，需要时补读关联提醒 |
+| `course.updated` / `course.deleted` | 课程更新/删除提交后 | `GET /api/courses` |
+| `semester.updated` | 学期设置提交后；data.id=1 | `GET /api/semester` 和 `GET /api/calendar` |
+
+课程批量导入每批只发送一次兼容的 `course.created`，data.id 为本批第一条课程 ID；
+接收端读取完整课程列表，不以收到的 ID 集合作为导入结果。
+学期配置、日历查询、存储与 B8 接入边界见 [B6 契约](b6-contract.md)。
 
 样例（ID 与时间仅用于说明）：
 
@@ -58,7 +65,7 @@ B1 已由 PR #16 合并；B2 的时间、状态与验收口径补充仍需 A/C �
 - 一次广播并发发送给各连接，每条连接的发送串行化。并发 REST 请求间不承诺全局事件顺序。
 - 推送失败不回滚已提交的 SQLite 写入，REST 仍返回原有 201 及资源正文。
   HTTP 本身断线时先查 REST 确认，不能仅因未收到事件就重试写入。
-- B1 仅对日程和课表的创建发送事件；更新、删除、提醒创建没有新增广播。
+- B6 补齐日程/课程更新删除及学期设置通知；提醒创建不另发广播，B5 关联提醒随 task 事件补读。
 - 固定单进程、单 worker。多 worker 的连接集合互不可见，不可直接扩容后声称广播等价。
 - `WS_SEND_TIMEOUT_SECONDS` 默认 2；`WS_CLOSE_TIMEOUT_SECONDS` 默认 1。
   含锁等待的单连接发送超过上限会被移除；清理另有关闭上限。二者都必须为正有限秒数。

@@ -12,7 +12,16 @@ from pydantic import AwareDatetime, BaseModel, Field
 from .wechat_client import WeChatClient, WeChatError
 
 logger = logging.getLogger(__name__)
-EventType = Literal["task.created", "course.created", "reminder.due"]
+EventType = Literal[
+    "task.created",
+    "task.updated",
+    "task.deleted",
+    "course.created",
+    "course.updated",
+    "course.deleted",
+    "semester.updated",
+    "reminder.due",
+]
 
 
 class ResourceData(BaseModel):
