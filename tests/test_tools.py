@@ -292,3 +292,52 @@ def test_weather_accepts_iso_date(monkeypatch):
 def test_weather_out_of_range_date_falls_back_to_today(monkeypatch):
     fn, _ = _weather_tool(monkeypatch)
     assert "北京 今天" in fn(city="北京", day="2026-12-24")
+
+
+# ---------- 每周提醒 ----------
+def test_next_weekday_datetime_picks_nearest():
+    from datetime import datetime
+
+    from pet.tools import _next_weekday_datetime
+
+    saturday = datetime(2026, 10, 31, 20, 0)  # 周六 20:00
+    assert _next_weekday_datetime("周日", "19:00", saturday) == datetime(2026, 11, 1, 19, 0)
+    assert _next_weekday_datetime("星期六", "21:00", saturday) == datetime(2026, 10, 31, 21, 0)
+    assert _next_weekday_datetime("周六", "18:00", saturday) == datetime(2026, 11, 7, 18, 0)
+
+
+def test_next_weekday_datetime_rejects_bad_input():
+    from pet.tools import _next_weekday_datetime
+
+    assert _next_weekday_datetime("周八", "19:00") is None
+    assert _next_weekday_datetime("周日", "25:00") is None
+    assert _next_weekday_datetime("周日", "晚上七点") is None
+
+
+def test_create_weekly_reminder_writes_single_occurrence(monkeypatch):
+    import pet.tools as tools_module
+
+    created = {}
+
+    class _Backend(_FakeBackend):
+        def create_reminder(self, title, remind_at, body="", channel="both"):
+            created.update(title=title, remind_at=remind_at, body=body)
+            return {"id": 1}
+
+    from datetime import datetime
+
+    fixed = datetime(2026, 11, 1, 19, 0)
+    monkeypatch.setattr(tools_module, "_next_weekday_datetime", lambda w, t: fixed)
+
+    tool = tools_module.build_tools(_Backend())["create_weekly_reminder"]
+    text = tool.fn(title="跑步", weekday="周日", remind_time="19:00")
+
+    assert created["remind_at"] == "2026-11-01T19:00"
+    assert "只能提醒这一次" in text
+
+
+def test_create_weekly_reminder_reports_bad_schedule():
+    from pet.tools import build_tools
+
+    tool = build_tools(_FakeBackend())["create_weekly_reminder"]
+    assert "没听懂" in tool.fn(title="跑步", weekday="周八", remind_time="19:00")

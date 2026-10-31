@@ -181,8 +181,8 @@ def test_remember_and_forget_tools(tmp_path):
     assert store.list_habits() == []
 
 
-def test_tools_without_store_keep_original_eight():
+def test_tools_without_store_skip_habit_tools():
     tools = build_tools(_FakeBackend())
 
-    assert len(tools) == 8
-    assert "remember_habit" not in tools
+    assert len(tools) == 9  # 原有 8 个 + create_weekly_reminder
+    assert "remember_habit" not in tools and "forget_habit" not in tools

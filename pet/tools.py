@@ -6,7 +6,7 @@ callable 通过闭包绑定到 BackendClient，便于用假后端做单元测试
 
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Callable
 
 import httpx
@@ -153,6 +153,33 @@ def _resolve_day(text: str, dates: list[str]) -> tuple[str, int]:
         return "day", min(offset, max(len(dates) - 1, 0))
 
     return "day", 0
+
+
+def _next_weekday_datetime(token: str, hhmm: str, now: datetime | None = None):
+    """把「周日 + 19:00」换算成下一次的 datetime；解析失败返回 None。
+
+    从今天起算最近的那个星期几；若就是今天且时间已过，则顺延一周。
+    """
+    match = re.search(r"(?:周|星期|礼拜)([一二三四五六日天1-7])", str(token or ""))
+    if not match:
+        return None
+    target = _WEEKDAY_INDEX.get(match.group(1))
+    if target is None:
+        return None
+    clock = re.match(r"^\s*(\d{1,2})[:：](\d{2})\s*$", str(hhmm or ""))
+    if not clock:
+        return None
+    hour, minute = int(clock.group(1)), int(clock.group(2))
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        return None
+    current = now or datetime.now()
+    days_ahead = (target - current.weekday()) % 7
+    candidate = (current + timedelta(days=days_ahead)).replace(
+        hour=hour, minute=minute, second=0, microsecond=0
+    )
+    if candidate <= current:
+        candidate += timedelta(days=7)
+    return candidate
 
 
 def _weekday(date: str) -> str:
@@ -322,6 +349,24 @@ def build_tools(backend: BackendClient, habits=None) -> dict[str, Tool]:
         )
         return f"已设置提醒「{title}」（{remind_at}）"
 
+    def create_weekly_reminder(
+        title: str, weekday: str, remind_time: str, body: str = "", **_args
+    ) -> str:
+        """每周固定时间的提醒：目前只能落到最近一次，重复规则待后端支持。"""
+        when = _next_weekday_datetime(weekday, remind_time)
+        if when is None:
+            return "没听懂是周几或几点，请说成「周日 19:00」这样"
+        backend.create_reminder(
+            title=title,
+            remind_at=when.strftime("%Y-%m-%dT%H:%M"),
+            body=body or f"每周{weekday} {remind_time}",
+        )
+        label = f"{when.month} 月 {when.day} 日 {_weekday(when.strftime('%Y-%m-%d'))} {remind_time}"
+        return (
+            f"已把「{title}」定在 {label}。现在只能提醒这一次，"
+            "真正每周重复需要后端支持重复规则，在此之前到点我会提醒你。"
+        )
+
     def get_weather(city: str, day: str = "今天", **_args) -> str:
         wanted = str(day or "今天").strip()
         try:
@@ -463,6 +508,26 @@ def build_tools(backend: BackendClient, habits=None) -> dict[str, Tool]:
             },
             create_reminder,
             "正在设置提醒…",
+        ),
+        "create_weekly_reminder": Tool(
+            "create_weekly_reminder",
+            "每周固定时间的提醒。主人说「以后每个周X …点」「每周X …」时用它；"
+            "只传周几和钟点，日期由工具计算，不要自己换算日期。",
+            {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "提醒标题，如 跑步"},
+                    "weekday": {
+                        "type": "string",
+                        "description": "周几，如 周日 / 星期三 / 礼拜五",
+                    },
+                    "remind_time": {"type": "string", "description": "24 小时制钟点，如 19:00"},
+                    "body": {"type": "string", "description": "提醒正文，可省略"},
+                },
+                "required": ["title", "weekday", "remind_time"],
+            },
+            create_weekly_reminder,
+            "正在设置每周提醒…",
         ),
         "get_weather": Tool(
             "get_weather",
