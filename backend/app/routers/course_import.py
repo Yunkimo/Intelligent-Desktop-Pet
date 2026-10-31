@@ -1,14 +1,45 @@
 """课表识别导入路由：图片解析（不落库）与批量落库。"""
 
+import asyncio
+import io
+import logging
+import time
+
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi.routing import APIRoute
+from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 
-from .. import db, vision
+from .. import config, db, vision
 from ..auth import require_token
 from ..schemas import CourseIn
 
-router = APIRouter(prefix="/api/courses", tags=["courses"], dependencies=[Depends(require_token)])
+
+class ParseBudgetRoute(APIRoute):
+    def get_route_handler(self):
+        handler = super().get_route_handler()
+        if not self.path.endswith("/parse-image"):
+            return handler
+
+        async def limited(request):
+            request.state.upload_started = time.monotonic()
+            try:
+                return await asyncio.wait_for(handler(request), config.PARSE_TIMEOUT_SECONDS)
+            except asyncio.TimeoutError:
+                raise HTTPException(
+                    504, detail={"code": "parse_timeout", "message": "识别超时，请重试"}
+                ) from None
+
+        return limited
+
+
+router = APIRouter(
+    prefix="/api/courses",
+    tags=["courses"],
+    route_class=ParseBudgetRoute,
+    dependencies=[Depends(require_token)],
+)
 
 
 class CourseBulkIn(BaseModel):
@@ -16,15 +47,31 @@ class CourseBulkIn(BaseModel):
 
 
 @router.post("/parse-image")
-async def parse_course_image(image: UploadFile = File(...)) -> dict:
+async def parse_course_image(request: Request, image: UploadFile = File(...)) -> dict:
     """解析课表图片为课程列表；只识别，不落库。"""
-    data = await image.read()
+    data = await image.read(vision.MAX_IMAGE_BYTES + 1)
+    logging.getLogger(__name__).info(
+        "vision upload_read_ms=%.0f", (time.monotonic() - request.state.upload_started) * 1000
+    )
     if not data:
         raise HTTPException(status_code=422, detail="图片内容为空")
     if len(data) > vision.MAX_IMAGE_BYTES:
         raise HTTPException(status_code=413, detail="图片超过 10MB，请压缩后重试")
     try:
-        result = await vision.parse_schedule_image(data, image.content_type or "")
+        with Image.open(io.BytesIO(data), formats=["JPEG", "PNG", "WEBP"]) as header:
+            if header.width * header.height > 16_000_000:
+                raise HTTPException(413, detail="图片超过 1600 万像素")
+            mime = Image.MIME[header.format]
+            header.verify()
+        result = await vision.parse_schedule_image(data, mime)
+    except Image.DecompressionBombError:
+        raise HTTPException(413, detail="图片像素超限") from None
+    except (UnidentifiedImageError, OSError, SyntaxError):
+        raise HTTPException(422, detail="无法读取 JPEG、PNG 或 WebP 图片") from None
+    except vision.VisionRateLimited:
+        raise HTTPException(
+            429, detail={"code": "rate_limited", "message": "模型服务繁忙，请稍后重试"}
+        ) from None
     except vision.VisionNotConfigured:
         raise HTTPException(
             status_code=503,
@@ -34,10 +81,12 @@ async def parse_course_image(image: UploadFile = File(...)) -> dict:
             ),
         ) from None
     except vision.VisionTimeout:
-        raise HTTPException(status_code=504, detail="视觉模型响应超时，请重试") from None
+        raise HTTPException(
+            status_code=504, detail={"code": "parse_timeout", "message": "视觉模型响应超时，请重试"}
+        ) from None
     except vision.VisionError as exc:
         raise HTTPException(status_code=502, detail=f"视觉模型调用失败：{exc}") from None
-    if not result["courses"]:
+    if not result["courses"] and not result.get("pending_courses"):
         raise HTTPException(status_code=422, detail="未能从图片中识别出课程，请上传清晰的课表截图")
     return result
 

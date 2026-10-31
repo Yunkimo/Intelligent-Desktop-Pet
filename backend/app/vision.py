@@ -2,14 +2,14 @@
 
 模型只负责"照抄"两个区域：表格格子里的课程（grid）与底部备注（notes）；
 备注信息与格子的合并由本模块确定性完成，模型不判断课程该放哪一格。
-视觉模型存在偶发臆造（如把备注课程塞进空格子），因此并行识别两次取交集：
-真实课程两次都在，偶发臆造条目只出现一次，交集天然过滤。
 """
 
 import asyncio
 import base64
 import json
+import logging
 import re
+import time
 
 import httpx
 from pydantic import ValidationError
@@ -20,9 +20,7 @@ from .schemas import CourseIn
 # 图片大小上限（小程序端已压缩，正常远小于此）
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
-# 视觉模型推理较慢（单次 30-70s，高峰期可能更久）；超时不重试，
-# 双路并行中一路超时走单路降级，最坏约 120s 内出结果
-_VISION_TIMEOUT = httpx.Timeout(120.0, connect=10.0)
+logger = logging.getLogger(__name__)
 
 
 class VisionNotConfigured(Exception):
@@ -49,18 +47,10 @@ VISION_SYSTEM_PROMPT = """你是课表识别助手。分析用户上传的大学
 每条记录字段：
 - name: 课程名称
 - day_of_week: 整数 1-7（1=周一…7=周日，注意表头可能从周日开始）
-- start_time / end_time: 按节次换算的 "HH:MM"（规则见下）
-- location: 教室（没有则空字符串 ""）
-- teacher: 教师名（格子内标注的，没有则空字符串 ""）
-- weeks: 周次整数数组（未标注则省略该字段）
-
-## 时间规则（最重要）
-- 原图「节次」列通常只标注节次号（如 1-2、3-4），没有具体时间。
-- 必须按下述固定映射把节次换算成时间，禁止臆造任何其它时间
-  （尤其禁止 12:00、13:00、14:00、18:00 等图中不存在的时间）：
-  第1-2节 -> 08:00-09:40；第3-4节 -> 10:00-11:40；第5-6节 -> 14:00-15:40；
-  第7-8节 -> 16:00-17:40；第9-10节 -> 19:00-20:40；第11-12节 -> 21:00-22:40。
-- 若图片中某处明确标注了具体时间，以图片标注为准。
+- start_time / end_time: 仅抄图中明确标出的 HH:MM，否则两者均为 null。
+- slot: 抄录节次标签，无标签时写“第N行”（从第一行课程计数），禁止将节次换算为固定时间。
+- location / teacher: 抄录地点和教师；未标注写空字符串。
+- weeks: 抄录周次（包括单双周、离散周），未标注省略。
 
 ## 周数规则
 - 完整照抄，禁止缩窄范围：如「3-18周」必须输出 3-18，不能写成 3-14。
@@ -131,7 +121,7 @@ def extract_json_object(text: str) -> dict:
 
 def _coerce_day_of_week(value):
     """'3' → 3，容忍模型把整数写成字符串。"""
-    if isinstance(value, str) and value.isdigit():
+    if isinstance(value, str) and len(value) <= 2 and value.isascii() and value.isdigit():
         return int(value)
     return value
 
@@ -159,6 +149,8 @@ def _coerce_weeks(value):
     if isinstance(value, list) and all(isinstance(v, int) for v in value):
         return value
     if isinstance(value, str):
+        if len(value) > 200:
+            return None
         text = value.strip()
         parity = _PARITY_RE.search(text)
         text = _PARITY_RE.sub("", text).replace("周", "").strip()
@@ -168,7 +160,10 @@ def _coerce_weeks(value):
                 continue
             match = re.fullmatch(r"(\d+)-(\d+)", part)
             if match:
-                weeks.extend(range(int(match.group(1)), int(match.group(2)) + 1))
+                lo, hi = map(int, match.groups())
+                if not 1 <= lo <= hi <= 53:
+                    return None
+                weeks.extend(range(lo, hi + 1))
             elif part.isdigit():
                 weeks.append(int(part))
             else:
@@ -253,123 +248,108 @@ def _merge_notes(courses: list[dict], raw_notes: list, skipped: int) -> tuple[li
     return courses, skipped
 
 
-def _course_slot_key(course: dict) -> tuple:
-    """两轮识别一致性比较键：同名同天同时段视为同一门课。"""
-    return (course["name"], course["day_of_week"], course["start_time"], course["end_time"])
-
-
-def _intersect_courses(run_a: list[dict], run_b: list[dict]) -> tuple[list[dict], int]:
-    """取两轮识别结果交集，返回 (保留课程, 被过滤条目数)。
-
-    偶发臆造条目只出现在单轮，交集自然过滤；周次冲突时优先取非 None 的一侧。"""
-    by_slot: dict[tuple, list[dict]] = {}
-    for course in run_b:
-        by_slot.setdefault(_course_slot_key(course), []).append(course)
-    final: list[dict] = []
-    dropped = 0
-    for course in run_a:
-        key = _course_slot_key(course)
-        matches = by_slot.get(key)
-        if not matches:
-            dropped += 1
-            continue
-        match = matches.pop(0)
-        if not course.get("weeks") and match.get("weeks"):
-            course = {**course, "weeks": match["weeks"]}
-        final.append(course)
-    dropped += sum(len(v) for v in by_slot.values())
-    return final, dropped
-
-
-async def _call_vision(image_bytes: bytes, mime: str) -> str:
-    """单次 chat/completions 调用，返回 message.content 文本。"""
+async def chat_content(model: str, messages: list[dict]) -> str:
     url = config.LLM_BASE_URL.rstrip("/") + "/chat/completions"
-    payload = {
-        "model": config.LLM_VISION_MODEL,
-        "messages": build_messages(image_bytes, mime),
-        "temperature": 0,
-        "max_tokens": 4096,
-    }
-    headers = {"Authorization": f"Bearer {config.LLM_API_KEY}"}
-    last_error: httpx.HTTPStatusError | None = None
-    # 上游偶发 5xx（图片请求的服务端抖动），重试一次
-    for attempt in range(2):
-        try:
-            async with httpx.AsyncClient(timeout=_VISION_TIMEOUT) as client:
-                response = await client.post(url, json=payload, headers=headers)
-                if response.status_code >= 500:
-                    last_error = httpx.HTTPStatusError(
-                        f"上游返回 HTTP {response.status_code}",
-                        request=response.request,
-                        response=response,
-                    )
-                    await asyncio.sleep(3)
-                    continue
-                response.raise_for_status()
-                data = response.json()
-                break
-        except httpx.TimeoutException as exc:
-            raise VisionTimeout("视觉模型响应超时") from exc
-        except httpx.HTTPStatusError as exc:
-            # 只透出状态码，不透出响应正文（可能冗长且含未知内容）
-            raise VisionError(f"上游返回 HTTP {exc.response.status_code}") from exc
-        except (httpx.HTTPError, ValueError) as exc:
-            raise VisionError(f"请求视觉模型失败：{exc}") from exc
-    else:
-        assert last_error is not None
-        raise VisionError(f"上游返回 HTTP {last_error.response.status_code}")
-    content = data["choices"][0]["message"]["content"]
-    if not isinstance(content, str):
-        raise VisionError("模型返回结构异常")
+    try:
+        async with httpx.AsyncClient(timeout=config.PARSE_TIMEOUT_SECONDS) as client:
+            response = await client.post(
+                url,
+                headers={"Authorization": "Bearer " + config.LLM_API_KEY},
+                json={"model": model, "messages": messages, "temperature": 0, "max_tokens": 4096},
+            )
+            if response.status_code == 429:
+                raise VisionRateLimited("模型服务限流")
+            response.raise_for_status()
+            content = response.json()["choices"][0]["message"]["content"]
+    except httpx.TimeoutException:
+        raise VisionTimeout("模型响应超时") from None
+    except (httpx.HTTPError, ValueError, TypeError, KeyError, IndexError):
+        raise VisionError("模型不可达或响应格式错误") from None
+    if not isinstance(content, str) or len(content) > 65536:
+        raise VisionError("模型返回内容无效")
     return content
 
 
-async def parse_schedule_image(image_bytes: bytes, mime: str) -> dict:
-    """识别课表图片，返回 {"courses": [dict], "skipped": int}（不落库）。
+class VisionRateLimited(VisionError):
+    """模型服务限流。"""
 
-    并行识别两次取交集消除偶发臆造；模型输出 grid（格子课程）与 notes（备注课程）；
-    备注按课程名确定性合并补充教师/周次，无格子对应的备注跳过。"""
+
+async def _call_vision(image_bytes: bytes, mime: str) -> str:
+    return await chat_content(config.LLM_VISION_MODEL, build_messages(image_bytes, mime))
+
+
+def _valid_clock(value):
+    return isinstance(value, str) and re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]", value)
+
+
+async def parse_schedule_image(image_bytes: bytes, mime: str) -> dict:
     if not is_configured():
         raise VisionNotConfigured()
-    mime = mime if mime.startswith("image/") else "image/jpeg"
-    results = await asyncio.gather(
-        _call_vision(image_bytes, mime), _call_vision(image_bytes, mime), return_exceptions=True
-    )
-    texts = [r for r in results if isinstance(r, str)]
-    if not texts:
-        # 两路全部失败：抛首个异常（VisionTimeout/VisionError）
-        raise results[0]
-    runs: list[list[dict]] = []
-    skipped = 0
-    notes_pool: dict[str, dict] = {}
-    for text in texts:
-        payload = extract_json_object(text)
-        raw_grid = payload.get("grid")
-        if not isinstance(raw_grid, list):
-            raise VisionError("模型输出缺少 grid 数组")
-        raw_notes = payload.get("notes") if isinstance(payload.get("notes"), list) else []
-        courses, run_skipped = _parse_grid_items(raw_grid)
-        runs.append(courses)
-        skipped += run_skipped
-        for raw in raw_notes:
-            if not isinstance(raw, dict) or not isinstance(raw.get("name"), str):
-                continue
-            name = raw["name"].strip()
-            if not name:
-                continue
-            notes_pool.setdefault(
-                name,
+    started = time.monotonic()
+    try:
+        content = await asyncio.wait_for(
+            _call_vision(image_bytes, mime or "image/jpeg"), config.PARSE_TIMEOUT_SECONDS
+        )
+    except asyncio.TimeoutError:
+        raise VisionTimeout("识别超时") from None
+    parsed_at = time.monotonic()
+    payload = extract_json_object(content)
+    grid, notes = payload.get("grid"), payload.get("notes", [])
+    if (
+        not isinstance(grid, list)
+        or not isinstance(notes, list)
+        or len(grid) + len(notes) > 150
+        or len(grid) > 100
+    ):
+        raise VisionError("模型条目过多或缺少有效 grid/notes")
+    ready, pending, warnings = [], [], []
+    for index, row in enumerate(grid, 1):
+        if (
+            not isinstance(row, dict)
+            or not isinstance(row.get("name"), str)
+            or not row["name"].strip()
+        ):
+            warnings.append(f"第{index}项课程名称无效，请核对原图")
+            continue
+        start, end = (_pad_time(row.get(k)) for k in ("start_time", "end_time"))
+        weeks = _coerce_weeks(row.get("weeks"))
+        invalid_weeks = row.get("weeks") not in (None, "", []) and not (
+            weeks and all(type(w) is int and 1 <= w <= 53 for w in weeks)
+        )
+        invalid_time = not (_valid_clock(start) and _valid_clock(end) and start < end)
+        weekday = _coerce_day_of_week(row.get("day_of_week"))
+        invalid_day = type(weekday) is not int or not 1 <= weekday <= 7
+        if invalid_time or invalid_weeks or invalid_day:
+            warnings.append(f"第{index}项需要确认")
+            pending.append(
                 {
-                    "name": name,
-                    "teacher": raw.get("teacher") if isinstance(raw.get("teacher"), str) else "",
-                    "weeks": _coerce_weeks(raw.get("weeks")),
-                },
+                    "name": row["name"],
+                    "teacher": row.get("teacher", ""),
+                    "location": row.get("location", ""),
+                    "day_of_week": None if invalid_day else weekday,
+                    "slot": row.get("slot"),
+                    "start_time": None if invalid_time else start,
+                    "end_time": None if invalid_time else end,
+                    "weeks": None if invalid_weeks else weeks,
+                    "needs_confirmation": (["time"] if invalid_time else [])
+                    + (["weeks"] if invalid_weeks else [])
+                    + (["day_of_week"] if invalid_day else []),
+                }
             )
-    if len(runs) == 1:
-        # 一路失败时降级为单路结果（无交集可做；确认弹窗仍由用户把关）
-        courses, dropped = runs[0], 0
-    else:
-        courses, dropped = _intersect_courses(runs[0], runs[1])
-    skipped += dropped
-    courses, skipped = _merge_notes(courses, list(notes_pool.values()), skipped)
-    return {"courses": courses, "skipped": skipped}
+        else:
+            ready.append(row)
+    courses, skipped = _parse_grid_items(ready)
+    _, skipped = _merge_notes(courses + pending, notes, skipped)
+    if skipped:
+        warnings.append(f"{skipped}项重复、无效或未能匹配备注，请核对")
+    logger.info(
+        "vision model_ms=%.0f parse_ms=%.0f",
+        (parsed_at - started) * 1000,
+        (time.monotonic() - parsed_at) * 1000,
+    )
+    return {
+        "courses": courses,
+        "pending_courses": pending,
+        "skipped": skipped + len(grid) - len(ready) - len(pending),
+        "warnings": warnings,
+    }
