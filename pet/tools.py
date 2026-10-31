@@ -510,10 +510,12 @@ def _habit_tools(habits) -> dict[str, Tool]:
 
     def remember_habit(text: str, **_args) -> str:
         ok, message = habits.add(text)
+        print(f"[habits] remember {text!r} -> {ok} {message}", flush=True)
         return f"已记住：{message}" if ok else f"没记成：{message}"
 
     def forget_habit(keyword: str, **_args) -> str:
         removed = habits.forget(keyword)
+        print(f"[habits] forget {keyword!r} -> 删除 {removed} 条", flush=True)
         return f"忘掉了 {removed} 条相关习惯" if removed else "没找到匹配的习惯"
 
     return {
