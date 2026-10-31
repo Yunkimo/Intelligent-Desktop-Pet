@@ -16,6 +16,12 @@ def _iso_now() -> str:
 
 
 _SCHEMA = """
+CREATE TABLE IF NOT EXISTS semester_settings (
+    scope TEXT PRIMARY KEY,
+    start_date TEXT NOT NULL,
+    total_weeks INTEGER NOT NULL CHECK(total_weeks BETWEEN 1 AND 53),
+    timezone TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS courses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,

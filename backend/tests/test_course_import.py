@@ -143,16 +143,16 @@ def test_bulk_over_100_422(client):
     assert response.status_code == 422
 
 
-def test_bulk_notifies_per_created_course(client, monkeypatch):
+def test_bulk_coalesces_list_refresh(client, monkeypatch):
     notify = AsyncMock()
     monkeypatch.setattr(app.state.push_service, "notify", notify)
     payload = {"courses": [VALID_COURSE, {**VALID_COURSE, "name": "英语"}]}
     response = client.post("/api/courses/bulk", headers=HEADERS, json=payload)
     assert response.status_code == 201
     created_ids = [c["id"] for c in response.json()["created"]]
-    assert notify.await_count == 2
+    assert notify.await_count == 1
     notified = [call.args for call in notify.await_args_list]
-    assert notified == [("course.created", created_ids[0]), ("course.created", created_ids[1])]
+    assert notified == [("course.created", created_ids[0])]
 
 
 def test_bulk_rollback_on_db_failure(client):
