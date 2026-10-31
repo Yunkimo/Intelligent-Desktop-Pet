@@ -275,8 +275,12 @@ def _fmt_tasks(tasks: list[dict]) -> str:
     return "；".join(parts)
 
 
-def build_tools(backend: BackendClient) -> dict[str, Tool]:
-    """构造工具注册表，所有 callable 绑定到给定 backend。"""
+def build_tools(backend: BackendClient, habits=None) -> dict[str, Tool]:
+    """构造工具注册表，所有 callable 绑定到给定 backend。
+
+    habits 传入 HabitStore 时额外注册「记住 / 忘记习惯」两个工具；不传则保持
+    原有八个工具，方便既有测试与无习惯功能的调用方继续工作。
+    """
 
     def list_courses(**_args) -> str:
         return _fmt_courses(backend.list_courses())
@@ -380,7 +384,7 @@ def build_tools(backend: BackendClient) -> dict[str, Tool]:
             return f"没有搜到与「{query}」相关的结果"
         return "\n".join(f"- {r.get('title', '')}：{r.get('href', '')}" for r in results)
 
-    return {
+    tools: dict[str, Tool] = {
         "list_courses": Tool(
             "list_courses",
             "查询课表。当主人问今天/明天有什么课、课表安排时调用。",
@@ -493,5 +497,48 @@ def build_tools(backend: BackendClient) -> dict[str, Tool]:
             },
             web_search,
             "正在联网搜索…",
+        ),
+    }
+
+    if habits is not None:
+        tools.update(_habit_tools(habits))
+    return tools
+
+
+def _habit_tools(habits) -> dict[str, Tool]:
+    """「记住 / 忘记习惯」两个工具；绑定到传入的 HabitStore。"""
+
+    def remember_habit(text: str, **_args) -> str:
+        ok, message = habits.add(text)
+        return f"已记住：{message}" if ok else f"没记成：{message}"
+
+    def forget_habit(keyword: str, **_args) -> str:
+        removed = habits.forget(keyword)
+        return f"忘掉了 {removed} 条相关习惯" if removed else "没找到匹配的习惯"
+
+    return {
+        "remember_habit": Tool(
+            "remember_habit",
+            "记住主人的长期偏好（作息、饮食、学习习惯等）。只记稳定偏好，一次性的临时安排不要记。",
+            {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "description": "一句话描述这条习惯，80 字以内"}
+                },
+                "required": ["text"],
+            },
+            remember_habit,
+            "正在记下…",
+        ),
+        "forget_habit": Tool(
+            "forget_habit",
+            "忘掉与关键词相关的习惯。主人说「别再记着…」时调用。",
+            {
+                "type": "object",
+                "properties": {"keyword": {"type": "string", "description": "要忘掉的关键词"}},
+                "required": ["keyword"],
+            },
+            forget_habit,
+            "正在忘掉…",
         ),
     }

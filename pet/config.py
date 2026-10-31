@@ -152,6 +152,10 @@ class Settings:
             "agent_status_path", "data/agent-status.json"
         )
         self.usage_path: Path = BASE_DIR / data.get("usage_path", "data/usage.json")
+        # 生活习惯记忆：本地明文 JSON，可关闭、可在「生活习惯」窗口清空
+        self.habits_enabled: bool = bool(data.get("habits_enabled", True))
+        self.habits_path: Path = BASE_DIR / data.get("habits_path", "data/habits.json")
+        self.habits_max: int = self._bounded_int(data.get("habits_max", 50), "habits_max", 1, 500)
 
     @staticmethod
     def _bounded_int(value: object, name: str, low: int, high: int) -> int:
