@@ -90,6 +90,13 @@ class PetWindow(QWidget):
             if settings.habits_enabled
             else None
         )
+        if self.habits is None:
+            print("[habits] 已关闭（config.json 的 habits_enabled=false）", flush=True)
+        else:
+            print(
+                f"[habits] 启用 path={self.habits.path} 已有 {len(self.habits.list_habits())} 条",
+                flush=True,
+            )
 
         # —— 后端客户端（惰性：不配置后端也不影响纯聊天）——
         self.backend = BackendClient(settings.backend_url, settings.api_token)
@@ -476,6 +483,8 @@ class PetWindow(QWidget):
 
     def _on_chat_done(self, text: str) -> None:
         self.input.set_busy(False)
+        # 本轮可能新增/删除了习惯（工具调用），重建提示词让下一轮立即带上
+        self._refresh_system_prompt()
         if text:
             self.memory.add_assistant(text)
             self.memory.save()

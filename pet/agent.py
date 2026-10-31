@@ -27,6 +27,19 @@ _REALTIME_WORDS = (
     "网址",
     "新闻",
 )
+# 明确要求「记住 / 忘掉」的意图：这类请求必须落到工具上，光口头答应不算数
+_HABIT_WORDS = (
+    "记住",
+    "记下来",
+    "帮我记",
+    "记一下",
+    "忘掉",
+    "忘记",
+    "别再记",
+    "别记着",
+    "不用记",
+)
+
 # 模型自称「查不到」的口吻：这类回答往往意味着它根本没调工具
 _GIVE_UP_WORDS = (
     "查不到",
@@ -100,7 +113,11 @@ class Agent:
 
     @staticmethod
     def _needs_tool(messages: list[dict], reply_text: str | None) -> bool:
-        """用户问了实时信息、模型却既没调工具又在说「查不到」时返回 True。"""
+        """判断模型该调工具却直接作答的场景。
+
+        两类：① 问实时信息又说「查不到」；② 明确要求「记住 / 忘掉」，这类请求
+        必须落到工具上——模型常口头答应「忘掉啦」但其实什么都没做。
+        """
         last_user = ""
         for message in reversed(messages):
             if message.get("role") == "user":
@@ -108,6 +125,8 @@ class Agent:
                 break
         if not last_user:
             return False
+        if any(word in last_user for word in _HABIT_WORDS):
+            return True
         wants = any(word in last_user for word in _REALTIME_WORDS)
         gave_up = any(word in (reply_text or "") for word in _GIVE_UP_WORDS)
         return wants and gave_up
