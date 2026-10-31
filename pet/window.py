@@ -16,6 +16,7 @@ from .bubble import SpeechBubble, badge_placement, bubble_placement
 from .commands import Command, Submenu, populate_menu
 from .config import Settings
 from .event_cache import RecentEvents
+from .habits import HabitStore
 from .health import HealthMonitor
 from .hook_install import (
     claude_code_installed,
@@ -83,9 +84,16 @@ class PetWindow(QWidget):
             settings.tts_windows_fallback,
         )
 
+        # —— 生活习惯（本地明文，可关闭）——
+        self.habits = (
+            HabitStore(settings.habits_path, settings.habits_max)
+            if settings.habits_enabled
+            else None
+        )
+
         # —— 后端客户端（惰性：不配置后端也不影响纯聊天）——
         self.backend = BackendClient(settings.backend_url, settings.api_token)
-        self.tools = build_tools(self.backend)
+        self.tools = build_tools(self.backend, self.habits)
 
         # —— WebSocket 实时接收（未配置 API_TOKEN 时不启动）——
         self._recent_events = RecentEvents()
@@ -97,7 +105,7 @@ class PetWindow(QWidget):
 
         # —— 记忆 ——
         self.memory = Memory(settings.history_path, settings.max_history, settings.persist_history)
-        self.memory.set_system(build_system_prompt(settings))
+        self.memory.set_system(build_system_prompt(settings, self._habits_summary()))
 
         self._init_window()
         self._init_children()
@@ -318,6 +326,7 @@ class PetWindow(QWidget):
         commands.append(Command("切换图片…", self._choose_image))
         commands.append(Submenu(self._build_persona_menu()))
         commands.append(Command("设置语音快捷键…", self._set_voice_hotkey))
+        commands.append(Command("生活习惯…", self._show_habit_dialog))
         commands.append(
             Command(
                 "语音输出",
@@ -370,11 +379,32 @@ class PetWindow(QWidget):
         menu.addAction("添加人设…").triggered.connect(self._add_persona)
         return menu
 
+    def _habits_summary(self) -> str:
+        """当前习惯摘要；未启用习惯记忆时返回空串。"""
+        return self.habits.summary() if self.habits is not None else ""
+
+    def _refresh_system_prompt(self) -> None:
+        """重建系统提示词（人设 + 习惯摘要），让改动立即生效。"""
+        self.memory.set_system(build_system_prompt(self.settings, self._habits_summary()))
+
+    def _show_habit_dialog(self) -> None:
+        """打开生活习惯窗口；关闭后刷新提示词，新习惯下一轮对话即生效。"""
+        if self.habits is None:
+            self.bubble.set_text("习惯记忆已关闭（config.json 的 habits_enabled）")
+            return
+        from .habit_dialog import HabitDialog
+
+        dialog = HabitDialog(self.habits, self)
+        try:
+            dialog.exec()
+        finally:
+            self._refresh_system_prompt()
+
     def _switch_persona(self, name: str) -> None:
         """切换人设，并清空旧人设对话避免语气/身份残留。"""
         if not self.settings.switch_persona(name):
             return
-        self.memory.set_system(build_system_prompt(self.settings))
+        self._refresh_system_prompt()
         self.memory.clear_history()  # 清空旧人设对话，避免语气/身份残留
         self.setWindowTitle(self.settings.pet_name)
         self.bubble.set_text(f"人设已切换为「{name}」")
