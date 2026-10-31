@@ -560,13 +560,20 @@ Page({
     });
   },
 
-  // 节次时间映射：图中没有具体时间时，引导一次性配置节次时间再映射
+  // 节次时间映射：已按标准节次时间预填，可统一修改后应用（草稿单条也可改）
   openSlotModal() {
     const slots = courseImport.pendingSlots(this._drafts);
     this.setData({
       importStage: 'slot',
       slotList: slots,
-      slotForms: slots.map((slot) => ({ slot, start: '', end: '' })),
+      slotForms: slots.map((slot) => {
+        const defaultTime = courseImport.defaultSlotTime(slot);
+        return {
+          slot,
+          start: defaultTime ? defaultTime.start : '',
+          end: defaultTime ? defaultTime.end : '',
+        };
+      }),
     });
   },
 

@@ -40,7 +40,7 @@ async function main() {
           day_of_week: 2,
           start_time: null,
           end_time: null,
-          slot: '3-4',
+          slot: null,
           weeks: [1, 2],
           needs_confirmation: ['time'],
         },
@@ -51,7 +51,60 @@ async function main() {
     const drafts = ci.mergeDrafts(result);
     assert.strictEqual(drafts.length, 2);
     assert.deepStrictEqual(plain(drafts[0].needs_confirmation), []);
+    // 无节次标签：保持缺时间，需手填
     assert.deepStrictEqual(plain(drafts[1].needs_confirmation), ['time']);
+    assert.strictEqual(drafts[1].start_time, null);
+  });
+
+  await check('mergeDrafts：缺时间条目按节次标签预填标准时间（可见可改）', () => {
+    const cases = [
+      ['第1行', '08:00', '09:40'],
+      ['1-2', '08:00', '09:40'],
+      ['第2行', '10:00', '11:40'],
+      ['3-4', '10:00', '11:40'],
+      ['第3行', '13:00', '14:40'],
+      ['5-6', '13:00', '14:40'],
+      ['7-8', '16:00', '17:40'],
+      ['第5行', '19:00', '20:40'],
+      ['9-10', '19:00', '20:40'],
+    ];
+    cases.forEach(([slot, start, end]) => {
+      const drafts = ci.mergeDrafts({
+        courses: [],
+        pending_courses: [
+          {
+            name: '课',
+            day_of_week: 1,
+            start_time: null,
+            end_time: null,
+            slot,
+            weeks: [1],
+            needs_confirmation: ['time'],
+          },
+        ],
+      });
+      assert.strictEqual(drafts[0].start_time, start, slot);
+      assert.strictEqual(drafts[0].end_time, end, slot);
+      assert.deepStrictEqual(plain(drafts[0].needs_confirmation), [], slot);
+      assert.deepStrictEqual(plain(ci.missingFields(drafts[0])), [], slot);
+    });
+    // 超出标准表（第6行起）或不认识的标签：不静默套用，保持缺时间
+    const unknown = ci.mergeDrafts({
+      courses: [],
+      pending_courses: [
+        {
+          name: '课',
+          day_of_week: 1,
+          start_time: null,
+          end_time: null,
+          slot: '第9行',
+          weeks: [1],
+          needs_confirmation: ['time'],
+        },
+      ],
+    });
+    assert.strictEqual(unknown[0].start_time, null);
+    assert.deepStrictEqual(plain(ci.missingFields(unknown[0])), ['time']);
   });
 
   await check('missingFields：完整草稿无缺项，缺时间/周次/星期分别判定', () => {

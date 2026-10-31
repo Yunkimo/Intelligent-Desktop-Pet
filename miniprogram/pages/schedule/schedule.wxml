@@ -75,7 +75,7 @@
           </view>
         </view>
       </scroll-view>
-      <view wx:if="{{hasPendingSlots}}" class="draft-hint">图中没有具体时间的课程：先「配置节次时间」统一映射，再补全其余项</view>
+      <view wx:if="{{hasPendingSlots}}" class="draft-hint">没有具体时间的课程已按标准节次预填时间（第1节 08:00-09:40、第2节 10:00-11:40、第3节 13:00-14:40、第4节 16:00-17:40、第5节 19:00-20:40），点「配置节次时间」可统一修改</view>
       <view class="modal-actions">
         <button wx:if="{{hasPendingSlots}}" class="btn btn-ghost" bindtap="openSlotModal">配置节次时间</button>
         <button class="btn btn-ghost" bindtap="cancelDraftImport">取消</button>
@@ -133,7 +133,7 @@
   <view wx:if="{{importStage === 'slot'}}" class="mask">
     <view class="modal">
       <view class="modal-title">配置节次时间</view>
-      <view class="draft-hint">图为节次标签而非具体时间。请按你的作息填写各节次的上课时间（如 1-2 → 08:00-09:40）。</view>
+      <view class="draft-hint">已按标准节次时间预填，可按你的实际作息修改后「应用映射」。</view>
       <scroll-view scroll-y class="slot-scroll">
         <view wx:for="{{slotForms}}" wx:key="slot" class="slot-row">
           <text class="slot-label">{{item.slot}}</text>

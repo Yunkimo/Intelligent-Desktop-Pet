@@ -110,7 +110,7 @@ async function main() {
     assert.equal(response.status, 401);
   });
 
-  await check('课表页真实流程：未补全禁止保存，节次映射补全后落库', async () => {
+  await check('课表页真实流程：缺时间默认预填标准节次，未补全禁止保存，补全后落库', async () => {
     const page = rt.loadPage('pages/schedule/schedule.js');
     await page.load(); // 真实后端：学期/课程列表
     const before = (await api.getCourses()).length;
@@ -118,37 +118,53 @@ async function main() {
       courses: [COMPLETE],
       pending_courses: [
         {
+          // 有节次标签：自动预填标准节次时间（3-4 → 10:00-11:40）
           name: '大学物理',
           day_of_week: 2,
           start_time: null,
           end_time: null,
-          slot: '1-2',
+          slot: '3-4',
+          weeks: [1, 2],
+          needs_confirmation: ['time'],
+        },
+        {
+          // 无节次标签：保持缺时间，需手填
+          name: '实验课',
+          day_of_week: 3,
+          start_time: null,
+          end_time: null,
+          slot: null,
           weeks: [1, 2],
           needs_confirmation: ['time'],
         },
       ],
-      warnings: ['第2项需要确认'],
+      warnings: ['第2项需要确认', '第3项需要确认'],
       skipped: 0,
     });
-    assert.equal(page.data.draftViews.length, 2);
-    assert.equal(page.data.hasPendingSlots, true);
-    assert.equal(page.data.draftViews[1].needsText, '缺时间');
+    assert.equal(page.data.draftViews.length, 3);
+    assert.equal(page.data.draftViews[1].needsText, ''); // 已预填
+    assert.equal(page.data.draftViews[1].meta.includes('10:00-11:40'), true);
+    assert.equal(page.data.draftViews[2].needsText, '缺时间'); // 无标签仍需手填
     // 未补全：确认导入被阻止，数据库不变
     await page.confirmDraftImport();
     assert.equal((await api.getCourses()).length, before, '确认前不得写入课程');
     assert.ok(toasts.some((t) => /补全/.test(t)));
-    // 配置节次时间并应用映射
-    page.openSlotModal();
-    assert.deepEqual(JSON.parse(JSON.stringify(page.data.slotList)), ['1-2']);
-    page.setData({ slotForms: [{ slot: '1-2', start: '08:00', end: '09:40' }] });
-    page.saveSlotMapping();
-    assert.equal(page.data.importStage, 'draft');
-    assert.equal(page.data.hasPendingSlots, false);
-    // 全部补全 → 真实保存落库
+    // 手填无标签条目（走真实草稿编辑表单；测试桩 setData 不支持点路径，整体赋值）
+    page.openDraftForm({ currentTarget: { dataset: { index: 2 } } });
+    page.setData({
+      draftForm: { ...page.data.draftForm, start_time: '14:00', end_time: '15:40' },
+    });
+    page.saveDraftForm();
+    assert.equal(page.data.draftViews[2].needsText, '');
+    // 全部补全 → 真实保存落库（预填值与手填值都正确）
     await page.confirmDraftImport();
-    const names = (await api.getCourses()).map((c) => c.name);
-    assert.ok(names.includes('高等数学') && names.includes('大学物理'));
-    await cleanupNames(['高等数学', '大学物理']);
+    const courses = await api.getCourses();
+    const names = courses.map((c) => c.name);
+    assert.ok(names.includes('高等数学') && names.includes('大学物理') && names.includes('实验课'));
+    const physics = courses.find((c) => c.name === '大学物理');
+    assert.equal(physics.start_time, '10:00');
+    assert.equal(physics.end_time, '11:40');
+    await cleanupNames(['高等数学', '大学物理', '实验课']);
   });
 
   await check('真实保存部分失败：skipped 按 index 标注，修正后只重试失败项', async () => {

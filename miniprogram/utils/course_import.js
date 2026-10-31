@@ -1,6 +1,7 @@
 // 课表图片导入的纯逻辑（B7 契约见 docs/b7-parsing.md）：
 // - parse-image 返回 courses（时间完整）+ pending_courses（需确认草稿）+ warnings + skipped
-// - 草稿核对名称/星期/地点/教师/周次；图中无具体时间时引导按节次映射，不猜测时刻
+// - 草稿核对名称/星期/地点/教师/周次；图中无具体时间时按标准节次时间预填（可见可改，
+//   也可在「配置节次时间」里统一调整），无节次标签的条目需手填
 // - 用户确认后才送 bulk 落库；按实际返回区分成功/无效/明确失败/结果不明，失败项单独恢复
 // 本模块不操作 UI 与数据库，供页面与测试复用。
 
@@ -8,13 +9,65 @@ function validClock(value) {
   return typeof value === 'string' && /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/.test(value);
 }
 
-/** 识别结果合并为统一草稿列表：时间完整的 courses 置 needs_confirmation 为空。 */
+// 标准节次时间（按用户作息约定）：第 1 节 08:00-09:40、第 2 节 10:00-11:40、
+// 第 3 节 13:00-14:40、第 4 节 16:00-17:40、第 5 节 19:00-20:40。
+// 图中没有具体时间时用此表预填草稿，用户可在草稿或节次映射中修改，不静默套用。
+const DEFAULT_SLOT_TIMES = [
+  { start: '08:00', end: '09:40' },
+  { start: '10:00', end: '11:40' },
+  { start: '13:00', end: '14:40' },
+  { start: '16:00', end: '17:40' },
+  { start: '19:00', end: '20:40' },
+];
+
+/**
+ * 从节次标签推断节次序号：支持「第N行」直接取 N；「a-b」/数字按 ceil(首数/2)
+ * （如 1-2→1、3-4→2、9-10→5）；无法识别返回 null。
+ */
+function slotBlockIndex(slot) {
+  if (!slot) {
+    return null;
+  }
+  const text = String(slot);
+  const row = text.match(/第\s*(\d+)\s*行/);
+  if (row) {
+    return Number(row[1]);
+  }
+  const range = text.match(/^(\d+)\s*-\s*(\d+)$/);
+  if (range) {
+    return Math.ceil(Number(range[1]) / 2);
+  }
+  const single = text.match(/\d+/);
+  return single ? Math.ceil(Number(single[0]) / 2) : null;
+}
+
+/** 按节次序号取标准时间；序号超表或无标签返回 null。 */
+function defaultSlotTime(slot) {
+  const index = slotBlockIndex(slot);
+  if (!index || index < 1 || index > DEFAULT_SLOT_TIMES.length) {
+    return null;
+  }
+  return DEFAULT_SLOT_TIMES[index - 1];
+}
+
+/** 识别结果合并为统一草稿列表：缺时间的条目按节次标签预填标准时间（可见可改）。 */
 function mergeDrafts(result) {
   const ready = (result.courses || []).map((c) => ({ ...c, needs_confirmation: [] }));
-  const pending = (result.pending_courses || []).map((c) => ({
-    ...c,
-    needs_confirmation: c.needs_confirmation || [],
-  }));
+  const pending = (result.pending_courses || []).map((c) => {
+    let draft = { ...c, needs_confirmation: c.needs_confirmation || [] };
+    if (!validClock(draft.start_time) || !validClock(draft.end_time)) {
+      const defaultTime = defaultSlotTime(draft.slot);
+      if (defaultTime) {
+        draft = {
+          ...draft,
+          start_time: defaultTime.start,
+          end_time: defaultTime.end,
+          needs_confirmation: draft.needs_confirmation.filter((n) => n !== 'time'),
+        };
+      }
+    }
+    return draft;
+  });
   return ready.concat(pending);
 }
 
@@ -153,4 +206,5 @@ module.exports = {
   buildStatuses,
   saveDrafts,
   failedDrafts,
+  defaultSlotTime,
 };
