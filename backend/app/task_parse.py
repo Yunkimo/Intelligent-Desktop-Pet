@@ -27,10 +27,18 @@ class TextInput(BaseModel):
         return value
 
 
-DAY = re.compile(r"\d{4}-\d{2}-\d{2}|今天|明天|后天|昨天|(?:本|下)?周[一二三四五六日天]")
+DAY = re.compile(
+    r"\d{4}-\d{2}-\d{2}|(?:今|明|后|昨)天|(?:今|明|后|昨)晚|(?:本|下)?周[一二三四五六日天]"
+)
 CLOCK = re.compile(
     r"(上午|早上|中午|下午|晚上|凌晨)?\s*(\d{1,2}|[一二两三四五六七八九十]{1,3})(?:[:：](\d{2})|点(?:(半)|(\d{1,2})分)?)"
 )
+# 相对时间：「15分钟后」「两小时后」「半小时后」
+OFFSET = re.compile(
+    r"(?P<num>\d{1,2}|[一二两三四五六七八九十]{1,3}|半)(?:个)?(?P<unit>分钟|小时)(?:钟)?后"
+)
+DUE_MARKERS = re.compile(r"截止|之前|以前|前交|前提交")
+REMIND_NEG = re.compile(r"不(?:用|要|必|需(?:要)?)?提醒|取消提醒|无需提醒")
 DIGITS = dict(zip("一二三四五六七八九", range(1, 10)))
 DIGITS["两"] = 2
 
@@ -48,7 +56,16 @@ def hour_number(word):
 
 
 def resolve_day(token, today):
-    offsets = {"昨天": -1, "今天": 0, "明天": 1, "后天": 2}
+    offsets = {
+        "昨天": -1,
+        "今天": 0,
+        "明天": 1,
+        "后天": 2,
+        "昨晚": -1,
+        "今晚": 0,
+        "明晚": 1,
+        "后天晚": 2,
+    }
     if token in offsets:
         return today + timedelta(days=offsets[token])
     if token.startswith(("本周", "下周")):
@@ -59,7 +76,49 @@ def resolve_day(token, today):
     return date.fromisoformat(token)
 
 
-def draft(source, now):
+def offset_delta(match):
+    """「15分钟后」「两小时后」「半小时后」→ timedelta；无法解析返回 None。"""
+    num = match.group("num")
+    unit = match.group("unit")
+    if num == "半":
+        minutes = 30
+    else:
+        value = hour_number(num)
+        if value == 99:
+            return None
+        minutes = value if unit == "分钟" else value * 60
+    return timedelta(minutes=minutes)
+
+
+def _split_commas(part):
+    """逗号子句拆分：无时间表达的子句并入前一句；带截止标记且无「提醒」的
+    子句是前一句的截止说明，也并入前一句（同一事项）；否则视为独立事项。"""
+    segments = [s.strip() for s in re.split(r"[，,]", part) if s.strip()]
+    if len(segments) <= 1:
+        return [part]
+    merged = [segments[0]]
+    for segment in segments[1:]:
+        has_time = bool(DAY.search(segment) or CLOCK.search(segment) or OFFSET.search(segment))
+        is_due_clause = bool(DUE_MARKERS.search(segment)) and not (
+            "提醒" in segment and not REMIND_NEG.search(segment)
+        )
+        if not has_time or is_due_clause:
+            merged[-1] += "，" + segment
+        else:
+            merged.append(segment)
+    return merged
+
+
+def draft(source, now, anchor=None):
+    """把一条子句解析为草稿；返回 (草稿, 本句得到的时刻)（时刻供后续相对时间锚定）。
+
+    与 B7 原契约的差异（向后兼容，见 docs/b7-parsing.md 补充）：
+    - 出现多个日期词时：第一个作提醒日期，出现截止标记时最后一个作截止日期；
+    - 出现多个时刻时：取第一个明确时刻（带时段或 24 小时制）作提醒时刻，
+      截止子句里的时刻因 due_at 只有日期粒度而不入库、不再误报「提醒时刻不明」；
+    - 支持「今晚/明晚/昨晚/后天晚」日期词；晚间的裸时刻按晚上解释（今晚六点→18:00）；
+    - 支持「15分钟后/两小时后/半小时后」相对时间，锚点为前文最后一个时刻或参考时刻。
+    """
     original = source
     fields = re.split(r"备注[：:]", source, maxsplit=1)
     source = fields[0].strip()
@@ -67,58 +126,101 @@ def draft(source, now):
     flags = []
     days = list(DAY.finditer(source))
     clocks = list(CLOCK.finditer(source))
+    offsets = list(OFFSET.finditer(source))
+    remind = "提醒" in source and not REMIND_NEG.search(source)
+    due = bool(DUE_MARKERS.search(source))
     day = None
-    if len(days) == 1:
+    due_day = None
+    evening = bool(days and days[0].group().endswith("晚"))
+    if days:
         try:
             day = resolve_day(days[0].group(), now.date())
         except (ValueError, OverflowError):
-            pass
-    if not day:
+            day = None
+        if due and len(days) > 1:
+            try:
+                due_day = resolve_day(days[-1].group(), now.date())
+            except (ValueError, OverflowError):
+                due_day = None
+    if day is None and not offsets:
         flags.append("date")
-    remind = "提醒" in source and not re.search(
-        r"不(?:用|要|必|需(?:要)?)?提醒|取消提醒|无需提醒", source
-    )
-    due = bool(re.search(r"截止|之前|以前|前交|前提交", source))
     instant = None
-    if len(clocks) == 1 and day:
-        period, hour, mins, half, minute = clocks[0].groups()
-        h = hour_number(hour)
-        m = int(mins or minute or (30 if half else 0))
-        if period and 1 <= h <= 12:
-            if period in ("下午", "晚上") or (period == "中午" and h < 6):
-                h = h % 12 + 12
-            elif h == 12 and period in ("凌晨", "早上", "上午"):
-                h = 0
-        elif period:
-            h = 99
-        # 省略上午/下午的中文“三点”须确认，24 小时制 03:00 含义明确。
-        if h < 24 and m < 60 and (period or mins is not None or h > 12):
-            instant = datetime.combine(day, time(h, m), tzinfo=now.tzinfo)
+    # 提醒时刻：取第一个明确时刻（带时段/带分钟/24 小时制；晚间裸时刻按晚上解释）。
+    if clocks and day:
+        for match in clocks:
+            period, hour, mins, half, minute = match.groups()
+            h = hour_number(hour)
+            m = int(mins or minute or (30 if half else 0))
+            if period and 1 <= h <= 12:
+                if period in ("下午", "晚上") or (period == "中午" and h < 6):
+                    h = h % 12 + 12
+                elif h == 12 and period in ("凌晨", "早上", "上午"):
+                    h = 0
+            elif period:
+                continue  # 不认识的时段词：试下一个时刻
+            # 省略上午/下午的中文“三点”须确认，24 小时制 03:00 含义明确；
+            # 但「今晚三点」这类晚间语境是明确的。
+            if h < 24 and m < 60 and (period or mins is not None or h > 12 or evening):
+                if evening and h < 12:
+                    h += 12
+                instant = datetime.combine(day, time(h, m), tzinfo=now.tzinfo)
+                break
+    # 相对时间：锚点为本句明确时刻；没有则用前文最后一个时刻；再没有用参考时刻。
+    if offsets and instant is None:
+        base = anchor
+        if base is None:
+            if day:
+                base = datetime.combine(day, time(now.hour, now.minute), tzinfo=now.tzinfo)
+            else:
+                base = now
+        for match in offsets:
+            delta = offset_delta(match)
+            if delta is None:
+                continue
+            base = base + delta
+            instant = base
+        if instant is not None:
+            day = instant.date()  # 相对时刻自带日期，不再标日期不明
     if remind and instant is None:
         flags.append("remind_at")
-    if not remind and (clocks or re.search("上午|下午|晚上|凌晨", source)):
+    if not remind and (clocks or offsets or re.search("上午|下午|晚上|凌晨", source)):
         flags.append("time")
-    if (instant and instant < now) or (day and day < now.date()):
+    if (
+        (instant and instant < now)
+        or (day and day < now.date())
+        or (due_day and due_day < now.date())
+    ):
         flags.append("past")
     title = source
-    if len(days) == 1 and day:
-        title = re.sub(re.escape(days[0].group()) + r"(?:之前|以前|前)?", "", title, count=1)
-    if instant and len(clocks) == 1:
-        title = title.replace(clocks[0].group(), "", 1)
+    # 多日期且存在截止子句：标题截到最后一个日期词之前（截止子句只贡献日期）
+    if due_day is not None:
+        title = title[: days[-1].start()].rstrip(" ,，")
+    for match in days:
+        title = re.sub(re.escape(match.group()) + r"(?:之前|以前|前)?", "", title, count=1)
+    for match in clocks:
+        title = title.replace(match.group(), "", 1)
+    for match in offsets:
+        title = title.replace(match.group(), "", 1)
     title = (
-        re.sub(r"^(?:(?:请)?提醒我|截止到|截止|然后|另外|并且|同时|，|,|\s)+", "", title).strip(
-            " ,，"
+        re.sub(
+            r"^(?:(?:请)?提醒我|截止到|截止|然后|另外|并且|同时|吃完饭|饭后|，|,|\s)+", "", title
         )
-        or source
+        .strip(" ,，")
+        .rstrip("，,")
+    ) or source
+    title = re.sub(r"[，,]\s*(?:截止到|截止|之前|以前)$", "", title).strip(" ,，") or source
+    due_date = due_day or day
+    return (
+        {
+            "title": title,
+            "note": note,
+            "source": original,
+            "due_at": due_date.isoformat() if due_date and (due or not remind) else None,
+            "remind_at": instant.isoformat() if remind and instant else None,
+            "needs_confirmation": flags,
+        },
+        instant,
     )
-    return {
-        "title": title,
-        "note": note,
-        "source": original,
-        "due_at": day.isoformat() if day and (due or not remind) else None,
-        "remind_at": instant.isoformat() if remind and instant else None,
-        "needs_confirmation": flags,
-    }
 
 
 async def parse_tasks(payload):
@@ -163,6 +265,15 @@ async def parse_tasks(payload):
             for part in re.split(r"然后|另外|并且", segment)
             if part.strip()
         ]
+    # 逗号子句拆分：同一事项的截止说明并入前句，独立事项拆开
+    parts = [segment for part in parts for segment in _split_commas(part)]
     if not 1 <= len(parts) <= 20:
         raise HTTPException(422, detail="请输入 1～20 个事项")
-    return {"drafts": [draft(p, now) for p in parts]}
+    drafts = []
+    last_instant = None
+    for part in parts:
+        result, instant = draft(part, now, anchor=last_instant)
+        drafts.append(result)
+        if instant is not None:
+            last_instant = instant
+    return {"drafts": drafts}
