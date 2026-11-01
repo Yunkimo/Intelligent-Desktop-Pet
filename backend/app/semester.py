@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from . import db
 
-SHARED_SCOPE = "shared"
+SHARED_SCOPE = "user:1"
 
 
 def _settings(conn, scope: str) -> dict | None:
@@ -17,7 +17,7 @@ def _settings(conn, scope: str) -> dict | None:
 
 
 def get_settings(scope: str = SHARED_SCOPE) -> dict:
-    """作用域由服务端确定；当前路由仅开放共享演示作用域。"""
+    """作用域由认证用户确定；默认作用域仅用于旧演示调用。"""
     with db._conn() as conn:
         settings = _settings(conn, scope)
     return {"configured": settings is not None, "settings": settings}
@@ -42,7 +42,7 @@ def local_today(timezone: str) -> date:
     return datetime.now(ZoneInfo(timezone)).date()
 
 
-def calendar(on_date: date | None = None, scope: str = SHARED_SCOPE) -> dict:
+def calendar(on_date: date | None = None, scope: str = SHARED_SCOPE, user_id: int = 1) -> dict:
     """在一致读快照中读取配置和课程；不创建任何课程或提醒。"""
     with db._conn() as conn:
         conn.execute("BEGIN")
@@ -61,10 +61,10 @@ def calendar(on_date: date | None = None, scope: str = SHARED_SCOPE) -> dict:
                 status, week = "in_term", delta // 7 + 1
         courses = []
         if week is not None:
-            # B8 需同时给此课程查询加入认证用户过滤；不能仅隔离设置。
+            # 设置和当天课程在同一用户范围内查询。
             rows = conn.execute(
-                "SELECT * FROM courses WHERE day_of_week=? ORDER BY start_time,id",
-                (day.isoweekday(),),
+                "SELECT * FROM courses WHERE day_of_week=? AND user_id=? ORDER BY start_time,id",
+                (day.isoweekday(), user_id),
             ).fetchall()
             for row in rows:
                 try:

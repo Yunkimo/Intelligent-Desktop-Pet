@@ -49,6 +49,7 @@ class PushService:
         self.send_timeout = send_timeout
         self.close_timeout = close_timeout
         self._connections: dict[WebSocket, asyncio.Lock] = {}
+        self._owners: dict[WebSocket, tuple[int, str | None]] = {}
         self._closing = False
         self._wechat = wechat
 
@@ -63,7 +64,9 @@ class PushService:
         """返回当前注册连接数，供测试与运维观察。"""
         return len(self._connections)
 
-    async def connect(self, websocket: WebSocket) -> bool:
+    async def connect(
+        self, websocket: WebSocket, user_id: int = 1, token: str | None = None
+    ) -> bool:
         """接受连接；重复注册幂等，关闭期间拒绝新连接。"""
         if websocket in self._connections:
             return True
@@ -75,11 +78,13 @@ class PushService:
             await self._close(websocket, 1001)
             return False
         self._connections[websocket] = asyncio.Lock()
+        self._owners[websocket] = (user_id, token)
         return True
 
     def disconnect(self, websocket: WebSocket) -> None:
         """移除连接，允许接收端与发送端重复清理。"""
         self._connections.pop(websocket, None)
+        self._owners.pop(websocket, None)
 
     async def _close(self, websocket: WebSocket, code: int) -> None:
         try:
@@ -110,18 +115,28 @@ class PushService:
 
     async def broadcast(self, event: dict) -> int:
         """验证并广播同一 JSON 事件，返回成功发送数；不代表客户端已展示。"""
+        from . import accounts
+
+        user_id = event.get("_user_id", 1)
+        # 每次发送复核过期/撤销；只在内部传递 owner，不改变公开事件信封。
+        for socket, (owner, token) in tuple(self._owners.items()):
+            if token is not None and await asyncio.to_thread(accounts.session_user, token) != owner:
+                self.disconnect(socket)
+                await self._close(socket, 1008)
         message = Event.model_validate(event).model_dump_json()
-        connections = tuple(self._connections.items())
+        connections = tuple(
+            (ws, lock) for ws, lock in self._connections.items() if self._owners[ws][0] == user_id
+        )
         results = await asyncio.gather(
             *(self._send(websocket, lock, message) for websocket, lock in connections)
         )
         return sum(results)
 
-    async def notify(self, event_type: EventType, resource_id: int) -> None:
+    async def notify(self, event_type: EventType, resource_id: int, user_id: int = 1) -> None:
         """在数据库提交后尽力通知，推送异常不得改变已成功的 REST 写入。"""
         try:
             event = Event(type=event_type, data=ResourceData(id=resource_id))
-            await self.broadcast(event.model_dump())
+            await self.broadcast({**event.model_dump(), "_user_id": user_id})
         except Exception:
             logger.error("Committed resource notification failed; refresh through REST")
 
@@ -130,4 +145,5 @@ class PushService:
         self._closing = True
         connections = tuple(self._connections)
         self._connections.clear()
+        self._owners.clear()
         await asyncio.gather(*(self._close(websocket, 1001) for websocket in connections))

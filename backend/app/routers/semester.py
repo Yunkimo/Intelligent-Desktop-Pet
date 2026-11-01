@@ -1,4 +1,4 @@
-"""学期配置与日期查询；沿用共享演示鉴权，B8 再接入认证用户。"""
+"""学期配置与日期查询；由认证会话限定用户范围。"""
 
 from datetime import date
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -8,9 +8,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.concurrency import run_in_threadpool
 
 from .. import semester
-from ..auth import require_token
+from ..auth import current_user
 
-router = APIRouter(prefix="/api", tags=["semester"], dependencies=[Depends(require_token)])
+router = APIRouter(prefix="/api", tags=["semester"], dependencies=[Depends(current_user)])
 
 
 class SemesterIn(BaseModel):
@@ -42,22 +42,23 @@ class SemesterIn(BaseModel):
 
 
 @router.get("/semester")
-def get_semester():
-    return semester.get_settings()
+def get_semester(user_id: int = Depends(current_user)):
+    return semester.get_settings(f"user:{user_id}")
 
 
 @router.put("/semester")
-async def put_semester(payload: SemesterIn, request: Request):
+async def put_semester(payload: SemesterIn, request: Request, user_id: int = Depends(current_user)):
     result = await run_in_threadpool(
         semester.save_settings,
         payload.start_date.isoformat(),
         payload.total_weeks,
         payload.timezone,
+        f"user:{user_id}",
     )
-    await request.app.state.push_service.notify("semester.updated", 1)
+    await request.app.state.push_service.notify("semester.updated", 1, user_id=user_id)
     return result
 
 
 @router.get("/calendar")
-def get_calendar(date: date | None = None):
-    return semester.calendar(date)
+def get_calendar(date: date | None = None, user_id: int = Depends(current_user)):
+    return semester.calendar(date, f"user:{user_id}", user_id)

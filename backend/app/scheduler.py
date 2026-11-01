@@ -79,6 +79,7 @@ class Scheduler:
                     "type": "reminder.due",
                     "occurred_at": claim["occurred_at"],
                     "data": {"id": claim["reminder_id"]},
+                    "_user_id": claim["user_id"],
                 }
                 error = None
                 try:

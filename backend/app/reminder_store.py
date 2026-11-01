@@ -78,7 +78,7 @@ def claim_due(now: float) -> dict | None:
             (now, config.SCHEDULER_MAX_ATTEMPTS),
         )
         row = conn.execute(
-            "SELECT d.* FROM reminder_deliveries d JOIN reminders r ON r.id=d.reminder_id "
+            "SELECT d.*,r.user_id FROM reminder_deliveries d JOIN reminders r ON r.id=d.reminder_id "
             "WHERE r.done=0 AND r.channel IN ('pc','both') AND d.due_at<=? AND d.attempts<? AND "
             "((d.status IN ('pending','retry') AND d.next_attempt_at<=?) "
             "OR (d.status='sending' AND d.lease_until<=?)) ORDER BY d.due_at,r.id LIMIT 1",

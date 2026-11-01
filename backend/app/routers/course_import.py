@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 
 from .. import config, db, vision
-from ..auth import require_token
+from ..auth import current_user
 from ..image_header import inspect_image
 from ..schemas import CourseIn
 
@@ -37,7 +37,7 @@ router = APIRouter(
     prefix="/api/courses",
     tags=["courses"],
     route_class=ParseBudgetRoute,
-    dependencies=[Depends(require_token)],
+    dependencies=[Depends(current_user)],
 )
 
 
@@ -87,7 +87,9 @@ async def parse_course_image(request: Request, image: UploadFile = File(...)) ->
 
 
 @router.post("/bulk", status_code=201)
-async def bulk_create_courses(payload: CourseBulkIn, request: Request) -> dict:
+async def bulk_create_courses(
+    payload: CourseBulkIn, request: Request, user_id: int = Depends(current_user)
+) -> dict:
     """批量导入课表：逐条 CourseIn 校验，无效条目跳过并返回原因。"""
     valid: list[dict] = []
     skipped: list[dict] = []
@@ -104,7 +106,7 @@ async def bulk_create_courses(payload: CourseBulkIn, request: Request) -> dict:
             )
     if not valid:
         raise HTTPException(status_code=422, detail="没有可导入的有效课程（字段缺失或格式错误）")
-    created = await run_in_threadpool(db.create_courses_bulk, valid)
+    created = await run_in_threadpool(db.create_courses_bulk, valid, user_id=user_id)
     # 一批仅提示一次列表刷新，保持旧客户端认识的事件类型和信封。
-    await request.app.state.push_service.notify("course.created", created[0]["id"])
+    await request.app.state.push_service.notify("course.created", created[0]["id"], user_id=user_id)
     return {"created": created, "skipped": skipped}

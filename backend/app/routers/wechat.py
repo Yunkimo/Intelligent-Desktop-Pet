@@ -4,14 +4,14 @@ import asyncio
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from .. import config, db, wechat_store
-from ..auth import require_token
+from ..auth import current_wechat_user as current_user
 from ..wechat_client import WeChatError, require_config
 
-router = APIRouter(prefix="/api/wechat", tags=["wechat"], dependencies=[Depends(require_token)])
+router = APIRouter(prefix="/api/wechat", tags=["wechat"])
 
 
 class LoginIn(BaseModel):
@@ -32,16 +32,6 @@ class SubscribeIn(BaseModel):
     event_id: str | None = Field(default=None, min_length=1, max_length=128)
 
 
-def current_user(authorization: str = Header(default="")) -> int:
-    """校验 Bearer 会话，拒绝把 openid 或 API Key 当作用户会话。"""
-    check_config()
-    scheme, _, token = authorization.partition(" ")
-    user_id = wechat_store.session_user(token) if scheme.lower() == "bearer" else None
-    if user_id is None:
-        raise HTTPException(status_code=401, detail="wechat_session_invalid")
-    return user_id
-
-
 class TaskReminderIn(BaseModel):
     """从服务端最新日程创建本人的手机提醒，不接收客户端指定身份。"""
 
@@ -54,6 +44,8 @@ def ensure_task_reminder(payload: TaskReminderIn, user_id: int = Depends(current
     """事务内查找或创建；同任务并发及响应丢失重放复用同一提醒。"""
     try:
         return db.ensure_phone_reminder(payload.task_id, user_id)
+    except db.OwnershipError:
+        raise HTTPException(404, "resource_not_found") from None
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
 
@@ -64,12 +56,14 @@ def reminder_detail(reminder_id: int, user_id: int = Depends(current_user)) -> d
     with db._conn() as conn:
         row = conn.execute(
             "SELECT r.*,d.event_id FROM reminders r JOIN reminder_deliveries d "
-            "ON d.reminder_id=r.id WHERE r.id=? AND r.wechat_user_id=?",
+            "ON d.reminder_id=r.id WHERE r.id=? AND r.wechat_user_id=? AND r.user_id=(SELECT business_user_id FROM wechat_users WHERE id=r.wechat_user_id)",
             (reminder_id, user_id),
         ).fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="reminder_not_found")
-        task = conn.execute("SELECT * FROM tasks WHERE id=?", (row["task_id"],)).fetchone()
+        task = conn.execute(
+            "SELECT * FROM tasks WHERE id=? AND user_id=?", (row["task_id"], row["user_id"])
+        ).fetchone()
     return {"reminder": dict(row), "task": dict(task) if task else None}
 
 
@@ -81,7 +75,7 @@ def list_owned_reminders(user_id: int = Depends(current_user)) -> list[dict]:
             "SELECT r.id,r.task_id,r.remind_at,d.event_id,s.status FROM reminders r "
             "JOIN reminder_deliveries d ON d.reminder_id=r.id "
             "LEFT JOIN wechat_subscriptions s ON s.reminder_id=r.id AND s.event_id=d.event_id "
-            "AND s.user_id=r.wechat_user_id WHERE r.wechat_user_id=? AND r.channel='phone'",
+            "AND s.user_id=r.wechat_user_id WHERE r.wechat_user_id=? AND r.channel='phone' AND r.user_id=(SELECT business_user_id FROM wechat_users WHERE id=r.wechat_user_id)",
             (user_id,),
         ).fetchall()
     return [dict(row) for row in rows]
