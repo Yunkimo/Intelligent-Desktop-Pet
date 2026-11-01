@@ -66,3 +66,77 @@
   margin-left: 12rpx;
   color: #2f9e44;
 }
+
+/* ===== 一句话创建（C8）===== */
+.parse-textarea {
+  width: 100%;
+  min-height: 160rpx;
+  padding: 16rpx;
+  margin-top: 8rpx;
+  background: #f5f6f8;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+  box-sizing: border-box;
+}
+
+.parse-failed {
+  margin-top: 8rpx;
+  color: #e67e22;
+  font-size: 24rpx;
+}
+
+.draft-modal {
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.draft-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: 52vh;
+}
+
+.draft-warning {
+  margin: 4rpx 0;
+  padding: 8rpx 16rpx;
+  background: #fff7e6;
+  color: #b7791f;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+}
+
+.draft-row {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid #f0f2f5;
+}
+
+.draft-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.draft-name {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.draft-meta {
+  margin-top: 2rpx;
+  color: #747d8c;
+  font-size: 24rpx;
+}
+
+.draft-needs {
+  margin-top: 4rpx;
+  color: #e67e22;
+  font-size: 22rpx;
+}
+
+.draft-actions {
+  display: flex;
+  flex-direction: column;
+  margin-left: 12rpx;
+}
