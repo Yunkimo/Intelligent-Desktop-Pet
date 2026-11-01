@@ -90,6 +90,9 @@ jobs:
       - name: Test backend (pytest)
         run: pytest --cov=app --cov-report=term --cov-report=xml:../ci-results/backend-coverage.xml --junitxml=../ci-results/backend.xml
 
+      - name: B8 account HTTP and WebSocket isolation
+        run: python ../scripts/smoke_backend_accounts.py
+
       - name: Real WebSocket smoke test
         run: python ../scripts/smoke_backend_ws.py
 

@@ -21,7 +21,17 @@ const rt = runtime({
     request: (options) => {
       fetch(options.url, {
         method: options.method,
-        headers: options.header,
+        // B8 后测试适配器携带当前会话；正式页面的 Bearer 管道由 C9 交付。
+        headers: {
+          ...options.header,
+          ...(!options.header.Authorization &&
+          !new URL(options.url).pathname.startsWith('/api/wechat/')
+            ? {
+                Authorization:
+                  'Bearer ' + rt.storage.get('wechat_session:' + baseUrl).session_token,
+              }
+            : {}),
+        },
         body: options.data ? JSON.stringify(options.data) : undefined,
       })
         .then(async (response) => {
@@ -54,6 +64,7 @@ async function check(name, fn) {
   console.log('PASS ' + name);
 }
 async function raw(path, method = 'GET', body, session) {
+  session = session || rt.storage.get('wechat_session:' + baseUrl)?.session_token;
   const response = await fetch(baseUrl + path, {
     method,
     headers: {
@@ -79,6 +90,7 @@ async function tick() {
   return (await raw('/__test__/tick', 'POST')).data;
 }
 async function main() {
+  await sub.withSession(async () => {});
   await check('真实登记、拒绝两次后同意、409 不变成功', async () => {
     const t = await task();
     choice = 'reject';
@@ -218,7 +230,11 @@ async function main() {
   });
   await check('真实 WS 阳性对照：pc 有事件，phone 仅微信渠道', async () => {
     const received = [];
-    const socket = new WebSocket(baseUrl.replace('http:', 'ws:') + '/ws?token=' + token);
+    const socket = new WebSocket(
+      baseUrl.replace('http:', 'ws:') +
+        '/ws?token=' +
+        rt.storage.get('wechat_session:' + baseUrl).session_token
+    );
     await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('WS timeout')), 3000);
       socket.addEventListener(

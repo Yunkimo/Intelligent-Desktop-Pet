@@ -67,7 +67,7 @@ def run(samples: int = 30) -> dict:
                 for index in range(samples):
                     created = client.post(
                         "/api/reminders",
-                        headers=headers,
+                        headers=authorized,
                         json={
                             "title": f"Mock 提醒 {index + 1}",
                             "remind_at": utc_text(time.time() - 1),
@@ -95,7 +95,8 @@ def run(samples: int = 30) -> dict:
                 assert client.portal.call(main.app.state.scheduler.run_once) == 0
                 assert all(wechat_store.status(key)[0]["status"] == "sent" for key in ids)
                 assert all(
-                    row["done"] == 1 for row in client.get("/api/reminders", headers=headers).json()
+                    row["done"] == 1
+                    for row in client.get("/api/reminders", headers=authorized).json()
                 )
     assert calls == {"login": 1, "token": 1, "send": samples}
     return {

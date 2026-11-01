@@ -120,13 +120,13 @@ def test_phone_content_requires_fresh_authorization_and_completion_blocks_ensure
     client, fake = wx_app
     task, reminder, _, headers, payload = prepare(client)
     assert client.post("/api/wechat/subscribe", headers=headers, json=payload).status_code == 200
-    db.update_task(task["id"], {"title": "new title", "note": "new body"})
-    phone = next(r for r in db.list_reminders() if r["id"] == reminder["id"])
+    db.update_task(task["id"], {"title": "new title", "note": "new body"}, user_id=task["user_id"])
+    phone = next(r for r in db.list_reminders(user_id=task["user_id"]) if r["id"] == reminder["id"])
     assert (phone["title"], phone["body"]) == ("new title", "new body")
     assert dispatch(client) == 0
     assert fake.count("/cgi-bin/message/subscribe/send") == 0
     assert client.post("/api/wechat/subscribe", headers=headers, json=payload).status_code == 409
-    db.update_task(task["id"], {"done": True})
+    db.update_task(task["id"], {"done": True}, user_id=task["user_id"])
     assert (
         client.post(
             "/api/wechat/reminders", headers=headers, json={"task_id": task["id"]}
@@ -154,12 +154,12 @@ def test_phone_pending_cancelled_after_desktop_sent(wx_app):
     client, fake = wx_app
     task, reminder, _, headers, payload = prepare(client)
     # both 渠道允许桌面先完成、微信稍后发送，任务完成必须取消剩余渠道。
-    db.update_reminder(reminder["id"], {"channel": "both"})
+    db.update_reminder(reminder["id"], {"channel": "both"}, user_id=task["user_id"])
     payload["event_id"] = reminder_store.delivery_status(reminder["id"])["event_id"]
     assert client.post("/api/wechat/subscribe", headers=headers, json=payload).status_code == 200
     with db._conn() as conn:
         conn.execute("UPDATE reminders SET done=1 WHERE id=?", (reminder["id"],))
-    db.update_task(task["id"], {"done": True})
+    db.update_task(task["id"], {"done": True}, user_id=task["user_id"])
     assert dispatch(client) == 0
     assert fake.count("/cgi-bin/message/subscribe/send") == 0
 
