@@ -40,7 +40,7 @@ async function main() {
   await check('needsText：日期不明/时刻不明/提醒时刻不明/已过去映射为中文', () => {
     assert.strictEqual(tp.needsText({ needs_confirmation: [] }), '');
     assert.strictEqual(tp.needsText({ needs_confirmation: ['date'] }), '日期不明');
-    assert.strictEqual(tp.needsText({ needs_confirmation: ['time'] }), '时刻不明');
+    assert.strictEqual(tp.needsText({ needs_confirmation: ['time'] }), '仅有时刻，未说明要提醒');
     assert.strictEqual(tp.needsText({ needs_confirmation: ['remind_at'] }), '提醒时刻不明');
     assert.strictEqual(tp.needsText({ needs_confirmation: ['past'] }), '时间已过去');
     assert.strictEqual(

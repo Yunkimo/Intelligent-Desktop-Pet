@@ -31,7 +31,7 @@ function buildReference() {
 
 const NEEDS_TEXT = {
   date: '日期不明',
-  time: '时刻不明',
+  time: '仅有时刻，未说明要提醒',
   remind_at: '提醒时刻不明',
   past: '时间已过去',
 };
