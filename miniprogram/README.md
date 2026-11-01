@@ -11,11 +11,12 @@
 | `pages/index` | 今日课表 / 待办（真实教学周与当天课表来自 B6 日历接口、勾选完成、下拉刷新） |
 | `pages/schedule` | 课表增删改 + 图片识别导入（按星期分组，浏览其他周与「回到本周」，周次支持 `1-16` / `1,3,5` 写法） |
 | `utils/course_import.js` | 图片导入纯逻辑：草稿合并/缺项判定/节次时间映射/逐条保存结果核对与失败恢复（契约见 `docs/b7-parsing.md`） |
-| `pages/task` | 日程增删改（截止日期、勾选完成） |
+| `pages/task` | 日程增删改（截止日期、勾选完成）+ 一句话创建（C8） |
 | `pages/semester` | 学期设置（第一周的周一 + 总周数，整体保存到后端） |
 | `utils/api.js` | `wx.request` / `wx.uploadFile` 封装：`baseUrl` 与 `X-API-Key` 集中配置于文件顶部 |
 | `utils/ws.js` | WebSocket 事件适配层：连接/重连/节流/去重集中管理（契约见 `docs/api-contract.md`） |
 | `utils/semester.js` | 学期状态适配层：学期配置读取/保存/日历查询、离线推算与缓存（契约见 `docs/b6-contract.md`） |
+| `utils/task_parse.js` | 一句话日程纯逻辑：参考时刻构造、缺项/过去标记、逐项保存核对与失败恢复（契约见 `docs/b7-parsing.md`） |
 | `utils/datetime.js` | 日期换算、提醒时间偏移与学期周次纯日历推算（后端 `day_of_week` 1=周一 … 7=周日） |
 | `config.example.js` | 复制为 `config.js` 填入 `baseUrl` / `apiKey`（`config.js` 已 gitignore，密钥不入库） |
 
@@ -57,6 +58,13 @@
 - 确认后走 bulk 落库并按实际返回**逐条核对**：成功/无效/明确失败/结果不明分别处理；部分失败只保留失败项供修正后重试，不整批盲重传；响应不明先按课表列表核对，无法确认的标「结果待确认」。完成后刷新课表，真实当前周不变。
 - 413=图片过大、422=无可识别内容或输入无效、503=后端未配置视觉模型、504=识别超时（可重试）、429=模型服务繁忙、502=上游异常。契约见 [B7 接口说明](../docs/b7-parsing.md)。
 
+## 一句话创建日程（C8）
+
+- 日程页「＋」优先打开文本输入（原手动表单保留为「手动添加」与编辑回退）。输入如「明天下午三点提醒我交实验报告；下周五前交报告」后点「解析」，调用 `POST /api/tasks/parse-text`（参考时刻为本机当前时间带偏移 + Asia/Shanghai），得到可确认草稿，不落库、不触发微信授权。
+- 草稿逐条可编辑/移除；日期不明、时刻不明、提醒时刻不明、已过去分别标记「待确认」；只说截止日期不会自动生成提醒；缺失与歧义不自动修正。
+- 「确认保存」逐项调用 `POST /api/tasks`（后端原子创建 PC 提醒，客户端不额外建提醒），逐项核对结果：4xx 明确失败、网络失败先按列表核对不自动重放；失败/待确认项保留原文与草稿可修正重试，防连点。
+- 保存后从真实后端读回，提醒的订阅状态（未订阅/待授权等）以服务端记录为准，沿用 C3 订阅流程。契约见 [B7 接口说明](../docs/b7-parsing.md)。
+
 ## 订阅提醒（C3）
 
 日程页设置提醒时间后，主动点击“订阅提醒”。按钮处理中不可重复触发。微信授权在点击同步调用链发起；随后获取后端会话、原子创建或复用本人的 phone 提醒，查询当前事件，再登记选择。页面加载不会弹出授权窗口。
@@ -84,6 +92,7 @@ python -m pytest -c backend/pytest.ini backend/tests -q
 python scripts/check_c3_integration.py
 python scripts/check_c6_integration.py
 python scripts/check_c7_integration.py
+python scripts/check_c8_integration.py
 ```
 
 `check_c6_integration.py` 在 B6 未合入时检测到 `/api/semester` 缺失会明确 SKIP（退出 0），合入后自动执行真实联调；合入前可用 `BACKEND_DIR` 指向含 B6 的后端检出做真实联调取证（见 [C6 验收记录](../docs/evidence/c6/c6-verification.md)）。

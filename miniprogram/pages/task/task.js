@@ -1,18 +1,16 @@
 // 日程页：列出全部日程/待办，支持添加/编辑/删除与勾选完成，数据同步到后端 SQLite。
 // 设置了提醒时间的日程可点「订阅提醒」走微信一次性订阅流程（C3，见 utils/subscribe.js）。
+// 一句话创建（C8，B7 契约见 docs/b7-parsing.md）：右下「＋」优先打开文本输入，
+// 解析为可确认草稿（缺失/歧义/过去时间标记待确认），确认后逐项 POST /api/tasks
+// （后端原子创建 PC 提醒，客户端不额外建提醒）；手动表单保留为修改与失败回退。
 const api = require('../../utils/api');
 const ws = require('../../utils/ws');
 const subscribe = require('../../utils/subscribe');
+const taskParse = require('../../utils/task_parse');
 const { dateStr, reminderParts, reminderInput } = require('../../utils/datetime');
 
 // 日程页关心的后端事件（B6 起后端会在其他端增改删时推送更新/删除事件）
-const WS_EVENTS = [
-  'task.created',
-  'task.updated',
-  'task.deleted',
-  'reminder.due',
-  'reconnect',
-];
+const WS_EVENTS = ['task.created', 'task.updated', 'task.deleted', 'reminder.due', 'reconnect'];
 
 const EMPTY_FORM = {
   id: null,
@@ -23,6 +21,29 @@ const EMPTY_FORM = {
   remind_time: '08:00',
 };
 
+const EMPTY_DRAFT_FORM = {
+  index: -1,
+  title: '',
+  note: '',
+  due_at: '',
+  remind_date: '',
+  remind_time: '08:00',
+};
+
+// 草稿 → 列表视图模型（保留原文与时间提示，缺项/过去时间标记待确认）
+function draftViews(drafts) {
+  return drafts.map((draft, index) => ({
+    index,
+    title: draft.title,
+    note: draft.note,
+    dueText: draft.due_at ? '截止 ' + draft.due_at.slice(0, 10) : '',
+    remindText: draft.remind_at
+      ? '提醒 ' + reminderParts(draft.remind_at).date + ' ' + reminderParts(draft.remind_at).time
+      : '',
+    needsText: taskParse.needsText(draft),
+  }));
+}
+
 Page({
   data: {
     tasks: [],
@@ -31,6 +52,14 @@ Page({
     editing: false,
     subscribingId: null,
     form: { ...EMPTY_FORM },
+    // 一句话创建状态机：'' / 'input' / 'draft'
+    parseStage: '',
+    parseText: '',
+    parsing: false,
+    savingDrafts: false,
+    parseFailedText: '',
+    draftViews: [],
+    draftForm: null,
   },
 
   onShow() {
@@ -216,5 +245,163 @@ Page({
 
   retry() {
     this.load();
+  },
+
+  // ===== 一句话创建（C8）=====
+
+  // 新增入口：优先文本输入，手动表单作为回退（从草稿返回时保留原文可修改）
+  openTextInput() {
+    this.setData({ parseStage: 'input', parseFailedText: '' });
+  },
+
+  closeParse() {
+    this._drafts = null;
+    this.setData({
+      parseStage: '',
+      parseText: '',
+      parseFailedText: '',
+      draftViews: [],
+      draftForm: null,
+    });
+  },
+
+  onParseTextInput(e) {
+    this.setData({ parseText: e.detail.value });
+  },
+
+  // 从文本输入回退到手动表单
+  openManualFromText() {
+    this.closeParse();
+    this.openAdd();
+  },
+
+  // 解析：防连点；失败保留原文可重试
+  async parseText() {
+    if (this.data.parsing) {
+      return;
+    }
+    const text = this.data.parseText.trim();
+    if (!text) {
+      wx.showToast({ title: '请输入日程内容', icon: 'none' });
+      return;
+    }
+    this.setData({ parsing: true, parseFailedText: '' });
+    try {
+      const result = await api.parseTaskText({ ...taskParse.buildReference(), text });
+      const drafts = (result && result.drafts) || [];
+      if (drafts.length === 0) {
+        this.setData({ parseFailedText: '未能解析出日程，请调整描述' });
+        return;
+      }
+      this._drafts = drafts;
+      this.setData({
+        parseStage: 'draft',
+        draftViews: draftViews(drafts),
+        draftForm: null,
+      });
+    } catch (err) {
+      this.setData({ parseFailedText: (err && err.message) || '解析失败，请重试' });
+    } finally {
+      this.setData({ parsing: false });
+    }
+  },
+
+  // 草稿编辑（复用字段布局；保存只更新本地草稿，不落库）
+  openDraftForm(e) {
+    const index = e.currentTarget.dataset.index;
+    const draft = this._drafts[index];
+    this.setData({
+      draftForm: {
+        ...EMPTY_DRAFT_FORM,
+        index,
+        title: draft.title || '',
+        note: draft.note || '',
+        due_at: draft.due_at ? draft.due_at.slice(0, 10) : '',
+        remind_date: draft.remind_at ? reminderParts(draft.remind_at).date : '',
+        remind_time: draft.remind_at ? reminderParts(draft.remind_at).time : '08:00',
+      },
+    });
+  },
+
+  closeDraftForm() {
+    this.setData({ draftForm: null });
+  },
+
+  onDraftFormInput(e) {
+    const field = e.currentTarget.dataset.field;
+    this.setData({ [`draftForm.${field}`]: e.detail.value });
+  },
+
+  clearDraftReminder() {
+    this.setData({ 'draftForm.remind_date': '' });
+  },
+
+  saveDraftForm() {
+    const form = this.data.draftForm;
+    if (!form.title.trim()) {
+      wx.showToast({ title: '请填写标题', icon: 'none' });
+      return;
+    }
+    const draft = this._drafts[form.index];
+    this._drafts[form.index] = {
+      ...draft,
+      title: form.title.trim(),
+      note: form.note.trim(),
+      due_at: form.due_at || null,
+      remind_at: form.remind_date ? reminderInput(form.remind_date, form.remind_time) : null,
+    };
+    this.setData({ draftForm: null, draftViews: draftViews(this._drafts) });
+  },
+
+  // 从草稿中移除一条（不落库）
+  removeDraft(e) {
+    const index = e.currentTarget.dataset.index;
+    this._drafts.splice(index, 1);
+    if (this._drafts.length === 0) {
+      this.closeParse();
+      return;
+    }
+    this.setData({ draftViews: draftViews(this._drafts) });
+  },
+
+  // 确认保存：逐项 POST /api/tasks，失败/待确认项保留可重试，不整批盲重放
+  async confirmParseSave() {
+    if (this.data.savingDrafts) {
+      return; // 防连点
+    }
+    const drafts = this._drafts || [];
+    if (drafts.length === 0) {
+      return;
+    }
+    this.setData({ savingDrafts: true });
+    wx.showLoading({ title: '保存中', mask: true });
+    try {
+      const { statuses } = await taskParse.saveDrafts(drafts, api);
+      wx.hideLoading();
+      await this.load(); // 保存后从真实后端读回（提醒状态以服务端为准）
+      const created = statuses.filter((s) => s.status === 'created').length;
+      const failed = taskParse.failedDrafts(statuses);
+      if (failed.length > 0) {
+        // 失败/待确认项保留原文与草稿，供修正后重试
+        this._drafts = failed;
+        this.setData({
+          draftViews: draftViews(failed),
+          parseFailedText: `已保存 ${created} 条，${failed.length} 条未成功，请核对后重试`,
+        });
+        wx.showToast({
+          title: `已保存 ${created} 条，${failed.length} 条未成功`,
+          icon: 'none',
+          duration: 3000,
+        });
+        return;
+      }
+      this.closeParse();
+      wx.showToast({ title: `已保存 ${created} 条日程`, icon: 'none' });
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: err.message || '保存失败', icon: 'none' });
+    } finally {
+      this.setData({ savingDrafts: false });
+    }
   },
 });

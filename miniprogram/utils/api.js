@@ -192,6 +192,9 @@ module.exports = {
   updateReminder: (id, data) => request(`/api/reminders/${id}`, { method: 'PUT', data }),
   deleteReminder: (id) => request(`/api/reminders/${id}`, { method: 'DELETE' }),
 
+  // 一句话日程解析（C8，B7 契约见 docs/b7-parsing.md 第二节）：只返回待确认草稿
+  parseTaskText: (payload) => request('/api/tasks/parse-text', { method: 'POST', data: payload }),
+
   // 学期与日历（B6 契约见 docs/b6-contract.md；未配置时 GET 返回 settings=null）
   getSemester: () => request('/api/semester'),
   saveSemester: (settings) => request('/api/semester', { method: 'PUT', data: settings }),

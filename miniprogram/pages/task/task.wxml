@@ -24,7 +24,87 @@
     </view>
   </view>
 
-  <view class="fab" bindtap="openAdd">＋</view>
+  <view class="fab" bindtap="openTextInput">＋</view>
+
+  <!-- 一句话创建：文本输入 -->
+  <view wx:if="{{parseStage === 'input'}}" class="mask">
+    <view class="modal">
+      <view class="modal-title">一句话创建日程</view>
+      <textarea class="parse-textarea" value="{{parseText}}" bindinput="onParseTextInput" maxlength="2000" placeholder="例如：明天下午三点提醒我交实验报告；下周五前交报告" auto-height="{{false}}" />
+      <view wx:if="{{parseFailedText}}" class="parse-failed">{{parseFailedText}}</view>
+      <view class="modal-actions">
+        <button class="btn btn-ghost" bindtap="openManualFromText">手动添加</button>
+        <button class="btn btn-ghost" bindtap="closeParse">取消</button>
+        <button class="btn btn-primary" disabled="{{parsing}}" loading="{{parsing}}" bindtap="parseText">解析</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 一句话创建：解析草稿确认（可编辑/移除，逐项保存） -->
+  <view wx:if="{{parseStage === 'draft'}}" class="mask">
+    <view class="modal draft-modal">
+      <view class="modal-title">确认日程（{{draftViews.length}} 项）</view>
+      <scroll-view scroll-y class="draft-scroll">
+        <view wx:if="{{parseFailedText}}" class="draft-warning">⚠ {{parseFailedText}}</view>
+        <view wx:for="{{draftViews}}" wx:key="index" class="draft-row">
+          <view class="draft-main">
+            <view class="draft-name">{{item.title}}</view>
+            <view wx:if="{{item.note}}" class="draft-meta">{{item.note}}</view>
+            <view class="draft-meta">
+              <text wx:if="{{item.dueText}}">{{item.dueText}} · </text>
+              <text wx:if="{{item.remindText}}">{{item.remindText}}</text>
+              <text wx:if="{{!item.dueText && !item.remindText}}">无日期</text>
+            </view>
+            <view wx:if="{{item.needsText}}" class="draft-needs">{{item.needsText}}，请核对</view>
+          </view>
+          <view class="draft-actions">
+            <button class="btn btn-ghost mini" data-index="{{item.index}}" bindtap="openDraftForm">编辑</button>
+            <button class="btn btn-danger mini" data-index="{{item.index}}" bindtap="removeDraft">移除</button>
+          </view>
+        </view>
+      </scroll-view>
+      <view class="modal-actions">
+        <button class="btn btn-ghost" bindtap="openTextInput">修改原文</button>
+        <button class="btn btn-ghost" bindtap="closeParse">取消</button>
+        <button class="btn btn-primary" disabled="{{savingDrafts}}" loading="{{savingDrafts}}" bindtap="confirmParseSave">确认保存</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 一句话创建：单条草稿编辑 -->
+  <view wx:if="{{draftForm}}" class="mask">
+    <view class="modal">
+      <view class="modal-title">编辑草稿</view>
+      <view class="form-item">
+        <text class="label">标题</text>
+        <input class="input" value="{{draftForm.title}}" data-field="title" bindinput="onDraftFormInput" placeholder="日程标题" />
+      </view>
+      <view class="form-item">
+        <text class="label">备注</text>
+        <input class="input" value="{{draftForm.note}}" data-field="note" bindinput="onDraftFormInput" placeholder="选填" />
+      </view>
+      <view class="form-item">
+        <text class="label">截止日期</text>
+        <picker mode="date" value="{{draftForm.due_at}}" data-field="due_at" bindchange="onDraftFormInput">
+          <view class="picker-value">{{draftForm.due_at || '选择日期'}}</view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="label">提醒时间</text>
+        <picker mode="date" value="{{draftForm.remind_date}}" data-field="remind_date" bindchange="onDraftFormInput">
+          <view class="picker-value">{{draftForm.remind_date || '选择日期'}}</view>
+        </picker>
+        <picker mode="time" value="{{draftForm.remind_time}}" data-field="remind_time" bindchange="onDraftFormInput">
+          <view class="picker-value">{{draftForm.remind_time}}</view>
+        </picker>
+      </view>
+      <view class="modal-actions">
+        <button class="btn btn-ghost" bindtap="clearDraftReminder">清除提醒时间</button>
+        <button class="btn btn-ghost" bindtap="closeDraftForm">取消</button>
+        <button class="btn btn-primary" bindtap="saveDraftForm">保存</button>
+      </view>
+    </view>
+  </view>
 
   <view wx:if="{{editing}}" class="mask">
     <view class="modal">
