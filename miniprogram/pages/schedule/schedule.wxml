@@ -44,6 +44,115 @@
   <view class="fab fab-import" bindtap="importImage">识</view>
   <view class="fab" bindtap="openAdd">＋</view>
 
+  <view wx:if="{{importFailedText}}" class="offline-banner">{{importFailedText}}（点「识」重试）</view>
+
+  <!-- 上传识别阶段：真实阶段 + 已等待秒数（不伪造百分比），可取消 -->
+  <view wx:if="{{importStage === 'uploading'}}" class="mask">
+    <view class="modal import-progress">
+      <view class="modal-title">正在识别课表</view>
+      <view class="progress-text">图片已上传，模型识别中…</view>
+      <view class="elapsed">已等待 {{importElapsed}} 秒（最长 70 秒）</view>
+      <button class="btn btn-ghost" bindtap="cancelImportUpload">取消识别</button>
+    </view>
+  </view>
+
+  <!-- 草稿确认阶段：可编辑课程草稿与警告 -->
+  <view wx:if="{{importStage === 'draft'}}" class="mask">
+    <view class="modal draft-modal">
+      <view class="modal-title">核对识别结果（{{draftViews.length}} 项）</view>
+      <scroll-view scroll-y class="draft-scroll">
+        <view wx:for="{{warnings}}" wx:key="*this" class="draft-warning">⚠ {{item}}</view>
+        <view wx:for="{{draftViews}}" wx:key="index" class="draft-row {{item.incomplete ? 'draft-incomplete' : ''}}">
+          <view class="draft-main">
+            <view class="draft-name">{{item.name}}</view>
+            <view class="draft-meta">{{item.meta}}</view>
+            <view class="draft-meta">{{item.weeksText}}周<text wx:if="{{item.slotText}}"> · {{item.slotText}}</text></view>
+            <view wx:if="{{item.needsText}}" class="draft-needs">{{item.needsText}}</view>
+          </view>
+          <view class="draft-actions">
+            <button class="btn btn-ghost mini" data-index="{{item.index}}" bindtap="openDraftForm">编辑</button>
+            <button class="btn btn-danger mini" data-index="{{item.index}}" bindtap="removeDraft">移除</button>
+          </view>
+        </view>
+      </scroll-view>
+      <view wx:if="{{hasPendingSlots}}" class="draft-hint">没有具体时间的课程已按标准节次预填时间（第1节 08:00-09:40、第2节 10:00-11:40、第3节 13:00-14:40、第4节 16:00-17:40、第5节 19:00-20:40），点「配置节次时间」可统一修改</view>
+      <view class="modal-actions">
+        <button wx:if="{{hasPendingSlots}}" class="btn btn-ghost" bindtap="openSlotModal">配置节次时间</button>
+        <button class="btn btn-ghost" bindtap="cancelDraftImport">取消</button>
+        <button class="btn btn-primary" bindtap="confirmDraftImport">确认导入</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 草稿单条编辑表单 -->
+  <view wx:if="{{draftForm}}" class="mask">
+    <view class="modal">
+      <view class="modal-title">编辑草稿</view>
+      <view class="form-item">
+        <text class="label">名称</text>
+        <input class="input" value="{{draftForm.name}}" data-field="name" bindinput="onDraftFormInput" placeholder="课程名称" />
+      </view>
+      <view class="form-item">
+        <text class="label">星期</text>
+        <picker mode="selector" range="{{weekOptions}}" value="{{draftForm.day_of_week - 1}}" bindchange="onDraftWeekPicker">
+          <view class="picker-value">{{weekOptions[draftForm.day_of_week - 1]}}</view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="label">开始时间</text>
+        <picker mode="time" value="{{draftForm.start_time}}" data-field="start_time" bindchange="onDraftFormInput">
+          <view class="picker-value">{{draftForm.start_time || '选择时间'}}</view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="label">结束时间</text>
+        <picker mode="time" value="{{draftForm.end_time}}" data-field="end_time" bindchange="onDraftFormInput">
+          <view class="picker-value">{{draftForm.end_time || '选择时间'}}</view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="label">地点</text>
+        <input class="input" value="{{draftForm.location}}" data-field="location" bindinput="onDraftFormInput" placeholder="选填" />
+      </view>
+      <view class="form-item">
+        <text class="label">教师</text>
+        <input class="input" value="{{draftForm.teacher}}" data-field="teacher" bindinput="onDraftFormInput" placeholder="选填" />
+      </view>
+      <view class="form-item">
+        <text class="label">周次</text>
+        <input class="input" value="{{draftForm.weeksText}}" data-field="weeksText" bindinput="onDraftFormInput" placeholder="如：1-16（留空为全周）" />
+      </view>
+      <view class="modal-actions">
+        <button class="btn btn-ghost" bindtap="closeDraftForm">取消</button>
+        <button class="btn btn-primary" bindtap="saveDraftForm">保存</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 节次时间映射：一次性配置图中节次对应的上课时间 -->
+  <view wx:if="{{importStage === 'slot'}}" class="mask">
+    <view class="modal">
+      <view class="modal-title">配置节次时间</view>
+      <view class="draft-hint">已按标准节次时间预填，可按你的实际作息修改后「应用映射」。</view>
+      <scroll-view scroll-y class="slot-scroll">
+        <view wx:for="{{slotForms}}" wx:key="slot" class="slot-row">
+          <text class="slot-label">{{item.slot}}</text>
+          <picker mode="time" value="{{item.start}}" data-index="{{index}}" data-field="start" bindchange="onSlotFormInput">
+            <view class="picker-value slot-time">{{item.start || '开始'}}</view>
+          </picker>
+          <text class="slot-sep">-</text>
+          <picker mode="time" value="{{item.end}}" data-index="{{index}}" data-field="end" bindchange="onSlotFormInput">
+            <view class="picker-value slot-time">{{item.end || '结束'}}</view>
+          </picker>
+        </view>
+      </scroll-view>
+      <view class="modal-actions">
+        <button class="btn btn-ghost" bindtap="closeSlotModal">返回</button>
+        <button class="btn btn-primary" bindtap="saveSlotMapping">应用映射</button>
+      </view>
+    </view>
+  </view>
+
   <view wx:if="{{editing}}" class="mask">
     <view class="modal">
       <view class="modal-title">{{form.id ? '编辑课程' : '添加课程'}}</view>

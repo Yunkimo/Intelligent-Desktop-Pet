@@ -140,3 +140,115 @@
   background: #2f9e44;
   box-shadow: 0 8rpx 24rpx rgba(47, 158, 68, 0.4);
 }
+
+/* ===== 图片识别导入（C7）===== */
+.import-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.progress-text {
+  margin-top: 8rpx;
+  color: #747d8c;
+  font-size: 28rpx;
+}
+
+.elapsed {
+  margin: 16rpx 0 24rpx;
+  color: #4a90d9;
+  font-size: 26rpx;
+}
+
+.draft-modal {
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.draft-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: 56vh;
+}
+
+.draft-warning {
+  margin: 4rpx 0;
+  padding: 8rpx 16rpx;
+  background: #fff7e6;
+  color: #b7791f;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+}
+
+.draft-row {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid #f0f2f5;
+}
+
+.draft-row.draft-incomplete .draft-name {
+  color: #e67e22;
+}
+
+.draft-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.draft-name {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.draft-meta {
+  margin-top: 2rpx;
+  color: #747d8c;
+  font-size: 24rpx;
+}
+
+.draft-needs {
+  margin-top: 4rpx;
+  color: #e67e22;
+  font-size: 22rpx;
+}
+
+.draft-actions {
+  display: flex;
+  flex-direction: column;
+  margin-left: 12rpx;
+}
+
+.draft-hint {
+  margin: 8rpx 0;
+  color: #b7791f;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.slot-scroll {
+  max-height: 50vh;
+}
+
+.slot-row {
+  display: flex;
+  align-items: center;
+  margin: 12rpx 0;
+}
+
+.slot-label {
+  width: 140rpx;
+  color: #57606f;
+  font-size: 26rpx;
+}
+
+.slot-time {
+  min-width: 130rpx;
+  text-align: center;
+}
+
+.slot-sep {
+  margin: 0 12rpx;
+  color: #a4b0be;
+}

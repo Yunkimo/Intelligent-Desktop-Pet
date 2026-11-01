@@ -12,4 +12,6 @@ module.exports = {
   // 提醒显示及无时区旧数据解释须与后端 REMINDER_NAIVE_OFFSET_MINUTES 一致。
   reminderOffsetMinutes: 480,
   requestTimeoutMs: 15000,
+  // 图片识别客户端等待上限（B7 契约：服务端预算 60 秒，客户端最多等 70 秒）
+  parseTimeoutMs: 70000,
 };

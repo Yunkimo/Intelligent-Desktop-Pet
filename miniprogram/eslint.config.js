@@ -22,6 +22,9 @@ module.exports = [
           'WebSocket',
           'process',
           '__dirname',
+          'Buffer',
+          'FormData',
+          'Blob',
         ].map((name) => [name, 'readonly'])
       ),
     },
