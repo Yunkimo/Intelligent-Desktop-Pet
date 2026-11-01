@@ -87,6 +87,11 @@ if not isinstance(WX_TEMPLATE_FIELDS, dict) or not all(
     for key, value in WX_TEMPLATE_FIELDS.items()
 ):
     raise ValueError("WX_TEMPLATE_FIELDS 仅支持 thingN 对应 title/body、timeN/dateN 对应 remind_at")
+WX_TEMPLATE_DATE_FIELDS = set(json.loads(os.getenv("WX_TEMPLATE_DATE_FIELDS", "[]")))
+if not isinstance(WX_TEMPLATE_DATE_FIELDS, set) or not all(
+    key in WX_TEMPLATE_FIELDS for key in WX_TEMPLATE_DATE_FIELDS
+):
+    raise ValueError("WX_TEMPLATE_DATE_FIELDS 必须是 WX_TEMPLATE_FIELDS 中已声明字段的子集")
 WX_DELIVERY_TIMEOUT_SECONDS = WX_TIMEOUT_SECONDS * 4
 WX_DELIVERY_LEASE_SECONDS = WX_DELIVERY_TIMEOUT_SECONDS + 2 * DB_TIMEOUT_SECONDS + 5
 # B4：固定上游主机，调用者只能提供城市或关键词，不能传入目标 URL。
