@@ -103,3 +103,10 @@ WEB_QUERY_MAX_CONCURRENT = integer_setting("WEB_QUERY_MAX_CONCURRENT", "4", 1, 1
 
 LLM_TEXT_MODEL = os.getenv("LLM_TEXT_MODEL", "").strip()
 PARSE_TIMEOUT_SECONDS = positive_seconds("PARSE_TIMEOUT_SECONDS", "60")
+
+# B8：兼容通道只访问默认用户；正式多用户部署关闭。
+ALLOW_LEGACY_API_KEY = os.getenv("ALLOW_LEGACY_API_KEY", "true").lower()
+if ALLOW_LEGACY_API_KEY not in {"true", "false"}:
+    raise ValueError("ALLOW_LEGACY_API_KEY 必须为 true 或 false")
+ALLOW_LEGACY_API_KEY = ALLOW_LEGACY_API_KEY == "true"  # pragma: allowlist secret -- boolean switch
+DEVICE_SESSION_TTL_SECONDS = integer_setting("DEVICE_SESSION_TTL_SECONDS", "2592000", 60, 7776000)

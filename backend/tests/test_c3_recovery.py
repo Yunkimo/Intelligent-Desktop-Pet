@@ -15,7 +15,7 @@ def prepare(client):
     identity, headers = login(client)
     task = client.post(
         "/api/tasks",
-        headers=HEADERS,
+        headers=headers,
         json={"title": "C3 回归", "remind_at": "2040-01-01T08:00:00+08:00"},
     ).json()
     response = client.post("/api/wechat/reminders", headers=headers, json={"task_id": task["id"]})
@@ -40,8 +40,8 @@ def test_concurrent_creation_and_replay(wx_app):
         )
     assert {r["id"] for r in rows} == {reminder["id"]}
     assert {r["event_id"] for r in rows} == {reminder["event_id"]}
-    assert len([r for r in db.list_reminders() if r["channel"] == "phone"]) == 1
-    assert len([r for r in db.list_reminders() if r["channel"] == "pc"]) == 1
+    assert len([r for r in db.list_reminders(user_id=2) if r["channel"] == "phone"]) == 1
+    assert len([r for r in db.list_reminders(user_id=2) if r["channel"] == "pc"]) == 1
     # 即使响应被丢弃，再请求仍返回同一资源。
     again = client.post("/api/wechat/reminders", headers=headers, json={"task_id": task["id"]})
     assert again.json()["id"] == reminder["id"]
@@ -55,7 +55,7 @@ def test_same_instant_keeps_event_and_single_send(wx_app):
     for value in ["2040-01-01T08:00", "2040-01-01T00:00:00.000000Z"]:
         assert (
             client.put(
-                "/api/tasks/" + str(task["id"]), headers=HEADERS, json={"remind_at": value}
+                "/api/tasks/" + str(task["id"]), headers=headers, json={"remind_at": value}
             ).status_code
             == 200
         )
@@ -76,11 +76,11 @@ def test_task_mutation_cancels_old_send_atomically(wx_app, operation):
     task, reminder, _, headers, payload = prepare(client)
     client.post("/api/wechat/subscribe", headers=headers, json=payload)
     if operation == "delete":
-        response = client.delete("/api/tasks/" + str(task["id"]), headers=HEADERS)
+        response = client.delete("/api/tasks/" + str(task["id"]), headers=headers)
     else:
         response = client.put(
             "/api/tasks/" + str(task["id"]),
-            headers=HEADERS,
+            headers=headers,
             json={"remind_at": "2041-01-01T08:00+08:00" if operation == "reschedule" else None},
         )
     assert response.is_success
@@ -91,7 +91,7 @@ def test_task_mutation_cancels_old_send_atomically(wx_app, operation):
         assert stale.status_code == 409
         assert stale.json()["detail"] == "reminder_event_changed"
     else:
-        assert db.list_reminders() == []
+        assert db.list_reminders(user_id=2) == []
     assert dispatch(client) == 0
     assert fake.count("/cgi-bin/message/subscribe/send") == 0
 
@@ -108,7 +108,7 @@ def test_landing_target_identity_and_latest_task(wx_app):
         json.loads(sent.content)["page"] == f"pages/reminder/reminder?reminder_id={reminder['id']}"
     )
     route = "/api/wechat/reminders/" + str(reminder["id"])
-    client.put("/api/tasks/" + str(task["id"]), headers=HEADERS, json={"title": "最新标题"})
+    client.put("/api/tasks/" + str(task["id"]), headers=headers, json={"title": "最新标题"})
     assert client.get(route, headers=headers).json()["task"]["title"] == "最新标题"
     _, other = login(client, "bob")
     assert client.get(route, headers=other).status_code == 404
@@ -119,15 +119,15 @@ def test_landing_target_identity_and_latest_task(wx_app):
         ).status_code
         == 422
     )
-    client.delete("/api/tasks/" + str(task["id"]), headers=HEADERS)
+    client.delete("/api/tasks/" + str(task["id"]), headers=headers)
     assert client.get(route, headers=headers).status_code == 404
 
 
 def test_invalid_task_time_rejected_without_mutation(wx_app):
     client, _ = wx_app
-    task, reminder, _, _, _ = prepare(client)
+    task, reminder, _, headers, _ = prepare(client)
     response = client.put(
-        "/api/tasks/" + str(task["id"]), headers=HEADERS, json={"remind_at": "invalid"}
+        "/api/tasks/" + str(task["id"]), headers=headers, json={"remind_at": "invalid"}
     )
     assert response.status_code == 422
     assert reminder_store.delivery_status(reminder["id"])["event_id"] == reminder["event_id"]
@@ -144,7 +144,7 @@ def test_reschedule_transaction_rolls_back_on_failure(wx_app, monkeypatch):
 
     monkeypatch.setattr(reminder_store, "seed_delivery", fail_seed)
     with pytest.raises(RuntimeError, match="injected"):
-        db.update_task(task["id"], {"remind_at": "2041-01-01T08:00+08:00"})
-    assert db.list_tasks()[0]["remind_at"] == task["remind_at"]
+        db.update_task(task["id"], {"remind_at": "2041-01-01T08:00+08:00"}, user_id=2)
+    assert db.list_tasks(user_id=2)[0]["remind_at"] == task["remind_at"]
     assert reminder_store.delivery_status(reminder["id"])["event_id"] == reminder["event_id"]
     assert wechat_store.status(reminder["id"])[0]["status"] == "pending"

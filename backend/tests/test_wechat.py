@@ -103,7 +103,7 @@ def register(client, *, channel="phone", result="accept", code="alice", due=NOW)
     identity, headers = login(client, code)
     response = client.post(
         "/api/reminders",
-        headers=HEADERS,
+        headers=headers,
         json={
             "title": "复习数学",
             "remind_at": utc_text(due),
@@ -133,7 +133,7 @@ def test_login_session_rotation_expiry_hash_and_redaction(wx_app, caplog):
     client, fake = wx_app
     caplog.set_level(logging.INFO, logger="httpx")
     identity, headers = login(client)
-    assert set(identity) == {"user_id", "openid", "session_token", "expires_in"}
+    assert set(identity) == {"user_id", "account_id", "openid", "session_token", "expires_in"}
     assert identity["openid"] == "openid-alice"
     assert wechat_store.session_user(identity["session_token"]) == identity["user_id"]
     assert wechat_store.session_user(identity["session_token"], now=NOW) is None
@@ -183,7 +183,8 @@ def test_login_upstream_errors_are_sanitized(wx_app, response, status):
 
 def test_missing_config_and_api_key_fail_closed(wx_app, monkeypatch):
     client, fake = wx_app
-    assert client.post("/api/wechat/login", json={"code": "alice"}).status_code == 401
+    assert client.post("/api/wechat/login", json={"code": "alice"}).status_code == 200
+    fake.calls.clear()
     monkeypatch.setattr(config, "WX_ENABLED", False)
     assert (
         client.post("/api/wechat/login", headers=HEADERS, json={"code": "alice"}).status_code == 503
@@ -227,7 +228,7 @@ def test_subscribe_is_scoped_and_idempotent(wx_app):
     assert dispatch(client) == 0
     assert fake.count("/cgi-bin/message/subscribe/send") == 1
     assert wechat_store.status(reminder["id"])[0]["status"] == "sent"
-    assert db.list_reminders()[0]["done"] == 1
+    assert db.list_reminders(user_id=2)[0]["done"] == 1
     send = fake.calls[-1]
     assert send.url.host == "api.weixin.qq.com"
     assert json.loads(send.content)["touser"] == identity["openid"]
@@ -278,7 +279,7 @@ def test_phone_sends_when_desktop_is_offline_without_preventing_ws_retry(wx_app)
     assert client.portal.call(scheduler.run_once) == 2
     assert reminder_store.delivery_status(reminder["id"])["status"] == "retry"
     assert wechat_store.status(reminder["id"])[0]["status"] == "sent"
-    assert db.list_reminders()[0]["done"] == 0
+    assert db.list_reminders(user_id=2)[0]["done"] == 0
     assert dispatch(client, NOW + 100) == 0
 
 
@@ -302,7 +303,7 @@ def test_platform_rejection_is_terminal_not_false_success(wx_app, response, reas
     state = wechat_store.status(reminder["id"])[0]
     assert state["status"] == "failed"
     assert state["last_error"] == reason
-    assert db.list_reminders()[0]["done"] == 0
+    assert db.list_reminders(user_id=2)[0]["done"] == 0
     assert dispatch(client, NOW + 1000) == 0
     assert fake.count("/cgi-bin/message/subscribe/send") == 1
 
@@ -360,7 +361,7 @@ def test_restart_after_send_claim_marks_uncertain(wx_app):
 def test_edits_invalidate_pending_authorization(wx_app, change):
     client, fake = wx_app
     reminder, _, _, _ = register(client)
-    db.update_reminder(reminder["id"], change)
+    db.update_reminder(reminder["id"], change, user_id=reminder["user_id"])
     assert dispatch(client) == 0
     assert wechat_store.status(reminder["id"])[0]["status"] == "cancelled"
 
@@ -368,7 +369,7 @@ def test_edits_invalidate_pending_authorization(wx_app, change):
 def test_delete_and_unknown_recipient_are_safe(wx_app):
     client, fake = wx_app
     reminder, _, _, _ = register(client)
-    db.delete_reminder(reminder["id"])
+    db.delete_reminder(reminder["id"], user_id=reminder["user_id"])
     assert dispatch(client) == 0
     assert wechat_store.status(reminder["id"]) == []
     response = client.post(
@@ -376,7 +377,7 @@ def test_delete_and_unknown_recipient_are_safe(wx_app):
         headers=HEADERS,
         json={"title": "x", "remind_at": utc_text(NOW), "wechat_user_id": 999},
     )
-    assert response.status_code == 422
+    assert response.status_code == 404
 
 
 def test_upgrade_is_idempotent_and_keeps_b2_event_ids(wx_app):
@@ -525,7 +526,11 @@ def test_non_phone_completed_and_long_session_inputs_are_rejected(wx_app):
     client, _ = wx_app
     identity, headers = login(client)
     item = db.create_reminder(
-        "测试", utc_text(NOW), channel="pc", wechat_user_id=identity["user_id"]
+        "测试",
+        utc_text(NOW),
+        channel="pc",
+        wechat_user_id=identity["user_id"],
+        user_id=identity["account_id"],
     )
     payload = {
         "reminder_id": item["id"],
@@ -534,15 +539,17 @@ def test_non_phone_completed_and_long_session_inputs_are_rejected(wx_app):
         "result": "accept",
     }
     assert client.post("/api/wechat/subscribe", headers=headers, json=payload).status_code == 409
-    db.update_reminder(item["id"], {"channel": "phone", "done": True})
+    db.update_reminder(
+        item["id"], {"channel": "phone", "done": True}, user_id=identity["account_id"]
+    )
     assert client.post("/api/wechat/subscribe", headers=headers, json=payload).status_code == 409
     assert wechat_store.session_user("a" * 257) is None
     assert wechat_store.session_user("") is None
     assert (
         client.put(
-            f"/api/reminders/{item['id']}", headers=HEADERS, json={"wechat_user_id": 9999}
+            f"/api/reminders/{item['id']}", headers=headers, json={"wechat_user_id": 9999}
         ).status_code
-        == 422
+        == 404
     )
 
 
@@ -561,7 +568,7 @@ def test_edit_between_claim_and_send_skips_notification(wx_app, monkeypatch):
     original = wechat_store.is_current
 
     def edit(claim):
-        db.update_reminder(reminder["id"], {"done": True})
+        db.update_reminder(reminder["id"], {"done": True}, user_id=reminder["user_id"])
         return original(claim)
 
     monkeypatch.setattr(wechat_store, "is_current", edit)
@@ -598,8 +605,9 @@ def test_b2_database_upgrade_preserves_existing_reminders(wx_config, monkeypatch
     assert db.list_reminders()[0]["title"] == "升级前"
     assert db.list_reminders()[0]["wechat_user_id"] is None
     identity = wechat_store.new_session("openid-alice")
-    db.update_reminder(1, {"wechat_user_id": identity["user_id"]})
-    assert db.list_reminders()[0]["wechat_user_id"] == identity["user_id"]
+    with pytest.raises(db.OwnershipError):
+        db.update_reminder(1, {"wechat_user_id": identity["user_id"]})
+    assert db.list_reminders()[0]["wechat_user_id"] is None
 
 
 def test_slow_phone_channel_does_not_delay_desktop_scans(wx_app, monkeypatch):

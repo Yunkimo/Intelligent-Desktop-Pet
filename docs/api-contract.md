@@ -209,3 +209,10 @@ C3 修复新增带 Bearer 的本人提醒创建/查询、event_id 校验和消�
 A/C 对接：A 调用 create_task 时不应再重复创建 PC 提醒；C 日程保存继续使用原 tasks 接口，订阅仍由用户点击。自动化联调不代表成员人工评审或真机实收，记录见 [B5 核验说明](b5-verification.md)。
 
 B7 图片课表与文本日程草稿的请求、返回及验收步骤见 [B7 解析接口](b7-parsing.md)。
+
+
+## B8 用户会话与设备登录（Issue #81）
+
+业务身份采用通用 `users`，微信身份通过 `wechat_users.business_user_id` 关联。业务 REST 切换公共 `current_user`，支持微信/设备 Bearer；旧 API Key 过渡只访问默认用户 1。课程、日程、提醒、学期及 WS 均按认证用户隔离，越权资源 404。此节覆盖旧章节的全局共享鉴权说明。
+
+新增 `/api/auth/device`（API Key 换默认设备会话或一次性配对码换私人会话）、`/api/auth/pairing`、`/api/auth/me`、`/api/auth/logout`。完整请求响应、TTL、401/404 语义、迁移和 A19/C9 接入步骤见 [B8 账号契约](b8-accounts.md)。微信订阅授权仍只接受微信会话。

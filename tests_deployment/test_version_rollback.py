@@ -92,14 +92,18 @@ def test_old_release_upgrade_and_restore(tmp_path, isolated_env, record_property
     backup_database(database, backup)
 
     with service(tmp_path, isolated_env) as (base, _):
-        assert seed in httpx.get(base + "/api/tasks", headers=headers, trust_env=False).json()
+        upgraded_rows = httpx.get(base + "/api/tasks", headers=headers, trust_env=False).json()
+        assert any(
+            all(row.get(k) == v for k, v in seed.items()) and row["user_id"] == 1
+            for row in upgraded_rows
+        )
         added = httpx.post(
             base + "/api/tasks", headers=headers, json={"title": "升级后新增"}, trust_env=False
         )
         assert added.status_code == 201
         added_id = added.json()["id"]
     after = schema(database)
-    assert after[0] == [1, 2] and "wechat_user_id" in after[1]
+    assert after[0] == [1, 2, 3] and {"wechat_user_id", "user_id"} <= set(after[1])
 
     restored = tmp_path / "rollback-copy.db"
     backup_database(backup, restored)

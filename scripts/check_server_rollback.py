@@ -190,14 +190,20 @@ def exercise(repo: Path, previous: str, current: str, directory: Path) -> dict:
     backup = directory / "before-upgrade.db"
     backup_module.backup_database(database, backup)
     with service(new, database, token, directory / "after.log") as base:
-        if seed not in api(base, token, "/api/tasks")[1]:
+        if not any(
+            all(row.get(k) == v for k, v in seed.items())
+            for row in api(base, token, "/api/tasks")[1]
+        ):
             raise RuntimeError("升级后原记录缺失")
         status, added = api(base, token, "/api/tasks", {"title": "c4-after-upgrade"})
         if status != 201:
             raise RuntimeError("新版本测试写入失败")
     after = schema(database)
-    if after[0] != [1, 2] or "wechat_user_id" not in after[1]:
-        raise RuntimeError("没有验证到真实 schema 1→2 迁移")
+    expected = [1, 2, 3] if (new / "backend/app/accounts.py").exists() else [1, 2]
+    if after[0] != expected or "wechat_user_id" not in after[1]:
+        raise RuntimeError("没有验证到预期版本迁移")
+    if 3 in expected and "user_id" not in after[1]:
+        raise RuntimeError("版本三缺少用户归属列")
     restored = directory / "restored.db"
     backup_module.backup_database(backup, restored)
     if schema(restored) != before:
