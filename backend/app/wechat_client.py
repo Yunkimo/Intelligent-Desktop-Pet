@@ -142,7 +142,11 @@ class WeChatClient:
                 local = datetime.fromisoformat(reminder[source]).astimezone(
                     timezone(timedelta(minutes=config.REMINDER_NAIVE_OFFSET_MINUTES))
                 )
-                value = local.strftime("%Y-%m-%d %H:%M")
+                value = (
+                    local.strftime("%Y-%m-%d")
+                    if key in config.WX_TEMPLATE_DATE_FIELDS
+                    else local.strftime("%Y-%m-%d %H:%M")
+                )
             else:
                 value = str(reminder.get(source) or reminder["title"])[:20]
             fields[key] = {"value": value}
