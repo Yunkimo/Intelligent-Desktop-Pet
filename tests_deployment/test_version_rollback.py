@@ -103,7 +103,7 @@ def test_old_release_upgrade_and_restore(tmp_path, isolated_env, record_property
         assert added.status_code == 201
         added_id = added.json()["id"]
     after = schema(database)
-    assert after[0] == [1, 2, 3] and {"wechat_user_id", "user_id"} <= set(after[1])
+    assert after[0] == [1, 2, 3, 4] and {"wechat_user_id", "user_id"} <= set(after[1])
 
     restored = tmp_path / "rollback-copy.db"
     backup_database(backup, restored)
