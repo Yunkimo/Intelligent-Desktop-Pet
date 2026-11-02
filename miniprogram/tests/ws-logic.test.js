@@ -46,6 +46,7 @@ class FakeSocket {
 const sockets = [];
 const appShowFns = [];
 const appHideFns = [];
+const storage = new Map();
 
 global.wx = {
   connectSocket(opts) {
@@ -55,9 +56,25 @@ global.wx = {
   },
   onAppShow(fn) { appShowFns.push(fn); },
   onAppHide(fn) { appHideFns.push(fn); },
+  getStorageSync: (key) => storage.get(key),
+  setStorageSync: (key, value) => storage.set(key, value),
+  removeStorageSync: (key) => storage.delete(key),
+  login: ({ success }) => success({ code: 'test-code' }),
 };
 
 const ws = require('../utils/ws.js');
+// C9：WS 握手令牌为业务会话。真实运行时由 api.js 注入登录实现；
+// 本测试直接用固定会话，避免依赖 wx.request。
+require('../utils/session.js').setApi({
+  baseUrl: 'http://127.0.0.1:8001',
+  wechatLogin: async () => ({
+    session_token: 'test-session',
+    expires_in: 3600,
+    user_id: 1,
+    account_id: 1,
+  }),
+  authLogout: async () => {},
+});
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -79,10 +96,11 @@ function feed(socket, event) {
 }
 
 async function main() {
-  await check('HTTP 地址映射为 WS 地址并携带 token', () => {
+  await check('HTTP 地址映射为 WS 地址并携带会话令牌', async () => {
     ws.start();
+    await sleep(10); // connect 先确保会话（异步），再建连
     assert.strictEqual(sockets.length, 1);
-    assert.strictEqual(sockets[0].url, 'ws://127.0.0.1:8001/ws?token=test-token');
+    assert.strictEqual(sockets[0].url, 'ws://127.0.0.1:8001/ws?token=test-session');
   });
 
   await check('忽略不符合契约的事件', async () => {
@@ -179,6 +197,7 @@ async function main() {
     await sleep(1200);
     assert.strictEqual(sockets.length, count, '主动停止后不重连');
     appShowFns[appShowFns.length - 1]();
+    await sleep(10); // connect 异步确保会话后建连
     assert.strictEqual(sockets.length, count + 1, '回前台恢复连接');
   });
 

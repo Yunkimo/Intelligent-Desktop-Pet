@@ -96,7 +96,8 @@ async function cleanupNames(names) {
 
 async function main() {
   await check('真实 parse-image：未配置视觉模型返回 503 且错误可读', async () => {
-    const err = await api.parseCourseImage(FIXTURE).then(
+    // C9 起 parseCourseImage 返回 authedUpload 句柄 {done, abort}
+    const err = await api.parseCourseImage(FIXTURE).done.then(
       () => null,
       (e) => e
     );
@@ -105,7 +106,7 @@ async function main() {
     assert.match(err.message, /视觉模型/);
   });
 
-  await check('真实 parse-image：无鉴权返回 401', async () => {
+  await check('真实 parse-image：无会话返回 401', async () => {
     const response = await fetch(baseUrl + '/api/courses/parse-image', { method: 'POST' });
     assert.equal(response.status, 401);
   });

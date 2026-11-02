@@ -48,9 +48,16 @@ async function check(name, fn) {
 }
 
 async function raw(path, method = 'GET', body) {
+  // C9 起业务接口用会话：先确保登录，再带 Bearer（X-API-Key 仅供鉴权冒烟用例）
+  await api.getCourses();
+  const sessionToken = rt.load('utils/session.js').token();
   const response = await fetch(baseUrl + path, {
     method,
-    headers: { 'X-API-Key': token, 'Content-Type': 'application/json' },
+    headers: {
+      'X-API-Key': token,
+      'Content-Type': 'application/json',
+      ...(sessionToken ? { Authorization: 'Bearer ' + sessionToken } : {}),
+    },
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await response.text();
