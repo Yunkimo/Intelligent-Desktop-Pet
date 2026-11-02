@@ -408,7 +408,7 @@ Page({
     this._importTimer = setInterval(() => {
       this.setData({ importElapsed: this.data.importElapsed + 1 });
     }, 1000);
-    this._upload = api.uploadWithTask('/api/courses/parse-image', { filePath, name: 'image' });
+    this._upload = api.parseCourseImage(filePath); // authedUpload：{done, abort}，会话语义同 request
     this._upload.done
       .then(async (result) => {
         if (seq !== this._importSeq) {

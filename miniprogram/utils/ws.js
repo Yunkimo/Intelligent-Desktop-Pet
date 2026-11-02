@@ -1,11 +1,14 @@
-// WebSocket 事件适配层：集中管理与后端 /ws 的连接（契约见 docs/api-contract.md）。
-// - 连接、重连退避、前后台生命周期统一在此管理，页面不得各自建连
+// WebSocket 事件适配层：集中管理与后端 /ws 的连接（契约见 docs/api-contract.md、
+// docs/b8-accounts.md）。C9 起握手令牌为业务会话（Bearer 同一 session_token）：
+// - 连接前先确保会话；重连时重新取当前会话令牌
+// - 账号退出/切换后旧连接随会话代数失效，重建连接使用新令牌
 // - 事件先按契约校验并以 event_id 去重，再分发给订阅者
 // - 突发多条同类型事件做节流合并，避免页面请求风暴
 // - 后端无历史事件补发：断线恢复后页面必须用 REST 重新读取（各页 onShow 已实现，
 //   重连成功另发 'reconnect' 事件提醒页面刷新）
 
-const { baseUrl, apiKey } = require('./api');
+const { baseUrl } = require('./api');
+const session = require('./session');
 
 // ===== 集中配置 =====
 // 重连退避序列（毫秒），用完后保持最后一个间隔
@@ -36,9 +39,9 @@ const listeners = new Map(); // type -> Set<handler>（Set 保证重复订阅不
 const seenEventIds = new Set();
 const throttleStates = new Map(); // type -> { pending: payload | null }
 
-function wsUrl() {
-  // http(s)://host:port -> ws(s)://host:port/ws?token=<API_TOKEN>
-  return baseUrl.replace(/^http/, 'ws') + '/ws?token=' + encodeURIComponent(apiKey);
+function wsUrl(token) {
+  // http(s)://host:port -> ws(s)://host:port/ws?token=<会话令牌>
+  return baseUrl.replace(/^http/, 'ws') + '/ws?token=' + encodeURIComponent(token);
 }
 
 function emit(type, payload) {
@@ -108,11 +111,29 @@ function handleMessage(res) {
   throttledEmit(event.type, event);
 }
 
-function connect() {
-  if (socket || manualClose || !apiKey) {
+async function connect() {
+  if (socket || manualClose) {
     return;
   }
-  socket = wx.connectSocket({ url: wsUrl() });
+  // 显式退出登录：保持未登录，不自动重新登录/重连（等用户手动登录）
+  if (session.isLoggedOut()) {
+    return;
+  }
+  // 会话令牌随登录/重登变化：每次建立连接前确保有效会话
+  let token;
+  try {
+    await session.ensureSession();
+    token = session.token();
+  } catch (err) {
+    console.warn('[ws] 会话不可用，稍后重连:', err && err.message);
+    scheduleReconnect();
+    return;
+  }
+  if (!token || socket || manualClose) {
+    return;
+  }
+  const attemptEpoch = session.epochNow();
+  socket = wx.connectSocket({ url: wsUrl(token) });
   socket.onOpen(() => {
     if (reconnectAttempts > 0) {
       emit('reconnect', null); // 重连成功：提醒页面 REST 重读
@@ -122,6 +143,10 @@ function connect() {
   socket.onMessage(handleMessage);
   socket.onClose(() => {
     socket = null;
+    // 会话期间退出/切换（epoch 变化）：按退避重连并使用新会话
+    if (session.epochNow() !== attemptEpoch) {
+      reconnectAttempts = 0;
+    }
     scheduleReconnect();
   });
   socket.onError(() => {
@@ -144,10 +169,6 @@ function scheduleReconnect() {
 
 /** 启动适配层：连接并挂载前后台生命周期（App.onLaunch 调用一次）。 */
 function start() {
-  if (!apiKey) {
-    console.warn('[ws] 未配置 apiKey（miniprogram/config.js），跳过 WebSocket 连接');
-    return;
-  }
   connect();
   wx.onAppShow(() => {
     manualClose = false;
@@ -155,6 +176,12 @@ function start() {
   });
   wx.onAppHide(() => {
     stop(); // 切后台：主动断开省资源
+  });
+  // 退出/切换账号：旧连接作废，按退避重建（使用新会话令牌）
+  session.onEpochChange(() => {
+    stop();
+    manualClose = false;
+    connect();
   });
 }
 

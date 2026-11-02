@@ -39,11 +39,21 @@ function fixture() {
       },
     },
   });
+  // C9：会话模块在真实运行时由 api.js 注入登录实现；本测试替换了 api.js，
+  // 需要显式注入（包装函数保持动态引用，测试内替换 api.wechatLogin 才生效）。
+  const injectSession = () =>
+    rt.load('utils/session.js').setApi({
+      baseUrl: 'http://test',
+      wechatLogin: (code) => api.wechatLogin(code),
+      authLogout: async () => {},
+    });
+  injectSession();
   const sub = rt.load('utils/subscribe.js');
   return {
     rt,
     sub,
     api,
+    injectSession,
     reminder,
     records: () => records,
     setRecords: (value) => {
@@ -143,6 +153,7 @@ test('提交后丢响应，模块重载后查询已发送状态，不再弹窗�
   await assert.rejects(f.sub.subscribeTaskReminder(TASK), /待确认/);
   f.records()[0].status = 'sent';
   f.rt.cache.clear();
+  f.injectSession();
   const reloaded = f.rt.load('utils/subscribe.js');
   assert.equal((await reloaded.subscribeTaskReminder(TASK)).status, 'sent');
   assert.equal(f.posts(), 1);

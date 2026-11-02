@@ -7,9 +7,8 @@ try {
 } catch (_) {
   /* 页面提示缺配置 */
 }
-const SESSION_KEY = 'wechat_session:' + api.baseUrl;
+const sessionStore = require('./session');
 const inFlight = new Map();
-let loginFlight;
 function getTemplateId() {
   return config.subscribeTemplateId || '';
 }
@@ -18,9 +17,6 @@ function newRequestId() {
     const r = (Math.random() * 16) | 0;
     return (c === 'x' ? r : (r & 3) | 8).toString(16);
   });
-}
-function isSessionValid(session, now) {
-  return !!(session && session.session_token && now < session.expires_at - 60000);
 }
 function classifyResult(result) {
   return result === 'accept'
@@ -32,35 +28,9 @@ function classifyResult(result) {
           : '',
       };
 }
-async function ensureSession() {
-  const cached = wx.getStorageSync(SESSION_KEY);
-  if (isSessionValid(cached, Date.now())) {
-    return cached;
-  }
-  if (!loginFlight) {
-    loginFlight = (async () => {
-      const result = await new Promise((resolve, reject) =>
-        wx.login({
-          success: resolve,
-          fail: () => reject(new Error('微信登录失败，请检查网络后重试')),
-        })
-      );
-      if (!result.code) {
-        throw new Error('微信未返回登录 code');
-      }
-      const response = await api.wechatLogin(result.code);
-      const session = { ...response, expires_at: Date.now() + response.expires_in * 1000 };
-      wx.setStorageSync(SESSION_KEY, session);
-      return session;
-    })().finally(() => {
-      loginFlight = null;
-    });
-  }
-  return loginFlight;
-}
 async function withSession(action, expectedUser) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const session = await ensureSession();
+    const session = await sessionStore.ensureSession();
     if (expectedUser != null && expectedUser !== session.user_id) {
       throw new Error('登录账号已变化，请返回日程页重新操作');
     }
@@ -70,7 +40,7 @@ async function withSession(action, expectedUser) {
       if (error.statusCode !== 401 || attempt === 1) {
         throw error;
       }
-      wx.setStorageSync(SESSION_KEY, { ...session, expires_at: 0 });
+      sessionStore.forceExpire();
     }
   }
 }
@@ -107,7 +77,7 @@ function resultForChoice(record, choice) {
   return result;
 }
 async function subscriptionStates() {
-  if (!wx.getStorageSync(SESSION_KEY)) {
+  if (!sessionStore.token()) {
     return {};
   }
   const rows = await withSession((s) => api.getWechatReminders(s.session_token));
@@ -184,7 +154,7 @@ function subscribeTaskReminder(task) {
     if (!task.remind_at) {
       throw new Error('请先设置日程提醒时间');
     }
-    const cached = wx.getStorageSync(SESSION_KEY);
+    const cached = wx.getStorageSync(sessionStore.sessionKey());
     const cachedKey = cached && operationKey(task.id, cached.user_id);
     let operation = cachedKey && wx.getStorageSync(cachedKey);
     if (!operation) {
@@ -196,7 +166,7 @@ function subscribeTaskReminder(task) {
       if (!['accept', 'reject', 'ban', 'filter'].includes(choice)) {
         return { status: 'error', message: '授权调用失败，请重试' };
       }
-      const session = await ensureSession();
+      const session = await sessionStore.ensureSession();
       operation = {
         choice,
         templateId,
@@ -229,7 +199,7 @@ function subscribeTaskReminder(task) {
 module.exports = {
   getTemplateId,
   newRequestId,
-  isSessionValid,
+  isSessionValid: sessionStore.isSessionValid,
   classifyResult,
   subscribeTaskReminder,
   withSession,
