@@ -269,7 +269,12 @@ def finish(claim: dict, now: float, outcome: str, error: str | None) -> None:
         ).rowcount
         if changed and outcome == "sent":
             conn.execute(
-                "UPDATE reminders SET done=1 WHERE id=? AND channel='phone' AND wechat_user_id=? "
+                "UPDATE reminders SET done=CASE WHEN repeat_rule IS NULL THEN 1 ELSE 0 END WHERE id=? AND channel='phone' AND wechat_user_id=? "
                 "AND EXISTS(SELECT 1 FROM reminder_deliveries WHERE reminder_id=? AND event_id=?)",
                 (claim["reminder_id"], claim["user_id"], claim["reminder_id"], claim["event_id"]),
             )
+
+        if changed:
+            from .recurrence import advance
+
+            advance(conn, claim["reminder_id"], now)

@@ -110,3 +110,10 @@ if ALLOW_LEGACY_API_KEY not in {"true", "false"}:
     raise ValueError("ALLOW_LEGACY_API_KEY 必须为 true 或 false")
 ALLOW_LEGACY_API_KEY = ALLOW_LEGACY_API_KEY == "true"  # pragma: allowlist secret -- boolean switch
 DEVICE_SESSION_TTL_SECONDS = integer_setting("DEVICE_SESSION_TTL_SECONDS", "2592000", 60, 7776000)
+
+# 每日 21:00 上海时区预取演示城市的次日降水提示；不自动发送微信消息。
+WEATHER_TIP_ENABLED = os.getenv("WEATHER_TIP_ENABLED", "false").lower()
+if WEATHER_TIP_ENABLED not in {"true", "false"}:
+    raise ValueError("WEATHER_TIP_ENABLED 必须为 true 或 false")
+WEATHER_TIP_ENABLED = WEATHER_TIP_ENABLED == "true"
+WEATHER_TIP_CITY = os.getenv("WEATHER_TIP_CITY", "北京").strip()

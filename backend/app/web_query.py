@@ -266,6 +266,83 @@ class WebQueryClient:
             observed_at=clean_text(observed, 80),
         )
 
+    async def forecast(self, city: str, target_date: str) -> dict:
+        """读取明确目标日期的逐时预报，不用实况天气冒充明日预报。"""
+        url = config.WEB_WEATHER_URL + "/" + quote(city, safe="")
+        body = await self._fetch(url, {"format": "j1", "lang": "zh", "m": ""})
+        wet_codes = {
+            176,
+            179,
+            182,
+            185,
+            200,
+            227,
+            230,
+            263,
+            266,
+            281,
+            284,
+            293,
+            296,
+            299,
+            302,
+            305,
+            308,
+            311,
+            314,
+            317,
+            320,
+            323,
+            326,
+            329,
+            332,
+            335,
+            338,
+            350,
+            353,
+            356,
+            359,
+            362,
+            365,
+            368,
+            371,
+            374,
+            377,
+            386,
+            389,
+            392,
+            395,
+        }
+        dry_codes = {113, 116, 119, 122, 143, 248, 260}
+        try:
+            data = json.loads(body)
+            days = [day for day in data["weather"] if day["date"] == target_date]
+            if len(days) != 1 or not days[0]["hourly"]:
+                raise ValueError()
+            descriptions = []
+            rainy = []
+            for hour in days[0]["hourly"]:
+                code = int(hour["weatherCode"])
+                if code not in wet_codes | dry_codes:
+                    raise ValueError()
+                desc = _weather_text(hour.get("lang_zh")) or _weather_text(hour.get("weatherDesc"))
+                if not desc:
+                    raise ValueError()
+                descriptions.append(desc)
+                if code in wet_codes:
+                    rainy.append(desc)
+            rain = bool(rainy)
+            desc = clean_text("、".join(dict.fromkeys(rainy or descriptions)), 200)
+        except (ValueError, KeyError, IndexError, TypeError, AttributeError, RecursionError):
+            raise WebQueryError("weather_forecast_invalid") from None
+        return {
+            "rain": rain,
+            "desc": desc,
+            "tip": f"明天有{desc}，记得带伞" if rain else "",
+            "source_url": url,
+            "provider": "wttr.in",
+        }
+
     async def search(self, query: str, limit: int) -> QueryResult:
         """提取 DuckDuckGo HTML 标题、摘要及来源，不抓取搜索结果页面。"""
         body = await self._fetch(config.WEB_SEARCH_URL, {"q": query})

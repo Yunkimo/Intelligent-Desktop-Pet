@@ -1,7 +1,8 @@
 """FastAPI 应用：组装路由，启动时初始化数据库。"""
 
+import asyncio
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 
@@ -15,12 +16,14 @@ from .routers import (
     reminders,
     semester,
     tasks,
+    weather,
     web_query,
     wechat,
     ws,
 )
 from .scheduler import Scheduler
-from .web_query import WebQueryClient
+from .weather_tips import WeatherTips
+from .web_query import WebQueryClient, validate_input
 from .wechat_client import WeChatClient
 from .wechat_dispatcher import WeChatDispatcher
 
@@ -33,6 +36,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     db.init_db()
     _app.state.wechat_client = WeChatClient()
     _app.state.web_query_client = WebQueryClient()
+    _app.state.weather_tips = WeatherTips(_app.state.web_query_client)
+    weather_task = None
+    if config.WEATHER_TIP_ENABLED:
+        validate_input(config.WEATHER_TIP_CITY, city=True)
+        weather_task = asyncio.create_task(_app.state.weather_tips.run(), name="weather-tips")
     _app.state.push_service = PushService(
         config.WS_SEND_TIMEOUT_SECONDS, config.WS_CLOSE_TIMEOUT_SECONDS, _app.state.wechat_client
     )
@@ -45,6 +53,10 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        if weather_task is not None:
+            weather_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await weather_task
         await _app.state.scheduler.stop()
         await _app.state.push_service.close_all()
         await _app.state.wechat_client.close()
@@ -62,6 +74,7 @@ app.include_router(reminders.router)
 app.include_router(ws.router)
 app.include_router(wechat.router)
 app.include_router(web_query.router)
+app.include_router(weather.router)
 
 
 @app.get("/api/health")
