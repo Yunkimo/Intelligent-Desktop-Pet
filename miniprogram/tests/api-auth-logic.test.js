@@ -38,7 +38,7 @@ function makeApiRt(server) {
       },
     },
   });
-  return rt.load('utils/api.js');
+  return { api: rt.load('utils/api.js'), rt };
 }
 
 function simpleServer() {
@@ -76,7 +76,7 @@ function simpleServer() {
 async function main() {
   await check('业务请求自动登录并携带 Bearer；再次请求复用会话', async () => {
     const server = simpleServer();
-    const api = makeApiRt(server);
+    const { api } = makeApiRt(server);
     const courses = await api.getCourses();
     assert.strictEqual(courses.length, 1);
     assert.strictEqual(server.state.logins, 1);
@@ -105,7 +105,7 @@ async function main() {
       }
       return { status: 404, body: { detail: 'not found' } };
     };
-    const api = makeApiRt(server);
+    const { api } = makeApiRt(server);
     const err = await api.getCourses().then(
       () => null,
       (e) => e
@@ -138,7 +138,7 @@ async function main() {
       }
       return { status: 404, body: { detail: 'not found' } };
     };
-    const api = makeApiRt(server);
+    const { api } = makeApiRt(server);
     const err = await api.getCourses().then(
       () => null,
       (e) => e
@@ -149,10 +149,29 @@ async function main() {
 
   await check('引导入口（微信登录）不要求会话', async () => {
     const server = simpleServer();
-    const api = makeApiRt(server);
+    const { api } = makeApiRt(server);
     const session = await api.wechatLogin('code-x');
     assert.strictEqual(session.session_token, 'session-1');
     assert.strictEqual(server.state.logins, 1);
+  });
+
+  await check('显式退出后业务请求抛 loggedOut，不自动重新登录', async () => {
+    const server = simpleServer();
+    const { api, rt } = makeApiRt(server);
+    await api.getCourses(); // 先登录
+    // 通过运行时内的会话模块退出（与 api.js 同一实例、同一存储）
+    const sessionMod = rt.load('utils/session.js');
+    await sessionMod.logout();
+    const err = await api.getCourses().then(
+      () => null,
+      (e) => e
+    );
+    assert.ok(err && err.loggedOut, '退出后不自动重登');
+    assert.strictEqual(server.state.logins, 1, '未发生新的登录请求');
+    // 手动登录后恢复
+    await sessionMod.login();
+    const courses = await api.getCourses();
+    assert.ok(Array.isArray(courses));
   });
 
   await check('业务上传同会话语义：401 重登一次后成功', async () => {
@@ -178,7 +197,7 @@ async function main() {
       }
       return { status: 404, body: { detail: 'not found' } };
     };
-    const api = makeApiRt(server);
+    const { api } = makeApiRt(server);
     const handle = api.parseCourseImage('x.png');
     const result = await handle.done;
     assert.deepStrictEqual(JSON.parse(JSON.stringify(result)), { courses: [], warnings: [] });

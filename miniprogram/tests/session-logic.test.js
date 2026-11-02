@@ -124,7 +124,26 @@ async function main() {
     assert.strictEqual(result.revoked, true);
     assert.strictEqual(revokedWith, 't');
     assert.strictEqual(f.s.token(), null);
+    assert.strictEqual(f.s.isLoggedOut(), true);
     assert.strictEqual(rt.storage.get(semesterCacheName), undefined);
+  });
+
+  await check('logout 后保持未登录：ensureSession 不再自动登录，login() 手动恢复', async () => {
+    const rt = runtime();
+    const f = makeSession(rt);
+    await f.s.ensureSession();
+    await f.s.logout();
+    const err = await f.s.ensureSession().then(
+      () => null,
+      (e) => e
+    );
+    assert.ok(err && err.loggedOut, '退出后自动路径不得重新登录');
+    assert.strictEqual(f.logins(), 1, '退出后未发生新的登录');
+    const session = await f.s.login();
+    assert.strictEqual(session.session_token, 'token-alice-1');
+    assert.strictEqual(f.logins(), 2, '手动登录才换取新会话');
+    assert.strictEqual(f.s.isLoggedOut(), false);
+    assert.strictEqual(f.s.token(), 'token-alice-1');
   });
 
   await check('logout：服务端撤销失败也完成本地登出并如实标记', async () => {

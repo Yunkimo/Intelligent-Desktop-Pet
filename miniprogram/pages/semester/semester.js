@@ -22,7 +22,10 @@ Page({
   },
 
   onShow() {
-    this.setData({ loginAccount: session.accountId() || '' });
+    this.setData({
+      loginAccount: session.accountId() || '',
+      loggedOut: session.isLoggedOut(),
+    });
     this.load();
   },
 
@@ -88,6 +91,24 @@ Page({
     this.load();
   },
 
+  // 手动登录：清除退出标记并换取新会话
+  async login() {
+    if (this.data.loggingOut) {
+      return;
+    }
+    this.setData({ loggingOut: true });
+    try {
+      await session.login();
+      this.setData({ loggedOut: false, loginAccount: session.accountId() || '' });
+      wx.showToast({ title: '已登录', icon: 'success' });
+      this.load();
+    } catch (err) {
+      wx.showToast({ title: (err && err.message) || '登录失败', icon: 'none' });
+    } finally {
+      this.setData({ loggingOut: false });
+    }
+  },
+
   // 退出登录：撤销会话、清理账号缓存并返回（业务数据仍归账号，不受影响）
   async logout() {
     if (this.data.loggingOut) {
@@ -96,6 +117,7 @@ Page({
     this.setData({ loggingOut: true });
     try {
       const result = await session.logout();
+      this.setData({ loggedOut: true, loginAccount: '' });
       wx.showToast({
         title: result.revoked ? '已退出登录' : '已在本机退出（服务端会话稍后失效）',
         icon: 'none',

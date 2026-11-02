@@ -8,6 +8,7 @@
 
 const SESSION_SKEW_SECONDS = 60;
 const ACCOUNT_PREFIX = 'account:';
+const LOGGED_OUT_KEY_PREFIX = 'logged_out:';
 
 let baseUrl = '';
 let loginImpl = null; // { wechatLogin(code), authLogout(token) }
@@ -30,6 +31,21 @@ function requireLoginImpl() {
   if (!loginImpl) {
     throw new Error('会话模块未初始化（缺少登录实现）');
   }
+}
+
+function loggedOutKey() {
+  return LOGGED_OUT_KEY_PREFIX + baseUrl;
+}
+
+/** 用户是否显式退出登录（退出后保持未登录，直到手动登录）。 */
+function isLoggedOut() {
+  return !!wx.getStorageSync(loggedOutKey());
+}
+
+function loggedOutError() {
+  const error = new Error('尚未登录，请到「设置」页登录');
+  error.loggedOut = true;
+  return error;
 }
 
 function cachedSession() {
@@ -76,6 +92,9 @@ function onEpochChange(handler) {
  * 返回会话对象；失败抛出带中文提示的错误。
  */
 async function ensureSession() {
+  if (isLoggedOut()) {
+    throw loggedOutError();
+  }
   const cached = cachedSession();
   if (isSessionValid(cached, Date.now())) {
     return cached;
@@ -151,8 +170,24 @@ async function logout() {
     }
   }
   clearAccountCache();
+  wx.setStorageSync(loggedOutKey(), true); // 先标记退出，再清会话：自动重连不会重新登录
   clearSession();
   return { ok: true, revoked };
+}
+
+/** 手动登录：清除退出标记并换取新会话；返回会话对象。 */
+async function login() {
+  wx.removeStorageSync(loggedOutKey());
+  const result = await ensureSession();
+  epoch += 1; // 通知 WS 等使用新会话
+  epochListeners.forEach((fn) => {
+    try {
+      fn();
+    } catch (err) {
+      /* 监听器异常不影响主流程 */
+    }
+  });
+  return result;
 }
 
 /** 强制当前会话过期（下次请求触发重新登录）；保留其余字段供恢复逻辑使用。 */
@@ -166,9 +201,11 @@ function forceExpire() {
 module.exports = {
   setApi,
   ensureSession,
+  login,
+  isLoggedOut,
+  logout,
   clearSession,
   forceExpire,
-  logout,
   clearAccountCache,
   token,
   accountId,

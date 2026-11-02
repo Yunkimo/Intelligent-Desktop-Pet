@@ -115,6 +115,10 @@ async function connect() {
   if (socket || manualClose) {
     return;
   }
+  // 显式退出登录：保持未登录，不自动重新登录/重连（等用户手动登录）
+  if (session.isLoggedOut()) {
+    return;
+  }
   // 会话令牌随登录/重登变化：每次建立连接前确保有效会话
   let token;
   try {

@@ -150,6 +150,20 @@ async function main() {
     assert.ok(me.user_id > 0);
   });
 
+  await check('客户端退出后保持未登录：不自动重登，手动登录恢复', async () => {
+    switchUser('alice');
+    await api.getCourses();
+    await session.logout();
+    const err = await api.getCourses().then(
+      () => null,
+      (e) => e
+    );
+    assert.ok(err && err.loggedOut, '显式退出后业务请求不得自动重新登录');
+    await session.login();
+    const courses = await api.getCourses();
+    assert.ok(Array.isArray(courses), '手动登录后请求恢复');
+  });
+
   await check('WS 握手使用会话令牌成功（令牌有效不被拒绝）', async () => {
     switchUser('alice');
     await api.getCourses(); // 确保会话
