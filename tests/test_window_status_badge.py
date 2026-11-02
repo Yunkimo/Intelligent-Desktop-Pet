@@ -37,6 +37,7 @@ def _stub_close_dependencies(window: PetWindow) -> None:
     window.hotkey = None
     window.health = Mock()
     window.ws = Mock()
+    window._ws_threads = [window.ws]
     window.agent_status = Mock()
     window.codex_agent_status = Mock()
     window.memory = Mock()

@@ -3,11 +3,12 @@
 import os
 from pathlib import Path
 
-from PyQt6.QtCore import QPoint, QRect, Qt, QTimer, QUrl
+from PyQt6.QtCore import QPoint, QRect, Qt, QTimer, QUrl, pyqtSignal
 from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PyQt6.QtWidgets import QApplication, QFileDialog, QInputDialog, QMenu, QWidget
 
+from .account import AccountStore
 from .agent_status import AgentStatusMonitor
 from .asr import ASREngine
 from .avatar import create_avatar
@@ -66,6 +67,8 @@ def _is_confused_reply(text: str) -> bool:
 
 
 class PetWindow(QWidget):
+    account_expired = pyqtSignal()
+
     def __init__(self, settings: Settings) -> None:
         super().__init__()
         self.settings = settings
@@ -87,13 +90,26 @@ class PetWindow(QWidget):
         self.backend = BackendClient(settings.backend_url, settings.api_token)
         self.tools = build_tools(self.backend)
 
-        # —— WebSocket 实时接收（未配置 API_TOKEN 时不启动）——
+        self.account_store = AccountStore(
+            Path(__file__).resolve().parent.parent / "data/account.json", settings.backend_url
+        )
+        self.account_expired.connect(self._account_expired)
+        self.backend.on_auth_error = self.account_expired.emit
+        self._auth_notice_shown = False
         self._recent_events = RecentEvents()
-        self.ws = WsListener(build_ws_url(settings.backend_url, settings.api_token), parent=self)
-        self.ws.event.connect(self._on_backend_event)
-        self.ws.error.connect(lambda e: print(f"[ws] {e}"))
-        if settings.api_token:
-            self.ws.start()
+        self._ws_generation = 0
+        self._ws_threads = []
+        try:
+            account = self.account_store.load()
+        except (ValueError, OSError):
+            account = {"signed_out": True}
+        self.backend.session_required = account is not None
+        self.backend.session_token = (account or {}).get("device_token", "")
+        self._restart_account_ws()
+        if not self.backend.session_token:
+            QTimer.singleShot(
+                500, lambda: self.show_hint("首次使用请打开「后端账号」绑定；可选择演示账号登录")
+            )
 
         # —— 记忆 ——
         self.memory = Memory(settings.history_path, settings.max_history, settings.persist_history)
@@ -350,6 +366,7 @@ class PetWindow(QWidget):
                 checked=lambda: getattr(self, "_status_badges_visible", True),
             )
         )
+        commands.append(Command("后端账号（绑定 / 重新登录）", self._show_account_dialog))
         commands.append(Command("测试后端连接", self._debug_backend))
         if include_quit:
             commands.append(self._quit_command())
@@ -415,6 +432,9 @@ class PetWindow(QWidget):
 
     # ---------- 文本/聊天 ----------
     def send_text(self, text: str) -> None:
+        if getattr(self, "_account_dialog", None) is not None:
+            self.show_hint("请先完成账号操作")
+            return
         self.memory.add_user(text)
         self.input.hide()
         self.bubble.clear()
@@ -758,6 +778,59 @@ class PetWindow(QWidget):
         if self.settings.enable_voice:
             self._speak(text)
 
+    def _account_expired(self):
+        if not self._auth_notice_shown:
+            self._auth_notice_shown = True
+            self.show_hint("后端账号已失效，请打开「后端账号」重新绑定")
+        self.ws.request_stop()
+
+    def _restart_account_ws(self):
+        self._ws_generation += 1
+        generation = self._ws_generation
+        if hasattr(self, "ws"):
+            self.ws.request_stop()
+        credential = self.backend.session_token or (
+            "" if self.backend.session_required else self.settings.api_token
+        )
+        self.ws = WsListener(build_ws_url(self.settings.backend_url, credential), parent=self)
+        self._ws_threads.append(self.ws)
+        self.ws.event.connect(
+            lambda event: (
+                self._on_backend_event(event) if generation == self._ws_generation else None
+            )
+        )
+        self.ws.auth_error.connect(
+            lambda: self._account_expired() if generation == self._ws_generation else None
+        )
+        self.ws.error.connect(lambda message: print("[ws] " + message))
+        if credential:
+            self.ws.start()
+
+    def _show_account_dialog(self):
+        from .account_dialog import AccountDialog
+
+        if self.chat_worker is not None and self.chat_worker.isRunning():
+            self.show_hint("请等当前对话结束后再切换账号")
+            return
+        dialog = AccountDialog(self.backend, self.account_store, self)
+        self._account_dialog = dialog
+        dialog.changed.connect(self._apply_account)
+        dialog.exec()
+        self._account_dialog = None
+        dialog.deleteLater()
+
+    def _apply_account(self, account):
+        self.backend.session_required = True
+        self.backend.session_token = (account or {}).get("device_token", "")
+        self._auth_notice_shown = False
+        self._recent_events = RecentEvents()
+        # 清除当前对话上下文，避免下一账号继续携带上一账号的工具返回数据。
+        self.memory.messages.clear()
+        self.memory.set_system(build_system_prompt(self.settings))
+        self.memory.save()
+        self.show_hint("后端账号已更新")
+        self._restart_account_ws()
+
     # ---------- 后端实时事件 ----------
     def _on_backend_event(self, event: dict) -> None:
         """验证信封并去重；缓存跟随窗口，断线重连不重复显示或播报。"""
@@ -885,6 +958,10 @@ class PetWindow(QWidget):
             self.show_from_tray()
 
     def closeEvent(self, event) -> None:  # noqa: N802
+        dialog = getattr(self, "_account_dialog", None)
+        if dialog is not None and dialog.worker is not None and dialog.worker.isRunning():
+            event.ignore()
+            return
         # 托盘启用时关闭只是隐藏；只有「退出」命令置 _quitting 后才真正收尾
         if self.settings.tray_enabled and not getattr(self, "_quitting", False):
             self.hide_to_tray()
@@ -893,8 +970,10 @@ class PetWindow(QWidget):
         if self.hotkey is not None:
             self.hotkey.stop()
         self.health.stop()
-        self.ws.request_stop()
-        self.ws.wait(2000)
+        for listener in self._ws_threads:
+            listener.request_stop()
+        for listener in self._ws_threads:
+            listener.wait(6500)
         self.agent_status.stop()
         self.codex_agent_status.stop()
         # 角标与气泡是独立顶层浮窗；不关闭的话，桌宠窗口消失后仍有可见顶层

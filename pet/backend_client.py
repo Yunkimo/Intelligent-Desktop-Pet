@@ -17,6 +17,10 @@ class BackendError(Exception):
     """后端调用失败（网络异常或非 2xx 响应）。"""
 
 
+class SessionExpired(BackendError):
+    """会话失效，禁止自动退回共享身份。"""
+
+
 class BackendClient:
     """访问后端 REST 的客户端，封装课表 / 日程 / 提醒的 CRUD。
 
@@ -27,32 +31,64 @@ class BackendClient:
         self.base_url = base_url.rstrip("/")
         self._token = api_token
         self._timeout = timeout
+        self.session_token = ""
+        self.on_auth_error = None
+        self.session_required = False
 
     # ---------- 底层 ----------
     def _headers(self) -> dict[str, str]:
+        if self.session_token:
+            return {"Authorization": "Bearer " + self.session_token}
+        if self.session_required:
+            raise SessionExpired("账号未绑定，请打开「后端账号」重新绑定")
         return {"X-API-Key": self._token}
 
-    def _request(self, method: str, path: str, json: dict | None = None):
+    def _request(self, method: str, path: str, json: dict | None = None, headers=None):
         url = f"{self.base_url}{path}"
         try:
             resp = httpx.request(
                 method,
                 url,
-                headers=self._headers(),
+                headers=self._headers() if headers is None else headers,
                 json=json,
                 timeout=self._timeout,
                 trust_env=False,  # 本地后端不走系统代理，否则会被 Clash 拦成 502
             )
-        except httpx.HTTPError as exc:
-            raise BackendError(f"后端不可达：{exc}") from exc
+        except httpx.HTTPError:
+            raise BackendError("后端不可达，请检查网络和后端地址") from None
+        if resp.status_code == 401:
+            if self.on_auth_error is not None:
+                self.on_auth_error()
+            raise SessionExpired("后端返回 401：账号已失效，请打开「后端账号」重新绑定")
         if resp.status_code >= 400:
-            raise BackendError(f"后端返回 {resp.status_code}: {resp.text}")
+            raise BackendError(f"后端返回 {resp.status_code}，请检查请求或服务状态")
         if resp.status_code == 204:
             return None
         try:
             return resp.json()
         except ValueError as exc:  # 非 JSON 的 2xx 响应，避免向上抛裸异常
-            raise BackendError(f"后端响应不是合法 JSON：{resp.text[:200]}") from exc
+            raise BackendError("后端响应不是合法 JSON") from exc
+
+    def device_login(self, pairing_code=""):
+        """登录不沿用旧 Bearer；配对失败不降级为演示账号。"""
+        payload = {"pairing_code": pairing_code} if pairing_code else {}
+        result = self._request(
+            "POST",
+            "/api/auth/device",
+            payload,
+            headers={} if pairing_code else {"X-API-Key": self._token},
+        )
+        if (
+            not isinstance(result, dict)
+            or not isinstance(result.get("device_token"), str)
+            or not result["device_token"]
+            or type(result.get("user_id")) is not int
+        ):
+            raise BackendError("登录响应无效")
+        return result
+
+    def logout(self):
+        return self._request("POST", "/api/auth/logout")
 
     # ---------- 健康检查（无鉴权） ----------
     def health(self) -> dict:
@@ -173,6 +209,7 @@ class WsListener(QThread):
 
     event = pyqtSignal(dict)
     error = pyqtSignal(str)
+    auth_error = pyqtSignal()
 
     _RECONNECT_SECS = 3.0
     _RECV_TIMEOUT_SECS = 1.0
@@ -191,7 +228,10 @@ class WsListener(QThread):
                 ws = websocket.create_connection(self.url, timeout=5)
             except Exception as exc:  # noqa: BLE001 - 后端未起/鉴权失败，上报并退避重试
                 if not self._stop.is_set():
-                    self.error.emit(str(exc))
+                    if getattr(exc, "status_code", None) in (401, 403):
+                        self.auth_error.emit()
+                        return
+                    self.error.emit("后端实时连接失败，请检查网络")
                 if self._stop.wait(self._RECONNECT_SECS):
                     break
                 continue
@@ -199,7 +239,16 @@ class WsListener(QThread):
                 ws.settimeout(self._RECV_TIMEOUT_SECS)
                 while not self._stop.is_set():
                     try:
-                        raw = ws.recv()
+                        opcode, raw = ws.recv_data(control_frame=True)
+                        if opcode == websocket.ABNF.OPCODE_CLOSE:
+                            if len(raw) >= 2 and int.from_bytes(raw[:2], "big") == 1008:
+                                self.auth_error.emit()
+                                return
+                            break
+                        if opcode not in (websocket.ABNF.OPCODE_TEXT, websocket.ABNF.OPCODE_BINARY):
+                            continue
+                        if isinstance(raw, bytes):
+                            raw = raw.decode("utf-8")
                     except websocket.WebSocketTimeoutException:
                         continue  # 接收超时仅用于周期性检查停止标记
                     if not raw:
