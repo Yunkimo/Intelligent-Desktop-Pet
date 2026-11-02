@@ -12,7 +12,7 @@ from . import config, db
 DEFAULT_USER = 1
 
 
-def backup_before_upgrade():
+def backup_before_upgrade(version=3, label="b8"):
     """旧库先创建唯一备份；失败则停止升级，不覆盖原有备份。"""
     path = config.DB_PATH
     if not path.exists() or not path.stat().st_size:
@@ -21,10 +21,12 @@ def backup_before_upgrade():
         tables = {r[0] for r in source.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         if (
             "schema_migrations" in tables
-            and source.execute("SELECT 1 FROM schema_migrations WHERE version=3").fetchone()
+            and source.execute(
+                "SELECT 1 FROM schema_migrations WHERE version=?", (version,)
+            ).fetchone()
         ):
             return None
-        backup = path.with_name(f"{path.stem}.pre-b8-{uuid4().hex}.db")
+        backup = path.with_name(f"{path.stem}.pre-{label}-{uuid4().hex}.db")
         with backup.open("xb"):
             pass
         backup.chmod(0o600)

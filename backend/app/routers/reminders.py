@@ -37,7 +37,10 @@ def create_reminder(payload: ReminderIn, user_id: int = Depends(current_user)):
     except db.OwnershipError:
         raise HTTPException(404, "resource_not_found") from None
     except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from None
+        raise HTTPException(
+            status_code=422 if str(exc) == "repeating_reminder_must_be_independent" else 409,
+            detail=str(exc),
+        ) from None
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=422, detail="微信接收用户不存在") from None
 
@@ -53,7 +56,10 @@ def update_reminder(
     except db.OwnershipError:
         raise HTTPException(404, "resource_not_found") from None
     except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from None
+        raise HTTPException(
+            status_code=422 if str(exc) == "repeating_reminder_must_be_independent" else 409,
+            detail=str(exc),
+        ) from None
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=422, detail="微信接收用户不存在") from None
     if reminder is None:

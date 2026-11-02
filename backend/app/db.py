@@ -89,6 +89,13 @@ def init_db() -> None:
         if conn.execute("PRAGMA foreign_key_check").fetchone():
             raise RuntimeError("B8 migration foreign key check failed")
 
+    accounts.backup_before_upgrade(version=4, label="b5-repeat")
+    from . import recurrence
+
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        recurrence.migrate(conn)
+
 
 def _get_by_id(table: str, row_id: int, user_id: int = 1) -> dict | None:
     with _conn() as conn:
@@ -334,7 +341,14 @@ def list_reminders(user_id: int = 1) -> list[dict]:
 
 
 def create_reminder(
-    title, remind_at, body="", channel="both", task_id=None, wechat_user_id=None, user_id: int = 1
+    title,
+    remind_at,
+    body="",
+    channel="both",
+    task_id=None,
+    wechat_user_id=None,
+    user_id: int = 1,
+    repeat_rule=None,
 ) -> dict:
     """创建提醒及持久化调度状态，两者在同一事务提交。"""
     from .reminder_store import seed_delivery
@@ -343,6 +357,7 @@ def create_reminder(
     remind_at = normalize_reminder_time(remind_at)
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
+        _validate_repeat(repeat_rule, task_id)
         _validate_reminder_links(conn, task_id, wechat_user_id, user_id)
         if task_id is not None and channel in ("pc", "both"):
             task = conn.execute(
@@ -359,9 +374,9 @@ def create_reminder(
             if existing is not None:
                 return dict(existing)
         cur = conn.execute(
-            "INSERT INTO reminders (title, body, remind_at, channel, task_id, wechat_user_id, user_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (title, body, remind_at, channel, task_id, wechat_user_id, user_id),
+            "INSERT INTO reminders (title, body, remind_at, channel, task_id, wechat_user_id, user_id, repeat_rule) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (title, body, remind_at, channel, task_id, wechat_user_id, user_id, repeat_rule),
         )
         new_id = cur.lastrowid
         seed_delivery(
@@ -385,6 +400,9 @@ def update_reminder(reminder_id: int, fields: dict, user_id: int = 1) -> dict | 
             fields.get("wechat_user_id", old["wechat_user_id"]),
             user_id,
         )
+        _validate_repeat(
+            fields.get("repeat_rule", old["repeat_rule"]), fields.get("task_id", old["task_id"])
+        )
         return _update_reminder(conn, reminder_id, fields)
 
 
@@ -396,14 +414,25 @@ def _update_reminder(conn: sqlite3.Connection, reminder_id: int, fields: dict) -
     old = conn.execute("SELECT * FROM reminders WHERE id=?", (reminder_id,)).fetchone()
     if old is None:
         return None
-    cols = {"title", "body", "remind_at", "channel", "done", "task_id", "wechat_user_id"}
+    cols = {
+        "title",
+        "body",
+        "remind_at",
+        "channel",
+        "done",
+        "task_id",
+        "wechat_user_id",
+        "repeat_rule",
+    }
     updates = {key: value for key, value in fields.items() if key in cols}
     if "remind_at" in updates:
         updates["remind_at"] = normalize_reminder_time(updates["remind_at"])
     updates = {key: value for key, value in updates.items() if value != old[key] or key == "done"}
     if not updates:
         return dict(old)
-    if {"remind_at", "channel"} & updates.keys():
+    if old["repeat_rule"] and "repeat_rule" in updates and updates["repeat_rule"] is None:
+        updates["done"] = True
+    if {"remind_at", "channel", "repeat_rule"} & updates.keys():
         updates.setdefault("done", False)
     if "done" in updates:
         updates["done"] = int(updates["done"])
@@ -500,3 +529,10 @@ def _validate_reminder_links(conn, task_id, wechat_user_id, user_id):
         is None
     ):
         raise OwnershipError("resource_not_found")
+
+
+def _validate_repeat(rule, task_id):
+    if rule not in (None, "weekly"):
+        raise ValueError("invalid_repeat_rule")
+    if rule is not None and task_id is not None:
+        raise ValueError("repeating_reminder_must_be_independent")
