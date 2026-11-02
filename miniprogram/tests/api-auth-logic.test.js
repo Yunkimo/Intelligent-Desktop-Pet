@@ -87,7 +87,7 @@ async function main() {
   await check('401 单次重登后重试成功；重登仍 401 抛 authRequired 且不无限重试', async () => {
     const server = simpleServer();
     // 服务端持续拒绝课程请求（会话无效）：第一次 401 → 重登 → 仍 401 → authRequired
-    server.route = (path, method, data, auth) => {
+    server.route = (path, _method, _data, _auth) => {
       if (path === '/api/wechat/login') {
         server.state.logins += 1;
         return {
@@ -117,7 +117,7 @@ async function main() {
 
   await check('重登后账号变化 → accountChanged，旧账号操作不落到新账号', async () => {
     const server = simpleServer();
-    server.route = (path, method, data, auth) => {
+    server.route = (path, _method, _data, auth) => {
       if (path === '/api/wechat/login') {
         server.state.logins += 1;
         return {
@@ -157,7 +157,7 @@ async function main() {
 
   await check('业务上传同会话语义：401 重登一次后成功', async () => {
     const server = simpleServer();
-    server.route = (path, method, data, auth) => {
+    server.route = (path, _method, _data, auth) => {
       if (path === '/api/wechat/login') {
         server.state.logins += 1;
         return {

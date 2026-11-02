@@ -117,14 +117,14 @@ async function main() {
     });
     await f.s.ensureSession();
     // 账号相关业务缓存（如学期配置）应被清理
-    const accountKey = 'semester_settings:1';
-    rt.storage.set(accountKey, { start_date: '2026-09-07', total_weeks: 18 });
+    const semesterCacheName = 'semester_settings:1';
+    rt.storage.set(semesterCacheName, { start_date: '2026-09-07', total_weeks: 18 });
     const result = await f.s.logout();
     assert.strictEqual(result.ok, true);
     assert.strictEqual(result.revoked, true);
     assert.strictEqual(revokedWith, 't');
     assert.strictEqual(f.s.token(), null);
-    assert.strictEqual(rt.storage.get(accountKey), undefined);
+    assert.strictEqual(rt.storage.get(semesterCacheName), undefined);
   });
 
   await check('logout：服务端撤销失败也完成本地登出并如实标记', async () => {

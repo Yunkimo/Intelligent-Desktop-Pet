@@ -220,11 +220,6 @@ function uploadWithTask(path, { filePath, name = 'image', formData, headers } = 
   };
 }
 
-/** 旧版 upload 封装：兼容普通上传场景，返回 Promise（不暴露 task）。 */
-function upload(path, { filePath, name = 'image', formData } = {}) {
-  return uploadWithTask(path, { filePath, name, formData }).done;
-}
-
 /**
  * 业务上传：与 request 相同的会话语义（Bearer、401 单次重登、账号切换丢弃）。
  * 返回 { done, abort }；abort 立即以 cancelled 结束等待。
