@@ -16,6 +16,7 @@
 | `utils/api.js` | `wx.request` / `wx.uploadFile` 封装：`baseUrl` 与 `X-API-Key` 集中配置于文件顶部 |
 | `utils/ws.js` | WebSocket 事件适配层：连接/重连/节流/去重集中管理（契约见 `docs/api-contract.md`） |
 | `utils/semester.js` | 学期状态适配层：学期配置读取/保存/日历查询、离线推算与缓存（契约见 `docs/b6-contract.md`） |
+| `utils/session.js` | 统一会话：微信登录、令牌缓存、401 单次重登、退出/切换账号与业务缓存清理（契约见 `docs/b8-accounts.md`） |
 | `utils/task_parse.js` | 一句话日程纯逻辑：参考时刻构造、缺项/过去标记、逐项保存核对与失败恢复（契约见 `docs/b7-parsing.md`） |
 | `utils/datetime.js` | 日期换算、提醒时间偏移与学期周次纯日历推算（后端 `day_of_week` 1=周一 … 7=周日） |
 | `config.example.js` | 复制为 `config.js` 填入 `baseUrl` / `apiKey`（`config.js` 已 gitignore，密钥不入库） |
@@ -65,6 +66,14 @@
 - 「确认保存」逐项调用 `POST /api/tasks`（后端原子创建 PC 提醒，客户端不额外建提醒），逐项核对结果：4xx 明确失败、网络失败先按列表核对不自动重放；失败/待确认项保留原文与草稿可修正重试，防连点。
 - 保存后从真实后端读回，提醒的订阅状态（未订阅/待授权等）以服务端记录为准，沿用 C3 订阅流程。契约见 [B7 接口说明](../docs/b7-parsing.md)。
 
+## 统一会话与账号隔离（C9）
+
+- 业务请求、图片上传与 WebSocket 统一使用微信登录会话（`Authorization: Bearer <session_token>`）；首次业务请求自动 wx.login 登录，无需手动配置。API Key 仅在后端 B8 过渡期（ALLOW_LEGACY_API_KEY）映射默认演示用户，小程序业务不依赖它。
+- 401 时自动清除会话、单次重登并重试一次；仍失败提示「登录失效」且不无限重试。写请求结果不明不盲目重放；退出/切换账号推进会话代数，旧账号迟到响应被丢弃。
+- 课程、日程、提醒、学期按账号隔离：非本人资源返回 404，不泄露他人数据；学期离线缓存按账号分键，退出时清理。
+- 「设置」页显示当前登录账号，可退出登录（撤销会话 + 清理本机缓存）；再次使用自动重新登录。
+- WS 握手令牌与会话一致，断线重连重新取当前令牌；只接收本人事件。
+
 ## 订阅提醒（C3）
 
 日程页设置提醒时间后，主动点击“订阅提醒”。按钮处理中不可重复触发。微信授权在点击同步调用链发起；随后获取后端会话、原子创建或复用本人的 phone 提醒，查询当前事件，再登记选择。页面加载不会弹出授权窗口。
@@ -93,6 +102,7 @@ python scripts/check_c3_integration.py
 python scripts/check_c6_integration.py
 python scripts/check_c7_integration.py
 python scripts/check_c8_integration.py
+python scripts/check_c9_integration.py
 ```
 
 `check_c6_integration.py` 在 B6 未合入时检测到 `/api/semester` 缺失会明确 SKIP（退出 0），合入后自动执行真实联调；合入前可用 `BACKEND_DIR` 指向含 B6 的后端检出做真实联调取证（见 [C6 验收记录](../docs/evidence/c6/c6-verification.md)）。
