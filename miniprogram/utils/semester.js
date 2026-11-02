@@ -2,15 +2,20 @@
 // - 在线优先取服务端结果（服务端按配置时区决定「今天」）；已确认的学期设置缓存到本地
 // - 请求失败时用缓存的学期设置按本机日历日期推算周次，并标记 offline 提示用户
 // - 旧「current_week」固定周缓存已废弃：不再读取，也不反推开学日期
+// - B8 起学期按账号隔离：缓存键带账号后缀，切换账号不串用他人配置
 // - 页面不得自行拼 semester/calendar 请求或缓存，统一走本模块
 
 const api = require('./api');
+const session = require('./session');
 const { computeWeek, todayDow, localDateText, parseDate } = require('./datetime');
 
-const SETTINGS_KEY = 'semester_settings';
+function settingsKey() {
+  const account = session.accountId();
+  return 'semester_settings' + (account ? ':' + account : '');
+}
 
 function getCachedSettings() {
-  const saved = wx.getStorageSync(SETTINGS_KEY);
+  const saved = wx.getStorageSync(settingsKey());
   if (!saved || !parseDate(saved.start_date) || !Number.isInteger(saved.total_weeks)) {
     return null;
   }
@@ -19,12 +24,12 @@ function getCachedSettings() {
 
 function cacheSettings(settings) {
   if (settings && parseDate(settings.start_date) && Number.isInteger(settings.total_weeks)) {
-    wx.setStorageSync(SETTINGS_KEY, settings);
+    wx.setStorageSync(settingsKey(), settings);
   }
 }
 
 function clearCachedSettings() {
-  wx.removeStorageSync(SETTINGS_KEY);
+  wx.removeStorageSync(settingsKey());
 }
 
 /**

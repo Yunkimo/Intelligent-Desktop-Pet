@@ -1,6 +1,8 @@
 // 学期设置页：配置第一周的周一与总周数，整体保存到后端（PUT，见 B6 契约）。
 // 时区不在此页设置：省略 timezone 时后端默认 Asia/Shanghai。
+// C9 起同页展示登录账号（B8 会话）与退出登录入口。
 const semester = require('../../utils/semester');
+const session = require('../../utils/session');
 const { isMonday } = require('../../utils/datetime');
 
 const WEEK_COUNT_OPTIONS = Array.from({ length: 53 }, (_, i) => `${i + 1} 周`);
@@ -15,9 +17,12 @@ Page({
     error: '',
     configured: false,
     currentText: '',
+    loginAccount: '',
+    loggingOut: false,
   },
 
   onShow() {
+    this.setData({ loginAccount: session.accountId() || '' });
     this.load();
   },
 
@@ -81,5 +86,25 @@ Page({
 
   retry() {
     this.load();
+  },
+
+  // 退出登录：撤销会话、清理账号缓存并返回（业务数据仍归账号，不受影响）
+  async logout() {
+    if (this.data.loggingOut) {
+      return;
+    }
+    this.setData({ loggingOut: true });
+    try {
+      const result = await session.logout();
+      wx.showToast({
+        title: result.revoked ? '已退出登录' : '已在本机退出（服务端会话稍后失效）',
+        icon: 'none',
+      });
+      setTimeout(() => wx.navigateBack(), 800);
+    } catch (err) {
+      wx.showToast({ title: (err && err.message) || '退出失败', icon: 'none' });
+    } finally {
+      this.setData({ loggingOut: false });
+    }
   },
 });
