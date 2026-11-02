@@ -100,3 +100,8 @@
 
 - **A4 依赖 B1**（成员 B 的 WebSocket）；先做 A0→A3，A4 等 B1 就绪再做。
 - REST 字段以 `backend/app/schemas.py` 为准，接口有调整时与成员 B 对齐。
+
+
+### A19. 后端账号接入（Issue #82）
+
+复用 B8 设备登录和配对契约。后端账号窗口用 QThread 执行登录/注销，凭据仅保存 data/account.json；REST 优先 Bearer，WS 使用同一会话。显式失效提示重新绑定，绑定后不降级到共享身份。切换账号重建 WS、清空当前对话及事件缓存。未绑定保留 API Key 灰度兼容。人工核验见 [用户手册](../user-manual.md) 的后端账号绑定部分。
