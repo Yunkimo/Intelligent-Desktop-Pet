@@ -5,6 +5,11 @@
 const assert = require('assert');
 const { runtime } = require('./runtime');
 
+// runtime 用 vm 加载模块，返回的对象来自独立 realm：JSON 往返后再比较结构
+function plain(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 let passed = 0;
 function check(name, fn) {
   fn();
@@ -35,11 +40,12 @@ check('只保留每周且未完成的提醒', () => {
     reminder({ id: 4, remind_at: '' }),
     null,
   ]);
-  assert.deepStrictEqual(result.map((item) => item.id), [1]);
+  const ids = plain(result.map((item) => item.id));
+  assert.deepStrictEqual(ids, [1]);
 });
 
 check('换算出周几与时间', () => {
-  const [item] = weekly.weeklyReminders([reminder({ remind_at: '2026-11-01T19:00' })]);
+  const [item] = plain(weekly.weeklyReminders([reminder({ remind_at: '2026-11-01T19:00' })]));
   assert.strictEqual(item.weekday, '周日');
   assert.strictEqual(item.time, '19:00');
   assert.strictEqual(item.title, '跑步');
@@ -51,15 +57,13 @@ check('按周一到周日排序，同一天按时间', () => {
     reminder({ id: 2, remind_at: '2026-11-04T09:00' }),
     reminder({ id: 3, remind_at: '2026-11-02T07:30' }),
   ]);
-  assert.deepStrictEqual(
-    result.map((item) => item.weekday + item.time),
-    ['周一07:30', '周三09:00', '周日19:00']
-  );
+  const labels = plain(result.map((item) => item.weekday + item.time));
+  assert.deepStrictEqual(labels, ['周一07:30', '周三09:00', '周日19:00']);
 });
 
 check('非数组与空值不会抛错', () => {
-  assert.deepStrictEqual(weekly.weeklyReminders(undefined), []);
-  assert.deepStrictEqual(weekly.weeklyReminders([]), []);
+  assert.deepStrictEqual(plain(weekly.weeklyReminders(undefined)), []);
+  assert.deepStrictEqual(plain(weekly.weeklyReminders([])), []);
 });
 
 console.log(`weekly logic: ${passed} passed`);
