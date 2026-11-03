@@ -865,7 +865,7 @@ class PetWindow(QWidget):
         self._recent_events = RecentEvents()
         # 清除当前对话上下文，避免下一账号继续携带上一账号的工具返回数据。
         self.memory.messages.clear()
-        self.memory.set_system(build_system_prompt(self.settings))
+        self._refresh_system_prompt()  # 带上习惯摘要，切账号后不丢长期记忆
         self.memory.save()
         self.show_hint("后端账号已更新")
         self._restart_account_ws()

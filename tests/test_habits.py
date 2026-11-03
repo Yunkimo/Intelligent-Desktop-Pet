@@ -186,3 +186,31 @@ def test_tools_without_store_skip_habit_tools():
 
     assert len(tools) == 9  # 原有 8 个 + create_weekly_reminder
     assert "remember_habit" not in tools and "forget_habit" not in tools
+
+
+def test_account_switch_keeps_habits_in_prompt(tmp_path, qapp, monkeypatch):
+    """切账号会重建系统提示词，不能把习惯摘要丢掉。"""
+    from unittest.mock import Mock
+
+    from pet.window import PetWindow
+
+    store = HabitStore(tmp_path / "habits.json")
+    store.add("每天 8 点起床")
+
+    window = PetWindow.__new__(PetWindow)
+    from PyQt6.QtWidgets import QWidget
+
+    QWidget.__init__(window)
+    window.settings = Mock(pet_name="小萌", personality="活泼", tone="俏皮")
+    window.habits = store
+    window.memory = Mock()
+    window.backend = Mock()
+    window._auth_notice_shown = True
+    window._recent_events = Mock()
+    window._restart_account_ws = Mock()
+    window.show_hint = Mock()
+
+    PetWindow._apply_account(window, {"device_token": "t"})
+
+    prompt = window.memory.set_system.call_args[0][0]
+    assert "每天 8 点起床" in prompt
