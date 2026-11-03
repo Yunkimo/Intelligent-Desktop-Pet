@@ -38,6 +38,17 @@
   color: #e74c3c;
 }
 
+/* 每周固定安排：列表里与普通日程区分开 */
+.badge-weekly {
+  display: inline-block;
+  margin-right: 8rpx;
+  padding: 0 8rpx;
+  border-radius: 6rpx;
+  background: #eef4ff;
+  color: #3b6fd4;
+  font-size: 22rpx;
+}
+
 .task-actions {
   display: flex;
   flex-direction: column;

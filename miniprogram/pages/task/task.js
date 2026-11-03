@@ -8,6 +8,7 @@ const ws = require('../../utils/ws');
 const subscribe = require('../../utils/subscribe');
 const taskParse = require('../../utils/task_parse');
 const { dateStr, reminderParts, reminderInput } = require('../../utils/datetime');
+const { weeklyReminders } = require('../../utils/weekly');
 
 // 日程页关心的后端事件（B6 起后端会在其他端增改删时推送更新/删除事件）
 const WS_EVENTS = ['task.created', 'task.updated', 'task.deleted', 'reminder.due', 'reconnect'];
@@ -109,7 +110,24 @@ Page({
           : '',
         overdue: !!t.due_at && !t.done && t.due_at.slice(0, 10) < today,
       }));
-      this.setData({ tasks });
+      // 每周固定安排并进日程列表：没有单一截止日期，排在普通日程之后
+      let weekly = [];
+      try {
+        weekly = weeklyReminders(await api.getReminders()).map((item) => ({
+          id: item.id,
+          weekly: true,
+          title: item.title,
+          note: item.body,
+          checked: false,
+          overdue: false,
+          dueText: '每周' + item.weekday.slice(1) + ' ' + item.time,
+          remindText: '',
+          subscriptionText: '',
+        }));
+      } catch (_) {
+        /* 提醒读取失败不影响日程列表 */
+      }
+      this.setData({ tasks: tasks.concat(weekly) });
     } catch (err) {
       this.setData({ error: err.message || '加载失败' });
     } finally {
@@ -178,6 +196,27 @@ Page({
     } finally {
       wx.hideLoading();
     }
+  },
+
+  stopWeekly(e) {
+    const { id, title } = e.currentTarget.dataset;
+    wx.showModal({
+      title: '停止每周提醒',
+      content: `不再每周提醒「${title}」吗？`,
+      success: async (res) => {
+        if (!res.confirm) {
+          return;
+        }
+        try {
+          await api.deleteReminder(id);
+          wx.showToast({ title: '已停止', icon: 'success' });
+        } catch (err) {
+          wx.showToast({ title: err.message, icon: 'none' });
+        } finally {
+          await this.load();
+        }
+      },
+    });
   },
 
   async toggleDone(e) {

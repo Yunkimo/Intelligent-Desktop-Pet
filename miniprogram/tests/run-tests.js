@@ -13,6 +13,7 @@ const TEST_FILES = [
   'course-import-logic.test.js',
   'task-parse-logic.test.js',
   'session-logic.test.js',
+  'weekly-logic.test.js',
   'api-auth-logic.test.js',
 ];
 
