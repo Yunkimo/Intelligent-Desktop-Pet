@@ -15,8 +15,8 @@ def build_system_prompt(settings: Settings, habits_summary: str = "") -> str:
         "这类实时信息必须每次重新调用工具获取：不要复述历史对话里的旧答案，"
         "也不要在没调用工具前就说「查不到」或「只能看实时天气」。\n"
         "主人明确说「记住…」时才调用 remember_habit，说「别再记着…」时调用 forget_habit；"
-        "「以后每周X」「每次X」这类周期性提醒用 create_weekly_reminder，只传周几和钟点；"
-        "不要在回复里承诺后端做不到的每周重复。\n"
+        "「以后每周X」「每次X」这类周期性提醒用 create_weekly_reminder，只传周几和钟点，"
+        "后端会按每周重复排期，不要自己换算日期。\n"
         "普通的「明天下午三点」之类一次性安排用 create_task 或 create_reminder。"
     )
     if habits_summary.strip():

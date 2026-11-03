@@ -131,3 +131,51 @@ def test_parse_event_rejects_non_json_and_non_dict():
     assert parse_event("not json") is None
     assert parse_event("[1, 2]") is None
     assert parse_event('{"type":"task.created"}') == {"type": "task.created"}
+
+
+def test_create_reminder_passes_repeat_rule(monkeypatch):
+    """每周提醒必须把 repeat_rule 传给后端，由后端排期。"""
+    import pet.backend_client as module
+
+    captured = {}
+
+    class _Resp:
+        status_code = 200
+
+        def json(self):
+            return {"id": 1, "repeat_rule": "weekly"}
+
+    def fake_request(method, url, **kwargs):
+        captured.update(method=method, url=url, json=kwargs.get("json"))
+        return _Resp()
+
+    monkeypatch.setattr(module.httpx, "request", fake_request)
+    client = module.BackendClient("http://x", "key")
+
+    client.create_reminder(title="跑步", remind_at="2026-11-01T19:00", repeat_rule="weekly")
+
+    assert captured["json"]["repeat_rule"] == "weekly"
+    assert captured["json"]["task_id"] is None  # 重复提醒必须独立于日程
+
+
+def test_create_reminder_omits_repeat_rule_by_default(monkeypatch):
+    import pet.backend_client as module
+
+    captured = {}
+
+    class _Resp:
+        status_code = 200
+
+        def json(self):
+            return {"id": 1}
+
+    monkeypatch.setattr(
+        module.httpx,
+        "request",
+        lambda method, url, **kw: (captured.update(json=kw.get("json")), _Resp())[1],
+    )
+    client = module.BackendClient("http://x", "key")
+
+    client.create_reminder(title="一次性", remind_at="2026-11-01T19:00")
+
+    assert "repeat_rule" not in captured["json"]

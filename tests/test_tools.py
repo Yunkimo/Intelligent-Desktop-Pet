@@ -314,26 +314,50 @@ def test_next_weekday_datetime_rejects_bad_input():
     assert _next_weekday_datetime("周日", "晚上七点") is None
 
 
-def test_create_weekly_reminder_writes_single_occurrence(monkeypatch):
+def _weekly_backend(created, echoed_rule="weekly"):
+    class _Backend(_FakeBackend):
+        def create_reminder(
+            self, title, remind_at, body="", channel="both", task_id=None, repeat_rule=None
+        ):
+            created.update(title=title, remind_at=remind_at, body=body, repeat_rule=repeat_rule)
+            return {"id": 1, "repeat_rule": echoed_rule}
+
+    return _Backend()
+
+
+def test_create_weekly_reminder_asks_backend_for_weekly_rule(monkeypatch):
     import pet.tools as tools_module
 
     created = {}
-
-    class _Backend(_FakeBackend):
-        def create_reminder(self, title, remind_at, body="", channel="both"):
-            created.update(title=title, remind_at=remind_at, body=body)
-            return {"id": 1}
-
     from datetime import datetime
 
     fixed = datetime(2026, 11, 1, 19, 0)
     monkeypatch.setattr(tools_module, "_next_weekday_datetime", lambda w, t: fixed)
 
-    tool = tools_module.build_tools(_Backend())["create_weekly_reminder"]
+    tool = tools_module.build_tools(_weekly_backend(created))["create_weekly_reminder"]
     text = tool.fn(title="跑步", weekday="周日", remind_time="19:00")
 
     assert created["remind_at"] == "2026-11-01T19:00"
-    assert "只能提醒这一次" in text
+    assert created["repeat_rule"] == "weekly"  # 交给后端排期
+    assert "每周" in text and "都会提醒" in text
+
+
+def test_create_weekly_reminder_reports_when_backend_rejects_rule(monkeypatch):
+    import pet.tools as tools_module
+
+    created = {}
+    from datetime import datetime
+
+    monkeypatch.setattr(
+        tools_module, "_next_weekday_datetime", lambda w, t: datetime(2026, 11, 1, 19, 0)
+    )
+
+    tool = tools_module.build_tools(_weekly_backend(created, echoed_rule=None))[
+        "create_weekly_reminder"
+    ]
+    text = tool.fn(title="跑步", weekday="周日", remind_time="19:00")
+
+    assert "只提醒一次" in text
 
 
 def test_create_weekly_reminder_reports_bad_schedule():
