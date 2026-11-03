@@ -366,7 +366,7 @@ def build_tools(backend: BackendClient, habits=None) -> dict[str, Tool]:
         if isinstance(created, dict) and created.get("repeat_rule") != "weekly":
             # 后端未确认重复规则时如实说明，不谎报「每周都会提醒」
             return f"已把「{title}」定在 {label}，但后端没有接受每周重复，本次只提醒一次。"
-        return f"已设好「{title}」：{label} 起，每周{weekday} {remind_time} 都会提醒你。"
+        return f"已设好「{title}」：{label} 起，桌宠每周{weekday} {remind_time} 都会提醒你。"
 
     def get_weather(city: str, day: str = "今天", **_args) -> str:
         wanted = str(day or "今天").strip()
