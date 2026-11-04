@@ -15,6 +15,7 @@ const TEST_FILES = [
   'session-logic.test.js',
   'weekly-logic.test.js',
   'api-auth-logic.test.js',
+  'weather-logic.test.js',
 ];
 
 let failed = 0;

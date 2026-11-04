@@ -334,6 +334,16 @@ module.exports = {
   // pairing 生成桌宠跨端配对码（5 分钟有效，桌宠端 POST /api/auth/device 消费）
   authMe: () => request('/api/auth/me'),
   authPairing: () => request('/api/auth/pairing', { method: 'POST' }),
+
+  // 带伞提醒（B 契约见 weather-subscriptions.md；订阅接口仅微信会话，普通卡片为业务会话）
+  getWeatherTomorrow: (city) => request('/api/weather/tomorrow?city=' + encodeURIComponent(city)),
+  weatherPrepare: (city) => request('/api/weather/subscriptions', { method: 'POST', data: { city } }),
+  weatherAuthorize: (eventId, payload) =>
+    request(`/api/weather/subscriptions/${eventId}/authorization`, { method: 'POST', data: payload }),
+  getWeatherSubscriptions: () => request('/api/weather/subscriptions'),
+  getWeatherSubscription: (id) => request(`/api/weather/subscriptions/${id}`),
+  cancelWeatherSubscription: (id) =>
+    request(`/api/weather/subscriptions/${id}`, { method: 'DELETE' }),
   authLogout: (token) =>
     rawRequest('/api/auth/logout', {
       method: 'POST',

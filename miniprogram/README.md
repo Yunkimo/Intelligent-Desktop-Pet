@@ -16,6 +16,7 @@
 | `utils/api.js` | `wx.request` / `wx.uploadFile` 封装：`baseUrl` 与 `X-API-Key` 集中配置于文件顶部 |
 | `utils/ws.js` | WebSocket 事件适配层：连接/重连/节流/去重集中管理（契约见 `docs/api-contract.md`） |
 | `utils/semester.js` | 学期状态适配层：学期配置读取/保存/日历查询、离线推算与缓存（契约见 `docs/b6-contract.md`） |
+| `utils/weather.js` | 带伞提醒纯逻辑：城市偏好（按账号）、订阅状态文案与可订阅判定、天气卡片文案（B 契约见 weather-subscriptions.md） |
 | `utils/session.js` | 统一会话：微信登录、令牌缓存、401 单次重登、退出/切换账号与业务缓存清理（契约见 `docs/b8-accounts.md`） |
 | `utils/task_parse.js` | 一句话日程纯逻辑：参考时刻构造、缺项/过去标记、逐项保存核对与失败恢复（契约见 `docs/b7-parsing.md`） |
 | `utils/datetime.js` | 日期换算、提醒时间偏移与学期周次纯日历推算（后端 `day_of_week` 1=周一 … 7=周日） |
@@ -74,6 +75,13 @@
 - 「设置」页显示当前登录账号，可退出登录（撤销会话 + 清理本机缓存）；再次使用自动重新登录。
 - WS 握手令牌与会话一致，断线重连重新取当前令牌；只接收本人事件。
 
+## 带伞提示与微信订阅（天气）
+
+- 首页「明日带伞提示」卡片：默认城市长沙，可手动切换（常用城市或任意输入，按账号保存）；显示目标日期与更新时间，雨/无降水/暂不可用三种形态，未知可手动重试。启动、回前台、切换城市与跨上海时区午夜刷新，合并重复请求，旧请求不覆盖新城市结果。
+- 「订阅带伞提醒」：订阅事件在点击前于后台准备（保证点击时同步弹出微信授权）；一次性授权只针对本次事件，仅明天有降水时 21:00 发送；accept/reject/ban/filter 与调用失败分别处理，不自动反复弹窗。
+- 订阅状态以服务端为准（待授权/已授权待判断/已发送/无降水/已取消/待核实等 13 态）；取消后不能撤回已出站消息；登记结果不明用同一 request_id 幂等恢复。
+- 微信消息落地页 `pages/weather-detail`：按 event_id 查询本人事件详情（城市/日期/状态/发送时间），非本人 404 不泄露数据。契约见 `weather-subscriptions.md`（B 交付）。
+
 ## 订阅提醒（C3）
 
 日程页设置提醒时间后，主动点击“订阅提醒”。按钮处理中不可重复触发。微信授权在点击同步调用链发起；随后获取后端会话、原子创建或复用本人的 phone 提醒，查询当前事件，再登记选择。页面加载不会弹出授权窗口。
@@ -103,6 +111,7 @@ python scripts/check_c6_integration.py
 python scripts/check_c7_integration.py
 python scripts/check_c8_integration.py
 python scripts/check_c9_integration.py
+python scripts/check_weather_integration.py
 ```
 
 `check_c6_integration.py` 在 B6 未合入时检测到 `/api/semester` 缺失会明确 SKIP（退出 0），合入后自动执行真实联调；合入前可用 `BACKEND_DIR` 指向含 B6 的后端检出做真实联调取证（见 [C6 验收记录](../docs/evidence/c6/c6-verification.md)）。
