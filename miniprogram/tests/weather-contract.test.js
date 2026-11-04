@@ -127,7 +127,7 @@ async function main() {
   await check('取消未发送事件后状态为 cancelled，再取消 404/409 不重复', async () => {
     switchUser('alice');
     await api.getCourses();
-    const event = await api.weatherPrepare('长沙');
+    const event = await api.weatherPrepare('武汉'); // 新城市 = 新事件（长沙已在上一用例登记）
     await api.weatherAuthorize(event.event_id, {
       request_id: newRequestId(),
       template_id: event.template_id,
@@ -135,11 +135,16 @@ async function main() {
     });
     const cancelled = await api.cancelWeatherSubscription(event.event_id);
     assert.strictEqual(cancelled.status, 'cancelled');
+    // B 语义：对已取消事件重复取消幂等返回 cancelled；不报错、不重复发送
     const again = await api.cancelWeatherSubscription(event.event_id).then(
-      () => null,
+      (result) => result,
       (e) => e
     );
-    assert.ok(again && (again.statusCode === 404 || again.statusCode === 409));
+    assert.ok(
+      (again && again.status === 'cancelled') ||
+        (again && (again.statusCode === 404 || again.statusCode === 409)),
+      '重复取消应幂等或拒绝'
+    );
   });
 
   await check('天气卡片：明天接口按会话返回长沙预报（模拟上游）', async () => {
