@@ -6,9 +6,11 @@
 
   <view wx:if="{{!loading && tasks.length === 0}}" class="empty">还没有日程，点右下角「＋」添加</view>
   <view wx:for="{{tasks}}" wx:key="id" class="card task-card">
-    <checkbox class="task-check" checked="{{item.checked}}" data-id="{{item.id}}" data-done="{{item.done}}" bindtap="toggleDone" />
+    <checkbox wx:if="{{!item.weekly}}" class="task-check" checked="{{item.checked}}" data-id="{{item.id}}" data-done="{{item.done}}" bindtap="toggleDone" />
     <view class="task-body">
-      <view class="task-title {{item.done ? 'finished' : ''}}">{{item.title}}</view>
+      <view class="task-title {{item.done ? 'finished' : ''}}">
+        <text wx:if="{{item.weekly}}" class="badge-weekly">每周</text>{{item.title}}
+      </view>
       <view wx:if="{{item.note}}" class="task-note">{{item.note}}</view>
       <view class="task-meta">
         <text wx:if="{{item.overdue}}" class="badge-overdue">已逾期</text>
@@ -18,9 +20,10 @@
       </view>
     </view>
     <view class="task-actions">
-      <button wx:if="{{item.remind_at}}" class="btn btn-subscribe mini" disabled="{{subscribingId !== null}}" loading="{{subscribingId === item.id}}" data-task="{{item}}" bindtap="subscribeTask">订阅提醒</button>
-      <button class="btn btn-ghost mini" data-task="{{item}}" bindtap="openEdit">编辑</button>
-      <button class="btn btn-danger mini" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="remove">删除</button>
+      <button wx:if="{{!item.weekly && item.remind_at}}" class="btn btn-subscribe mini" disabled="{{subscribingId !== null}}" loading="{{subscribingId === item.id}}" data-task="{{item}}" bindtap="subscribeTask">订阅提醒</button>
+      <button wx:if="{{!item.weekly}}" class="btn btn-ghost mini" data-task="{{item}}" bindtap="openEdit">编辑</button>
+      <button wx:if="{{item.weekly}}" class="btn btn-danger mini" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="stopWeekly">停止</button>
+      <button wx:else class="btn btn-danger mini" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="remove">删除</button>
     </view>
   </view>
 
