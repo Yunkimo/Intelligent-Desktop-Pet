@@ -56,3 +56,21 @@
 .save-btn {
   margin-top: 8rpx;
 }
+
+/* 桌宠配对码（C9 跨端一致） */
+.pairing-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+
+.pairing-code {
+  flex: 1;
+  padding: 16rpx 20rpx;
+  background: #eefaf1;
+  border: 1rpx solid #bfe8cc;
+  border-radius: 8rpx;
+  color: #2f9e44;
+  font-size: 28rpx;
+  word-break: break-all;
+}
