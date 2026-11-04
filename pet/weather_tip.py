@@ -5,7 +5,10 @@
 窗口据此弹气泡并按语音开关决定是否播报。网络失败/未绑定账号静默跳过，不刷屏。
 """
 
+import json
+import os
 from datetime import datetime
+from pathlib import Path
 
 from PyQt6.QtCore import QObject, QThread, QTimer, pyqtSignal
 
@@ -15,15 +18,16 @@ _CHECK_INTERVAL_MS = 60_000  # 每分钟对一次时间
 
 
 class WeatherTipMonitor(QObject):
-    """到点发一次 check_due；同一天只发一次，跨天自动复位。"""
+    """到点发一次 check_due；同一天只发一次，重启后仍不重复，跨天自动复位。"""
 
     check_due = pyqtSignal()
 
-    def __init__(self, hour: int, clock=None, parent=None) -> None:
+    def __init__(self, hour: int, state_path=None, clock=None, parent=None) -> None:
         super().__init__(parent)
         self._hour = hour
         self._clock = clock or datetime.now
-        self._fired_dates: set[str] = set()
+        self._state_path = state_path
+        self._fired_date = self._load_fired_date()
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._check)
 
@@ -38,10 +42,34 @@ class WeatherTipMonitor(QObject):
         if now.hour < self._hour:
             return
         key = now.date().isoformat()
-        if key in self._fired_dates:
+        if self._fired_date == key:
             return
-        self._fired_dates.add(key)
+        self._fired_date = key
+        self._save_fired_date(key)
         self.check_due.emit()
+
+    def _load_fired_date(self) -> str | None:
+        """读上次触发的日期；文件缺失或损坏按未触发处理。"""
+        if self._state_path is None:
+            return None
+        try:
+            data = json.loads(Path(self._state_path).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        value = data.get("last_fired_date") if isinstance(data, dict) else None
+        return str(value) if isinstance(value, str) and value else None
+
+    def _save_fired_date(self, value: str) -> None:
+        if self._state_path is None:
+            return
+        path = Path(self._state_path)
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp.write_text(json.dumps({"last_fired_date": value}), encoding="utf-8")
+            os.replace(tmp, path)
+        except OSError:
+            pass  # 写不进去也不影响本次提醒
 
 
 class WeatherTipWorker(QThread):
@@ -50,7 +78,7 @@ class WeatherTipWorker(QThread):
     tip = pyqtSignal(str)
     failed = pyqtSignal(str)
 
-    def __init__(self, backend: BackendClient, city: str, parent=None) -> None:
+    def __init__(self, backend: BackendClient, city: str = "", parent=None) -> None:
         super().__init__(parent)
         self._backend = backend
         self._city = city
@@ -62,5 +90,10 @@ class WeatherTipWorker(QThread):
             self.failed.emit(f"{type(exc).__name__}: {exc}")
             return
         tip = data.get("tip") if isinstance(data, dict) else ""
+        rain = data.get("rain") if isinstance(data, dict) else None
+        date = data.get("date") if isinstance(data, dict) else ""
+        city = (data.get("city") if isinstance(data, dict) else "") or self._city or "后端默认城市"
+        # 控制台留一行结果，人工验收时能直接看出查没查到、有没有雨
+        print(f"[weather-tip] {city} {date} rain={rain} tip={tip or '-'}", flush=True)
         if tip:
             self.tip.emit(str(tip))

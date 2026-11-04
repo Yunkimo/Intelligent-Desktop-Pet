@@ -90,3 +90,75 @@ def test_worker_failure_is_silent(monkeypatch):
 
     assert tips == []
     assert "boom" in errors[0]
+
+
+def test_fired_state_survives_restart(tmp_path):
+    """重启桌宠后同一晚不应再弹一次。"""
+    state = tmp_path / "weather-tip.json"
+    fired = []
+    clock = _FakeClock(datetime(2026, 11, 4, 21, 5))
+
+    first = WeatherTipMonitor(21, state_path=state, clock=clock)
+    first.check_due.connect(lambda: fired.append(1))
+    first._check()
+
+    second = WeatherTipMonitor(21, state_path=state, clock=clock)
+    second.check_due.connect(lambda: fired.append(1))
+    second._check()
+
+    assert len(fired) == 1
+    assert state.exists()
+
+
+def test_state_file_next_day_fires_again(tmp_path):
+    state = tmp_path / "weather-tip.json"
+    fired = []
+    clock = _FakeClock(datetime(2026, 11, 4, 21, 5))
+    WeatherTipMonitor(21, state_path=state, clock=clock)._check()
+
+    clock.now = datetime(2026, 11, 5, 21, 5)
+    monitor = WeatherTipMonitor(21, state_path=state, clock=clock)
+    monitor.check_due.connect(lambda: fired.append(1))
+    monitor._check()
+
+    assert len(fired) == 1
+
+
+def test_corrupt_state_file_does_not_block(tmp_path):
+    state = tmp_path / "weather-tip.json"
+    state.write_text("{ not json", encoding="utf-8")
+    fired = []
+    monitor = WeatherTipMonitor(
+        21, state_path=state, clock=_FakeClock(datetime(2026, 11, 4, 21, 5))
+    )
+    monitor.check_due.connect(lambda: fired.append(1))
+
+    monitor._check()
+
+    assert len(fired) == 1
+
+
+def test_client_omits_city_when_empty(monkeypatch):
+    """城市留空时不传 query，由后端用 WEATHER_TIP_CITY。"""
+    import pet.backend_client as module
+
+    seen = {}
+
+    class _Resp:
+        status_code = 200
+
+        def json(self):
+            return {"rain": False}
+
+    monkeypatch.setattr(
+        module.httpx,
+        "request",
+        lambda method, url, **kw: (seen.update(url=url), _Resp())[1],
+    )
+    client = module.BackendClient("http://x", "key")
+
+    client.get_tomorrow_weather("")
+    assert seen["url"].endswith("/api/weather/tomorrow")
+
+    client.get_tomorrow_weather("北京")
+    assert "city=%E5%8C%97%E4%BA%AC" in seen["url"]

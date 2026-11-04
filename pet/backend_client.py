@@ -90,11 +90,15 @@ class BackendClient:
     def logout(self):
         return self._request("POST", "/api/auth/logout")
 
-    def get_tomorrow_weather(self, city: str) -> dict:
-        """查次日天气提示（带伞判断）。后端按城市/日期缓存，独立于桌宠在线状态。"""
+    def get_tomorrow_weather(self, city: str = "") -> dict:
+        """查次日天气提示（带伞判断）。city 留空时由后端用 WEATHER_TIP_CITY。
+
+        后端当前要求 city 必填；留空会返回 422，由调用方静默处理。
+        """
         from urllib.parse import quote
 
-        return self._request("GET", f"/api/weather/tomorrow?city={quote(city)}")
+        query = f"?city={quote(city)}" if city else ""
+        return self._request("GET", f"/api/weather/tomorrow{query}")
 
     # ---------- 健康检查（无鉴权） ----------
     def health(self) -> dict:

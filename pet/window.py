@@ -822,7 +822,11 @@ class PetWindow(QWidget):
     def _init_weather_tip(self) -> None:
         """每晚到点查一次次日天气；有雨弹带伞气泡，语音随 enable_voice。"""
         self._weather_tip_workers: list[WeatherTipWorker] = []
-        self.weather_tip = WeatherTipMonitor(self.settings.weather_tip_hour, parent=self)
+        self.weather_tip = WeatherTipMonitor(
+            self.settings.weather_tip_hour,
+            state_path=self.settings.weather_tip_state_path,
+            parent=self,
+        )
         self.weather_tip.check_due.connect(self._check_weather_tip)
         if self.settings.weather_tip_enabled:
             self.weather_tip.start()
