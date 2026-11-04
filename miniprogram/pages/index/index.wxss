@@ -108,3 +108,97 @@
   color: #747d8c;
   font-size: 24rpx;
 }
+
+/* ===== 明日带伞提示卡片 ===== */
+.weather-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.weather-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.weather-title {
+  display: flex;
+  align-items: baseline;
+}
+
+.weather-city {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #4a90d9;
+}
+
+.weather-date {
+  margin-left: 12rpx;
+  color: #747d8c;
+  font-size: 26rpx;
+}
+
+.weather-updated {
+  color: #a4b0be;
+  font-size: 22rpx;
+}
+
+.weather-headline {
+  margin-top: 12rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.weather-headline.weather-rain {
+  color: #2f9e44;
+}
+
+.weather-headline.weather-muted {
+  color: #a4b0be;
+}
+
+.weather-sub {
+  margin-top: 4rpx;
+  color: #747d8c;
+  font-size: 24rpx;
+}
+
+.weather-actions {
+  margin-top: 12rpx;
+  display: flex;
+  align-items: center;
+}
+
+.weather-retry {
+  color: #4a90d9;
+  font-size: 26rpx;
+  margin-right: 16rpx;
+}
+
+.weather-sub-status {
+  color: #2f9e44;
+  font-size: 24rpx;
+  margin-right: 16rpx;
+}
+
+.weather-note {
+  margin-top: 8rpx;
+  color: #a4b0be;
+  font-size: 22rpx;
+}
+
+/* 城市选择 */
+.city-chips {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 8rpx 0 16rpx;
+}
+
+.city-chip {
+  margin: 6rpx;
+  padding: 8rpx 20rpx;
+  background: #eef4fb;
+  color: #4a90d9;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+}

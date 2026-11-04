@@ -332,6 +332,16 @@ module.exports = {
 
   // 账号（B8 契约见 docs/b8-accounts.md）：me 查当前业务账号，logout 撤销当前会话
   authMe: () => request('/api/auth/me'),
+
+  // 带伞提醒（B 契约见 weather-subscriptions.md；订阅接口仅微信会话，普通卡片为业务会话）
+  getWeatherTomorrow: (city) => request('/api/weather/tomorrow?city=' + encodeURIComponent(city)),
+  weatherPrepare: (city) => request('/api/weather/subscriptions', { method: 'POST', data: { city } }),
+  weatherAuthorize: (eventId, payload) =>
+    request(`/api/weather/subscriptions/${eventId}/authorization`, { method: 'POST', data: payload }),
+  getWeatherSubscriptions: () => request('/api/weather/subscriptions'),
+  getWeatherSubscription: (id) => request(`/api/weather/subscriptions/${id}`),
+  cancelWeatherSubscription: (id) =>
+    request(`/api/weather/subscriptions/${id}`, { method: 'DELETE' }),
   authLogout: (token) =>
     rawRequest('/api/auth/logout', {
       method: 'POST',

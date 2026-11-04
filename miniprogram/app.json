@@ -4,7 +4,8 @@
     "pages/schedule/schedule",
     "pages/task/task",
     "pages/reminder/reminder",
-    "pages/semester/semester"
+    "pages/semester/semester",
+    "pages/weather-detail/weather-detail"
   ],
   "window": {
     "navigationBarBackgroundColor": "#4a90d9",
