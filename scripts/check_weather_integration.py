@@ -40,6 +40,7 @@ def temporary_test_dir() -> Iterator[str]:
 def main() -> int:
     """运行集成回归并始终关闭子进程、清理临时数据库。"""
     root = Path(__file__).resolve().parents[1]
+    backend_dir = Path(os.environ.get("BACKEND_DIR", str(root / "backend")))
     node = os.environ.get("NODE_BINARY") or shutil.which("node")
     if not node:
         raise RuntimeError("需要 Node 22+，可通过 NODE_BINARY 指定路径")
@@ -49,7 +50,7 @@ def main() -> int:
     with temporary_test_dir() as directory:
         env = os.environ.copy()
         env.update(
-            PYTHONPATH=str(root / "backend"),
+            PYTHONPATH=str(backend_dir),
             PYTHONUTF8="1",
             API_TOKEN=secrets.token_hex(24),
             DB_PATH=str(Path(directory) / "test.db"),
@@ -63,6 +64,11 @@ def main() -> int:
             LLM_API_KEY="",
             WEATHER_TEST_PORT=str(port),
             TZ="Asia/Shanghai",
+        )
+        env.update(
+            WEATHER_WX_TEMPLATE_ID="test",
+            WEATHER_WX_TEMPLATE_FIELDS='{"thing2":"title","date4":"target_date","thing10":"city"}',
+            WEATHER_WX_PAGE="pages/index/index",
         )
         with (Path(directory) / "server.log").open("w", encoding="utf-8") as log:
             process = subprocess.Popen(

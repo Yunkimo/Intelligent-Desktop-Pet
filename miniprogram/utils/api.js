@@ -330,8 +330,10 @@ module.exports = {
   getCalendar: (date) =>
     request('/api/calendar' + (date ? '?date=' + encodeURIComponent(date) : '')),
 
-  // 账号（B8 契约见 docs/b8-accounts.md）：me 查当前业务账号，logout 撤销当前会话
+  // 账号（B8 契约见 docs/b8-accounts.md）：me 查当前业务账号，logout 撤销当前会话，
+  // pairing 生成桌宠跨端配对码（5 分钟有效，桌宠端 POST /api/auth/device 消费）
   authMe: () => request('/api/auth/me'),
+  authPairing: () => request('/api/auth/pairing', { method: 'POST' }),
 
   // 带伞提醒（B 契约见 weather-subscriptions.md；订阅接口仅微信会话，普通卡片为业务会话）
   getWeatherTomorrow: (city) => request('/api/weather/tomorrow?city=' + encodeURIComponent(city)),

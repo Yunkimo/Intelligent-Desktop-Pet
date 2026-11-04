@@ -1,0 +1,7 @@
+PASS 准备事件幂等：同用户同城市返回同一 event_id
+PASS 登记授权：accept→pending，reject→rejected，同 request_id 幂等
+PASS 列表与详情返回本人事件，他人事件 404
+PASS 取消未发送事件后状态为 cancelled，再取消 404/409 不重复
+PASS 天气卡片：明天接口按会话返回长沙预报（模拟上游）
+
+全部通过：5 项
