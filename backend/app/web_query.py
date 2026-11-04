@@ -313,7 +313,8 @@ class WebQueryClient:
             392,
             395,
         }
-        dry_codes = {113, 116, 119, 122, 143, 248, 260}
+        # 上游的 Haze / Smoke / Smoky haze / Smog 均不属于降水。
+        dry_codes = {113, 116, 119, 122, 125, 143, 146, 149, 152, 248, 260}
         try:
             data = json.loads(body)
             days = [day for day in data["weather"] if day["date"] == target_date]
