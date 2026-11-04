@@ -38,6 +38,7 @@ from .tools import build_tools
 from .tray import TrayIcon
 from .tts import TTSEngine
 from .usage import UsageStore
+from .weather_tip import WeatherTipMonitor, WeatherTipWorker
 from .worker import ASRWorker, ChatWorker, TTSWorker
 
 _GAP = 8
@@ -137,6 +138,7 @@ class PetWindow(QWidget):
         self._init_audio()
         self._init_hotkey()
         self._init_health()
+        self._init_weather_tip()
 
         # 托盘：左键显隐；关闭窗口时按 tray_enabled 决定隐藏还是真正退出
         self._quitting = False
@@ -817,6 +819,35 @@ class PetWindow(QWidget):
         if self.settings.enable_voice:
             self._speak(text)
 
+    def _init_weather_tip(self) -> None:
+        """每晚到点查一次次日天气；有雨弹带伞气泡，语音随 enable_voice。"""
+        self._weather_tip_workers: list[WeatherTipWorker] = []
+        self.weather_tip = WeatherTipMonitor(self.settings.weather_tip_hour, parent=self)
+        self.weather_tip.check_due.connect(self._check_weather_tip)
+        if self.settings.weather_tip_enabled:
+            self.weather_tip.start()
+
+    def _check_weather_tip(self) -> None:
+        """触发一次天气查询；失败静默，避免未绑定账号时反复报错。"""
+        worker = WeatherTipWorker(self.backend, self.settings.weather_tip_city, parent=self)
+        worker.tip.connect(self._on_weather_tip)
+        worker.failed.connect(lambda msg: print(f"[weather-tip] {msg}"))
+        self._weather_tip_workers.append(worker)
+        worker.finished.connect(lambda w=worker: self._release_weather_tip_worker(w))
+        worker.start()
+
+    def _release_weather_tip_worker(self, worker: WeatherTipWorker) -> None:
+        if worker in self._weather_tip_workers:
+            self._weather_tip_workers.remove(worker)
+        worker.deleteLater()
+
+    def _on_weather_tip(self, tip: str) -> None:
+        """弹出带伞提示；语音开关与健康提醒共用同一开关。"""
+        self.show_hint(tip)
+        self.avatar.react("poke")
+        if self.settings.enable_voice:
+            self._speak(tip)
+
     def _account_expired(self):
         if not self._auth_notice_shown:
             self._auth_notice_shown = True
@@ -1009,6 +1040,9 @@ class PetWindow(QWidget):
         if self.hotkey is not None:
             self.hotkey.stop()
         self.health.stop()
+        getattr(self, "weather_tip", None) and self.weather_tip.stop()
+        for worker in getattr(self, "_weather_tip_workers", []):
+            worker.wait(2000)
         for listener in self._ws_threads:
             listener.request_stop()
         for listener in self._ws_threads:

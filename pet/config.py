@@ -121,6 +121,13 @@ class Settings:
         self.health_enabled: bool = bool(data.get("health_enabled", True))
         self.sedentary_interval_min: int = int(data.get("sedentary_interval_min", 45))
 
+        # 天气提示：每晚定时查次日是否有雨，有雨弹带伞气泡；可与健康提醒共用语音开关
+        self.weather_tip_enabled: bool = bool(data.get("weather_tip_enabled", True))
+        self.weather_tip_city: str = str(data.get("weather_tip_city", "北京")).strip() or "北京"
+        self.weather_tip_hour: int = self._bounded_int(
+            data.get("weather_tip_hour", 21), "weather_tip_hour", 0, 23
+        )
+
         # Claude Code 回合状态监控（默认关闭，右键菜单可开）
         self.monitor_claude: bool = bool(data.get("monitor_claude", False))
         # Codex 回合状态监控（默认关闭，独立于 Claude）

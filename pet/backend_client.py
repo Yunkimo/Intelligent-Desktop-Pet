@@ -90,6 +90,12 @@ class BackendClient:
     def logout(self):
         return self._request("POST", "/api/auth/logout")
 
+    def get_tomorrow_weather(self, city: str) -> dict:
+        """查次日天气提示（带伞判断）。后端按城市/日期缓存，独立于桌宠在线状态。"""
+        from urllib.parse import quote
+
+        return self._request("GET", f"/api/weather/tomorrow?city={quote(city)}")
+
     # ---------- 健康检查（无鉴权） ----------
     def health(self) -> dict:
         """GET /api/health，返回后端健康状态。"""
