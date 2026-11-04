@@ -1,6 +1,7 @@
 // 学期设置页：配置第一周的周一与总周数，整体保存到后端（PUT，见 B6 契约）。
 // 时区不在此页设置：省略 timezone 时后端默认 Asia/Shanghai。
 // C9 起同页展示登录账号（B8 会话）与退出登录入口。
+const api = require('../../utils/api');
 const semester = require('../../utils/semester');
 const session = require('../../utils/session');
 const { isMonday } = require('../../utils/datetime');
@@ -19,6 +20,8 @@ Page({
     currentText: '',
     loginAccount: '',
     loggingOut: false,
+    pairingCode: '',
+    pairingBusy: false,
   },
 
   onShow() {
@@ -107,6 +110,30 @@ Page({
     } finally {
       this.setData({ loggingOut: false });
     }
+  },
+
+  // 生成桌宠配对码（B8 契约：5 分钟有效，交给桌宠一次性消费）
+  async generatePairing() {
+    if (this.data.pairingBusy || this.data.loggedOut) {
+      return;
+    }
+    this.setData({ pairingBusy: true, pairingCode: '' });
+    try {
+      const result = await api.authPairing();
+      this.setData({ pairingCode: result.pairing_code || '' });
+      wx.showToast({ title: '配对码已生成（5 分钟内有效）', icon: 'none' });
+    } catch (err) {
+      wx.showToast({ title: (err && err.message) || '生成失败', icon: 'none' });
+    } finally {
+      this.setData({ pairingBusy: false });
+    }
+  },
+
+  copyPairing() {
+    if (!this.data.pairingCode) {
+      return;
+    }
+    wx.setClipboardData({ data: this.data.pairingCode });
   },
 
   // 退出登录：撤销会话、清理账号缓存并返回（业务数据仍归账号，不受影响）

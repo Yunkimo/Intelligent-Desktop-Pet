@@ -33,6 +33,15 @@
       <view class="picker-value">{{loggedOut ? '未登录' : (loginAccount ? '业务账号 #' + loginAccount : '未登录')}}</view>
       <text class="hint">课程、日程、学期按账号隔离；同一账号可在桌宠端配对查看。</text>
     </view>
+    <view wx:if="{{!loggedOut}}" class="form-item">
+      <text class="label">桌宠配对码</text>
+      <view wx:if="{{pairingCode}}" class="pairing-row">
+        <view class="pairing-code">{{pairingCode}}</view>
+        <button class="btn btn-ghost mini" bindtap="copyPairing">复制</button>
+      </view>
+      <text wx:else class="hint">生成后 5 分钟内有效，在桌宠端输入即与当前账号配对。</text>
+      <button class="btn btn-primary save-btn" disabled="{{pairingBusy}}" loading="{{pairingBusy}}" bindtap="generatePairing">{{pairingCode ? '重新生成' : '生成配对码'}}</button>
+    </view>
     <button wx:if="{{loggedOut}}" class="btn btn-primary" disabled="{{loggingOut}}" loading="{{loggingOut}}" bindtap="login">登录</button>
     <button wx:else class="btn btn-ghost" disabled="{{loggingOut}}" loading="{{loggingOut}}" bindtap="logout">退出登录</button>
   </view>

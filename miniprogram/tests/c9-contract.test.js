@@ -164,6 +164,22 @@ async function main() {
     assert.ok(Array.isArray(courses), '手动登录后请求恢复');
   });
 
+  await check('配对码：已登录生成 5 分钟有效，未登录被拒', async () => {
+    switchUser('alice');
+    await api.getCourses();
+    const pairing = await api.authPairing();
+    assert.ok(typeof pairing.pairing_code === 'string' && pairing.pairing_code.length > 0);
+    assert.strictEqual(pairing.expires_in, 300);
+    // 显式退出（保持未登录）时请求业务接口应被拒绝
+    await session.logout();
+    const err = await api.authPairing().then(
+      () => null,
+      (e) => e
+    );
+    assert.ok(err && err.loggedOut, '退出后不自动重登，配对码接口同样拒绝');
+    await session.login();
+  });
+
   await check('WS 握手使用会话令牌成功（令牌有效不被拒绝）', async () => {
     switchUser('alice');
     await api.getCourses(); // 确保会话
