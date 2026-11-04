@@ -96,6 +96,13 @@ def init_db() -> None:
         conn.execute("BEGIN IMMEDIATE")
         recurrence.migrate(conn)
 
+    accounts.backup_before_upgrade(version=5, label="weather-subscriptions")
+    from . import weather_subscriptions
+
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        weather_subscriptions.migrate(conn)
+
 
 def _get_by_id(table: str, row_id: int, user_id: int = 1) -> dict | None:
     with _conn() as conn:

@@ -246,6 +246,24 @@ cd backend && .venv\Scripts\python run.py   :: 监听 8001
 
 快速验证：把 `sedentary_interval_min` 临时改成 `1`，持续动键鼠约 1 分钟即触发；验完改回 `45`。
 
+### 天气提示 / 带伞提醒
+
+桌宠每晚到点查一次**次日天气**（后端接口 `GET /api/weather/tomorrow`），有雨时弹气泡「明天有小雨，记得带伞」并按语音开关决定是否播报。同一晚只提醒一次，跨天自动复位；网络失败或未绑定账号时静默跳过，不反复打扰。
+
+`config.json`：
+
+```jsonc
+"weather_tip_enabled": true,   // 总开关
+"weather_tip_city": "",        // 留空 = 跟随后端 WEATHER_TIP_CITY；填了就覆盖
+"weather_tip_hour": 21         // 每天几点触发（0-23）
+```
+
+城市默认**跟随后端**（`backend/.env` 的 `WEATHER_TIP_CITY`，默认北京），两端只配一处；需要本机单独查别的城市时再填 `weather_tip_city`。触发日期记在 `data/weather-tip.json`，重启桌宠不会重复弹。
+
+> 注意：后端 `/api/weather/tomorrow` 目前 `city` 是必填参数。城市留空时请求不带该参数，需要后端把它改成可选并默认取 `WEATHER_TIP_CITY`（已提给 B）；在后端支持前，请先在这里填一个城市。
+
+快速验证：把 `weather_tip_hour` 临时改成当前小时，重启桌宠即可立即触发一次；验完改回 `21`。
+
 ### 实时接收（A4）
 
 `WsListener` 维持 WebSocket 长连接（`/ws`），按事件类型处理：

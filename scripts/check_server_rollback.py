@@ -202,6 +202,8 @@ def exercise(repo: Path, previous: str, current: str, directory: Path) -> dict:
     expected = [1, 2, 3] if (new / "backend/app/accounts.py").exists() else [1, 2]
     if (new / "backend/app/recurrence.py").exists():
         expected = [1, 2, 3, 4]
+    if (new / "backend/app/weather_subscriptions.py").exists():
+        expected = [1, 2, 3, 4, 5]
     if after[0] != expected or "wechat_user_id" not in after[1]:
         raise RuntimeError("没有验证到预期版本迁移")
     if 3 in expected and "user_id" not in after[1]:

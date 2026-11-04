@@ -117,3 +117,20 @@ if WEATHER_TIP_ENABLED not in {"true", "false"}:
     raise ValueError("WEATHER_TIP_ENABLED 必须为 true 或 false")
 WEATHER_TIP_ENABLED = WEATHER_TIP_ENABLED == "true"
 WEATHER_TIP_CITY = os.getenv("WEATHER_TIP_CITY", "北京").strip()
+
+# 天气订阅独立配置；不能覆盖既有日程消息的模板映射。
+WEATHER_WX_TEMPLATE_ID = os.getenv("WEATHER_WX_TEMPLATE_ID", "").strip()
+WEATHER_WX_TEMPLATE_FIELDS = json.loads(os.getenv("WEATHER_WX_TEMPLATE_FIELDS", "{}"))
+if not isinstance(WEATHER_WX_TEMPLATE_FIELDS, dict) or not all(
+    isinstance(key, str)
+    and isinstance(value, str)
+    and (
+        (re.fullmatch(r"thing[0-9]+", key) and value in {"title", "city", "tip"})
+        or (re.fullmatch(r"date[0-9]+", key) and value == "target_date")
+    )
+    for key, value in WEATHER_WX_TEMPLATE_FIELDS.items()
+):
+    raise ValueError("WEATHER_WX_TEMPLATE_FIELDS 仅支持 thingN=title/city/tip、dateN=target_date")
+WEATHER_WX_PAGE = os.getenv("WEATHER_WX_PAGE", "pages/index/index").strip()
+if not re.fullmatch(r"pages/[A-Za-z0-9_/-]+", WEATHER_WX_PAGE):
+    raise ValueError("WEATHER_WX_PAGE 必须是小程序 pages 下的页面路径")

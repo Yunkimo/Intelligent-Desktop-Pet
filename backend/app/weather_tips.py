@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import re
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -26,7 +27,10 @@ class WeatherTips:
                     "SELECT payload FROM weather_tip_cache WHERE city=? AND target_date=?", key
                 ).fetchone()
             if row:
-                return json.loads(row[0])
+                cached = json.loads(row[0])
+                # 旧版本可能缓存英文描述；重新获取并覆盖，而不是继续复用到午夜。
+                if not re.search(r"[A-Za-z]", cached.get("desc", "") + cached.get("tip", "")):
+                    return cached
             failure = self.failures.get(key)
             if failure and now.timestamp() - failure < 60:
                 return {
@@ -60,13 +64,18 @@ class WeatherTips:
             }
             with db._conn() as conn:
                 conn.execute(
-                    "INSERT OR IGNORE INTO weather_tip_cache VALUES (?,?,?)",
+                    "INSERT INTO weather_tip_cache VALUES (?,?,?) "
+                    "ON CONFLICT(city,target_date) DO UPDATE SET payload=excluded.payload",
                     (*key, json.dumps(result, ensure_ascii=False)),
                 )
                 if result["rain"]:
                     conn.execute(
-                        "INSERT OR IGNORE INTO weather_tips VALUES (?,?,?)", (*key, result["tip"])
+                        "INSERT INTO weather_tips VALUES (?,?,?) "
+                        "ON CONFLICT(city,target_date) DO UPDATE SET tip=excluded.tip",
+                        (*key, result["tip"]),
                     )
+                else:
+                    conn.execute("DELETE FROM weather_tips WHERE city=? AND target_date=?", key)
                 # 只保留近期天气，避免城市/日期缓存永久增长。
                 conn.execute(
                     "DELETE FROM weather_tip_cache WHERE target_date<?",

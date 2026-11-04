@@ -164,7 +164,16 @@ def test_one_shot_unchanged(client):
 
 @pytest.mark.parametrize(
     "code,rain,desc",
-    [(113, False, "晴"), (296, True, "小雨"), (389, True, "雷阵雨"), (338, True, "大雪")],
+    [
+        (113, False, "晴"),
+        (125, False, "Haze"),
+        (146, False, "Smoke"),
+        (149, False, "Smoky haze"),
+        (152, False, "Smog"),
+        (296, True, "小雨"),
+        (389, True, "雷阵雨"),
+        (338, True, "大雪"),
+    ],
 )
 def test_structured_forecast_cache_idempotent(client, code, rain, desc):
     calls = []
