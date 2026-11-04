@@ -17,11 +17,13 @@ from .routers import (
     semester,
     tasks,
     weather,
+    weather_subscriptions,
     web_query,
     wechat,
     ws,
 )
 from .scheduler import Scheduler
+from .weather_dispatcher import WeatherDispatcher
 from .weather_tips import WeatherTips
 from .web_query import WebQueryClient, validate_input
 from .wechat_client import WeChatClient
@@ -45,8 +47,16 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         config.WS_SEND_TIMEOUT_SECONDS, config.WS_CLOSE_TIMEOUT_SECONDS, _app.state.wechat_client
     )
     _app.state.wechat_dispatcher = WeChatDispatcher(_app.state.push_service.send_wechat_msg)
+    _app.state.weather_dispatcher = WeatherDispatcher(
+        _app.state.weather_tips, _app.state.wechat_client.send_weather
+    )
+
+    async def dispatch_phone():
+        ordinary = await _app.state.wechat_dispatcher.run_once()
+        return ordinary + await _app.state.weather_dispatcher.run_once()
+
     _app.state.scheduler = Scheduler(
-        _app.state.push_service.broadcast, phone_dispatch=_app.state.wechat_dispatcher.run_once
+        _app.state.push_service.broadcast, phone_dispatch=dispatch_phone
     )
     if config.SCHEDULER_ENABLED:
         _app.state.scheduler.start()
@@ -75,6 +85,7 @@ app.include_router(ws.router)
 app.include_router(wechat.router)
 app.include_router(web_query.router)
 app.include_router(weather.router)
+app.include_router(weather_subscriptions.router)
 
 
 @app.get("/api/health")
