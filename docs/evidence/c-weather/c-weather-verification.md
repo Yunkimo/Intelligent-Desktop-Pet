@@ -18,8 +18,11 @@
 
 - `scripts/check_weather_integration.py` 已就绪：真实后端 + 临时库 + 模拟微信/天气上游，
   覆盖准备事件幂等、授权登记与 409、列表/详情/取消、账号隔离 404、天气卡片会话读取。
-  **B 的订阅后端尚未合入仓库**（仅部署在云端），脚本当前明确 SKIP 退出 0，CI 保持绿色；
-  合入后自动执行。
+  **已对 B 的分支 `fix/weather-tip-codes`（head 04339be）真实联调 5/5 通过**
+  （`BACKEND_DIR=<B 分支检出>/backend python scripts/check_weather_integration.py`，
+  完整输出见 [real-backend-integration.txt](real-backend-integration.txt)）。
+  B 尚未把该分支合入 develop：仓库内运行时脚本明确 SKIP 退出 0，CI 保持绿色，
+  合入后 CI 步骤自动转真跑。
 - 云端接口存在性已实测（2026-11-04，https://www.shynb.beer）：
   `GET /api/weather/tomorrow` → 401（路由已部署，需会话）；
   `POST /api/weather/subscriptions` → 400（路由已部署，校验先于鉴权）；
