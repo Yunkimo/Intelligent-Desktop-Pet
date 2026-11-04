@@ -17,6 +17,62 @@ from pydantic import BaseModel, Field
 
 from . import config
 
+# 次日预报按代码本地化；wttr.in 的 lang_zh 可能仍返回英文。
+FORECAST_ZH = {
+    113: "晴",
+    116: "多云",
+    119: "阴",
+    122: "阴",
+    125: "霾",
+    143: "薄雾",
+    146: "烟",
+    149: "烟霾",
+    152: "烟雾",
+    248: "雾",
+    260: "冻雾",
+    176: "局部小雨",
+    179: "局部小雪",
+    182: "局部雨夹雪",
+    185: "局部冻毛毛雨",
+    200: "雷暴",
+    227: "风吹雪",
+    230: "暴风雪",
+    263: "局部毛毛雨",
+    266: "毛毛雨",
+    281: "冻毛毛雨",
+    284: "强冻毛毛雨",
+    293: "局部小雨",
+    296: "小雨",
+    299: "局部中雨",
+    302: "中雨",
+    305: "局部大雨",
+    308: "大雨",
+    311: "小冻雨",
+    314: "中到大冻雨",
+    317: "小雨夹雪",
+    320: "中到大雨夹雪",
+    323: "局部小雪",
+    326: "小雪",
+    329: "局部中雪",
+    332: "中雪",
+    335: "局部大雪",
+    338: "大雪",
+    350: "冰粒",
+    353: "阵雨",
+    356: "中到大阵雨",
+    359: "强阵雨",
+    362: "阵性雨夹雪",
+    365: "中到大阵性雨夹雪",
+    368: "阵雪",
+    371: "中到大阵雪",
+    374: "阵性冰粒",
+    377: "中到大阵性冰粒",
+    386: "伴雷阵雨",
+    389: "雷阵雨",
+    392: "伴雷阵雪",
+    395: "强雷阵雪",
+}
+
 
 class WebQueryError(Exception):
     """仅暴露稳定错误码，不包含查询、上游响应或代理凭证。"""
@@ -326,9 +382,7 @@ class WebQueryClient:
                 code = int(hour["weatherCode"])
                 if code not in wet_codes | dry_codes:
                     raise ValueError()
-                desc = _weather_text(hour.get("lang_zh")) or _weather_text(hour.get("weatherDesc"))
-                if not desc:
-                    raise ValueError()
+                desc = FORECAST_ZH[code]
                 descriptions.append(desc)
                 if code in wet_codes:
                     rainy.append(desc)
