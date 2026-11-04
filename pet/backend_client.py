@@ -157,18 +157,19 @@ class BackendClient:
         body: str = "",
         channel: str = "both",
         task_id: int | None = None,
+        repeat_rule: str | None = None,
     ) -> dict:
-        return self._request(
-            "POST",
-            "/api/reminders",
-            json={
-                "title": title,
-                "body": body,
-                "remind_at": remind_at,
-                "channel": channel,
-                "task_id": task_id,
-            },
-        )
+        payload = {
+            "title": title,
+            "body": body,
+            "remind_at": remind_at,
+            "channel": channel,
+            "task_id": task_id,
+        }
+        # 重复提醒按 B5 契约必须独立于日程，不能带 task_id
+        if repeat_rule is not None:
+            payload["repeat_rule"] = repeat_rule
+        return self._request("POST", "/api/reminders", json=payload)
 
     def update_reminder(self, reminder_id: int, **fields) -> dict:
         return self._request("PUT", f"/api/reminders/{reminder_id}", json=fields)

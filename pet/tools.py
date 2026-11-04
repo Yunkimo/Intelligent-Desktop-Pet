@@ -6,7 +6,7 @@ callable 通过闭包绑定到 BackendClient，便于用假后端做单元测试
 
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Callable
 
 import httpx
@@ -155,6 +155,33 @@ def _resolve_day(text: str, dates: list[str]) -> tuple[str, int]:
     return "day", 0
 
 
+def _next_weekday_datetime(token: str, hhmm: str, now: datetime | None = None):
+    """把「周日 + 19:00」换算成下一次的 datetime；解析失败返回 None。
+
+    从今天起算最近的那个星期几；若就是今天且时间已过，则顺延一周。
+    """
+    match = re.search(r"(?:周|星期|礼拜)([一二三四五六日天1-7])", str(token or ""))
+    if not match:
+        return None
+    target = _WEEKDAY_INDEX.get(match.group(1))
+    if target is None:
+        return None
+    clock = re.match(r"^\s*(\d{1,2})[:：](\d{2})\s*$", str(hhmm or ""))
+    if not clock:
+        return None
+    hour, minute = int(clock.group(1)), int(clock.group(2))
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        return None
+    current = now or datetime.now()
+    days_ahead = (target - current.weekday()) % 7
+    candidate = (current + timedelta(days=days_ahead)).replace(
+        hour=hour, minute=minute, second=0, microsecond=0
+    )
+    if candidate <= current:
+        candidate += timedelta(days=7)
+    return candidate
+
+
 def _weekday(date: str) -> str:
     """ISO 日期转「周一」这类中文星期；解析失败返回空串。"""
     try:
@@ -275,8 +302,12 @@ def _fmt_tasks(tasks: list[dict]) -> str:
     return "；".join(parts)
 
 
-def build_tools(backend: BackendClient) -> dict[str, Tool]:
-    """构造工具注册表，所有 callable 绑定到给定 backend。"""
+def build_tools(backend: BackendClient, habits=None) -> dict[str, Tool]:
+    """构造工具注册表，所有 callable 绑定到给定 backend。
+
+    habits 传入 HabitStore 时额外注册「记住 / 忘记习惯」两个工具；不传则保持
+    原有八个工具，方便既有测试与无习惯功能的调用方继续工作。
+    """
 
     def list_courses(**_args) -> str:
         return _fmt_courses(backend.list_courses())
@@ -317,6 +348,25 @@ def build_tools(backend: BackendClient) -> dict[str, Tool]:
             channel=channel,
         )
         return f"已设置提醒「{title}」（{remind_at}）"
+
+    def create_weekly_reminder(
+        title: str, weekday: str, remind_time: str, body: str = "", **_args
+    ) -> str:
+        """每周固定时间的提醒：首次时间由本地算，重复规则交给后端。"""
+        when = _next_weekday_datetime(weekday, remind_time)
+        if when is None:
+            return "没听懂是周几或几点，请说成「周日 19:00」这样"
+        created = backend.create_reminder(
+            title=title,
+            remind_at=when.strftime("%Y-%m-%dT%H:%M"),
+            body=body or f"每周{weekday} {remind_time}",
+            repeat_rule="weekly",
+        )
+        label = f"{when.month} 月 {when.day} 日 {_weekday(when.strftime('%Y-%m-%d'))} {remind_time}"
+        if isinstance(created, dict) and created.get("repeat_rule") != "weekly":
+            # 后端未确认重复规则时如实说明，不谎报「每周都会提醒」
+            return f"已把「{title}」定在 {label}，但后端没有接受每周重复，本次只提醒一次。"
+        return f"已设好「{title}」：{label} 起，桌宠每周{weekday} {remind_time} 都会提醒你。"
 
     def get_weather(city: str, day: str = "今天", **_args) -> str:
         wanted = str(day or "今天").strip()
@@ -380,7 +430,7 @@ def build_tools(backend: BackendClient) -> dict[str, Tool]:
             return f"没有搜到与「{query}」相关的结果"
         return "\n".join(f"- {r.get('title', '')}：{r.get('href', '')}" for r in results)
 
-    return {
+    tools: dict[str, Tool] = {
         "list_courses": Tool(
             "list_courses",
             "查询课表。当主人问今天/明天有什么课、课表安排时调用。",
@@ -460,6 +510,26 @@ def build_tools(backend: BackendClient) -> dict[str, Tool]:
             create_reminder,
             "正在设置提醒…",
         ),
+        "create_weekly_reminder": Tool(
+            "create_weekly_reminder",
+            "每周固定时间的提醒。主人说「以后每个周X …点」「每周X …」时用它；"
+            "只传周几和钟点，日期由工具计算，不要自己换算日期。",
+            {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "提醒标题，如 跑步"},
+                    "weekday": {
+                        "type": "string",
+                        "description": "周几，如 周日 / 星期三 / 礼拜五",
+                    },
+                    "remind_time": {"type": "string", "description": "24 小时制钟点，如 19:00"},
+                    "body": {"type": "string", "description": "提醒正文，可省略"},
+                },
+                "required": ["title", "weekday", "remind_time"],
+            },
+            create_weekly_reminder,
+            "正在设置每周提醒…",
+        ),
         "get_weather": Tool(
             "get_weather",
             "查询城市天气，支持今天到未来一周。主人问天气时调用，并且必须把 day 一起传："
@@ -493,5 +563,50 @@ def build_tools(backend: BackendClient) -> dict[str, Tool]:
             },
             web_search,
             "正在联网搜索…",
+        ),
+    }
+
+    if habits is not None:
+        tools.update(_habit_tools(habits))
+    return tools
+
+
+def _habit_tools(habits) -> dict[str, Tool]:
+    """「记住 / 忘记习惯」两个工具；绑定到传入的 HabitStore。"""
+
+    def remember_habit(text: str, **_args) -> str:
+        ok, message = habits.add(text)
+        print(f"[habits] remember {text!r} -> {ok} {message}", flush=True)
+        return f"已记住：{message}" if ok else f"没记成：{message}"
+
+    def forget_habit(keyword: str, **_args) -> str:
+        removed = habits.forget(keyword)
+        print(f"[habits] forget {keyword!r} -> 删除 {removed} 条", flush=True)
+        return f"忘掉了 {removed} 条相关习惯" if removed else "没找到匹配的习惯"
+
+    return {
+        "remember_habit": Tool(
+            "remember_habit",
+            "记住主人的长期偏好（作息、饮食、学习习惯等）。只记稳定偏好，一次性的临时安排不要记。",
+            {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "description": "一句话描述这条习惯，80 字以内"}
+                },
+                "required": ["text"],
+            },
+            remember_habit,
+            "正在记下…",
+        ),
+        "forget_habit": Tool(
+            "forget_habit",
+            "忘掉与关键词相关的习惯。主人说「别再记着…」时调用。",
+            {
+                "type": "object",
+                "properties": {"keyword": {"type": "string", "description": "要忘掉的关键词"}},
+                "required": ["keyword"],
+            },
+            forget_habit,
+            "正在忘掉…",
         ),
     }

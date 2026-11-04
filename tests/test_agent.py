@@ -158,3 +158,60 @@ def test_no_forced_retry_when_reply_is_not_giving_up():
     agent.run([{"role": "user", "content": "今天天气真好"}])
 
     assert client.forces == [False]  # 没调工具但也没说查不到，不强制
+
+
+def test_forced_retry_for_remember_request_without_tool():
+    """模型口头答应「记住啦」但没调工具时必须强制重试。"""
+    from pet.agent import Agent
+
+    client = _ScriptedClient(
+        [
+            {"content": "记住啦～", "tool_calls": []},
+            {
+                "content": "",
+                "tool_calls": [
+                    {
+                        "id": "t1",
+                        "type": "function",
+                        "function": {
+                            "name": "remember_habit",
+                            "arguments": '{"text":"每天7点起床"}',
+                        },
+                    }
+                ],
+            },
+            {"content": "记好了", "tool_calls": []},
+        ]
+    )
+    tools = {"remember_habit": _tool("remember_habit")}
+    agent = Agent(client, tools)
+
+    agent.run([{"role": "user", "content": "记住我每天 7 点起床"}])
+
+    assert client.forces == [False, True, False]
+
+
+def test_forced_retry_for_forget_request_without_tool():
+    from pet.agent import Agent
+
+    client = _ScriptedClient(
+        [
+            {"content": "好哒，忘掉啦", "tool_calls": []},
+            {
+                "content": "",
+                "tool_calls": [
+                    {
+                        "id": "t2",
+                        "type": "function",
+                        "function": {"name": "forget_habit", "arguments": '{"keyword":"起床"}'},
+                    }
+                ],
+            },
+            {"content": "忘了", "tool_calls": []},
+        ]
+    )
+    agent = Agent(client, {"forget_habit": _tool("forget_habit")})
+
+    agent.run([{"role": "user", "content": "别再记着起床的事了"}])
+
+    assert client.forces == [False, True, False]
