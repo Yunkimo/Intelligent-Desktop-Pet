@@ -83,6 +83,10 @@ LLM_MODEL=deepseek-flash
 
 角标可以**自由拖动**到屏幕任意位置：拖走后自动摆位不再覆盖它，双击角标即可复位回自动跟随（手动位置仅本次运行有效，不持久化）。Claude 与 Codex 两个角标都支持。
 
+角标大小也能调：把鼠标放到角标的**右边缘或下边缘**（光标变成斜向双箭头）按住拖动即可放大/缩小，范围 0.6–2.5 倍；两个角标同步档位，并写入 `config.json` 的 `status_badge_scale`，重启后保持。
+
+角标右键菜单：**显示桌宠** / 监控 Claude / 监控 Codex / 显示状态角标 / 查看余额 / 退出。「显示桌宠」只负责把隐藏到托盘的桌宠重新显示，已可见时只置顶，不会把它收起来。
+
 | 角标 | 含义 |
 |---|---|
 | Claude 处理中… | 已提交提示词，Claude 正在处理 |
@@ -192,6 +196,7 @@ Codex 使用与 Claude 独立的「监控 Codex」右键开关和角标。运行
   "monitor_claude": false,        // Claude Code 回合状态角标（右键可切换）
   "monitor_codex": false,         // Codex 回合状态角标（右键可切换）
   "status_badges_visible": true,  // 状态角标总开关；false 时不显示角标，监控仍运行
+  "status_badge_scale": 1.0,      // 角标缩放（0.6-2.5）；拖拽角标边缘时自动写回
   "tray_enabled": true,           // 系统托盘；false 时关闭窗口直接退出
   "usage_retention_days": 90,     // token 记账按天明细保留天数；总计不裁剪
   "balance_timeout_seconds": 10,  // 账户余额查询超时（秒）

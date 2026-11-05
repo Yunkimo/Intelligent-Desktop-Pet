@@ -28,13 +28,14 @@ def _by_label(window: PetWindow) -> dict:
 def test_badge_menu_order(qapp):
     labels = [command.label for command in _bare_window()._badge_commands()]
 
-    assert labels == ["监控 Claude", "监控 Codex", "显示状态角标", "查看余额", "退出"]
+    assert labels == ["显示桌宠", "监控 Claude", "监控 Codex", "显示状态角标", "查看余额", "退出"]
 
 
 def test_badge_menu_reuses_window_actions(qapp):
     window = _bare_window()
     commands = _by_label(window)
 
+    assert commands["显示桌宠"].checkable is False
     assert commands["监控 Claude"].checkable is True
     assert commands["监控 Claude"].checked() is True
     assert commands["监控 Codex"].checkable is True

@@ -1,4 +1,4 @@
-"""状态角标测试：文案、显隐与颜色样式。"""
+"""状态角标测试：文案、显隐、颜色样式与边缘缩放。"""
 
 from pet.status_badge import StatusBadge
 
@@ -204,3 +204,105 @@ def test_badge_emits_context_menu_request_with_global_pos(qapp):
 
     assert received == [QPoint(100, 200)]
     assert event.isAccepted()
+
+
+# ---------- 边缘拖拽缩放 ----------
+def test_set_scale_clamps_and_restyles(qapp):
+    badge = StatusBadge()
+    badge.set_state("working")
+
+    badge.set_scale(9.0)
+    assert badge.scale == 2.5
+    badge.set_scale(0.1)
+    assert badge.scale == 0.6
+
+    badge.set_scale(1.5)
+    qapp.processEvents()
+    assert "font-size: 17px" in badge.styleSheet()  # 11 * 1.5 ≈ 16.5 → 17
+
+
+def test_edge_drag_resizes_and_emits_scale(qapp):
+    from PyQt6.QtCore import QEvent, QPointF, Qt
+    from PyQt6.QtGui import QMouseEvent
+
+    badge = StatusBadge()
+    badge.set_state("working")
+    qapp.processEvents()
+    width = badge.width()
+    seen = []
+    badge.scale_changed.connect(seen.append)
+
+    edge_point = QPointF(width - 1, badge.height() - 1)
+    press = QMouseEvent(
+        QEvent.Type.MouseButtonPress,
+        edge_point,
+        QPointF(100, 100),
+        Qt.MouseButton.LeftButton,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    badge.mousePressEvent(press)
+    assert badge._resizing is True
+
+    move = QMouseEvent(
+        QEvent.Type.MouseMove,
+        edge_point,
+        QPointF(100 + width // 2, 100),
+        Qt.MouseButton.NoButton,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    badge.mouseMoveEvent(move)
+
+    assert badge.scale > 1.0
+    assert seen and seen[-1] == badge.scale
+
+
+def test_edge_press_enters_resize_instead_of_move(qapp):
+    from PyQt6.QtCore import QEvent, QPointF, Qt
+    from PyQt6.QtGui import QMouseEvent
+
+    badge = StatusBadge()
+    badge.set_state("working")
+    qapp.processEvents()
+
+    press = QMouseEvent(
+        QEvent.Type.MouseButtonPress,
+        QPointF(badge.width() - 1, badge.height() // 2),
+        QPointF(10, 10),
+        Qt.MouseButton.LeftButton,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    badge.mousePressEvent(press)
+
+    assert badge._resizing is True
+    assert badge._press_pos is None  # 没有进入拖拽移动
+
+
+# ---------- 配置持久化 ----------
+def test_update_status_badge_scale_writes_config(monkeypatch, tmp_path):
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    saved = {}
+    monkeypatch.setattr(config.Settings, "_save_json", lambda self, **kw: saved.update(kw))
+    settings = config.Settings()
+
+    settings.update_status_badge_scale(1.75)
+
+    assert settings.status_badge_scale == 1.75
+    assert saved == {"status_badge_scale": 1.75}
+
+
+def test_status_badge_scale_is_clamped_on_update(monkeypatch, tmp_path):
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    settings = config.Settings()
+
+    settings.update_status_badge_scale(99)
+    assert settings.status_badge_scale == 2.5
+
+    settings.update_status_badge_scale(-5)
+    assert settings.status_badge_scale == 0.6

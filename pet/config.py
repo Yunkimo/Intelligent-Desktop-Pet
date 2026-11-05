@@ -138,6 +138,10 @@ class Settings:
         self.monitor_codex: bool = bool(data.get("monitor_codex", False))
         # 状态角标显隐（默认显示；关闭后监控照常运行，只是不弹角标）
         self.status_badges_visible: bool = bool(data.get("status_badges_visible", True))
+        # 角标缩放：拖拽角标边缘调整，写回 config.json 后重启保持
+        self.status_badge_scale: float = self._bounded_float(
+            data.get("status_badge_scale", 1.0), "status_badge_scale", 0.6, 2.5
+        )
 
         # 系统托盘：关闭后右键「隐藏至托盘」置灰，关闭窗口仍直接退出
         self.tray_enabled: bool = bool(data.get("tray_enabled", True))
@@ -240,6 +244,11 @@ class Settings:
         """更新状态角标显隐开关并写回 config.json。"""
         self.status_badges_visible = bool(visible)
         self._save_json(status_badges_visible=self.status_badges_visible)
+
+    def update_status_badge_scale(self, scale: float) -> None:
+        """更新角标缩放并写回 config.json；夹在 0.6-2.5 之间。"""
+        self.status_badge_scale = min(2.5, max(0.6, round(float(scale), 2)))
+        self._save_json(status_badge_scale=self.status_badge_scale)
 
     def switch_persona(self, name: str) -> bool:
         """切换到指定人设（从 personas 预设读取），写回 config.json 并返回是否成功。"""

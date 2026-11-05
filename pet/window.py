@@ -608,11 +608,15 @@ class PetWindow(QWidget):
     # ---------- Claude Code 状态监控 ----------
     def _init_claude_monitor(self) -> None:
         """创建状态角标与监控器；按配置决定是否立即开始轮询。"""
-        self.status_badge = StatusBadge(self)
-        self.codex_status_badge = StatusBadge(self, agent_name="Codex")
+        scale = self.settings.status_badge_scale
+        self.status_badge = StatusBadge(self, scale=scale)
+        self.codex_status_badge = StatusBadge(self, agent_name="Codex", scale=scale)
         # 双击角标复位其手动位置，回到自动摆位
         self.status_badge.position_reset.connect(self._position_status_badge)
         self.codex_status_badge.position_reset.connect(self._position_status_badge)
+        # 拖拽边缘缩放：两个角标同步档位并写回 config.json
+        self.status_badge.scale_changed.connect(self._on_badge_scale_changed)
+        self.codex_status_badge.scale_changed.connect(self._on_badge_scale_changed)
         # 角标显隐是独立于桌宠的用户开关：启动时按配置恢复
         self._status_badges_visible = self.settings.status_badges_visible
         self.status_badge.set_user_visible(self._status_badges_visible)
@@ -679,6 +683,7 @@ class PetWindow(QWidget):
     def _badge_commands(self) -> list[Command]:
         """角标右键的命令表：顺序固定，与桌宠右键菜单共享同一批方法。"""
         return [
+            Command("显示桌宠", self._show_pet),
             Command(
                 "监控 Claude",
                 self._toggle_claude_monitor,
@@ -1023,6 +1028,22 @@ class PetWindow(QWidget):
             self.bubble.show()
             self.bubble.raise_()
         self._reposition_overlays()
+
+    def _show_pet(self) -> None:
+        """角标菜单「显示桌宠」：只负责显示，不切换隐藏。"""
+        if not self.isVisible():
+            self.show_from_tray()
+        else:
+            self.raise_()
+            self._reposition_overlays()
+
+    def _on_badge_scale_changed(self, scale: float) -> None:
+        """拖拽角标边缘缩放后：同步另一个角标、写回配置、重新摆位。"""
+        for badge in (self.status_badge, self.codex_status_badge):
+            if badge.scale != scale:
+                badge.set_scale(scale)
+        self.settings.update_status_badge_scale(scale)
+        self._position_status_badge()
 
     def toggle_tray_visibility(self) -> None:
         """托盘左键：可见则隐藏，不可见则恢复。"""
