@@ -25,7 +25,8 @@ def test_env_override(monkeypatch):
 def test_config_json_fields():
     s = Settings()
     assert s.pet_name == "小萌"  # 运行时可通过「切换人设」更改
-    assert s.whisper_model == "base"
+    assert s.whisper_model == "small"
+    assert s.asr_ai_correction is True
     assert s.tts_voice == "zh-CN-XiaoxiaoNeural"
     assert s.max_history > 0
 

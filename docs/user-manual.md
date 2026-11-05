@@ -55,7 +55,9 @@ LLM_MODEL=deepseek-flash
 
 > 首次识别会按 `whisper_model` 下载模型，体积和许可证随具体模型与版本变化。下载期间需要网络；模型及在线语音服务的边界见[第三方说明](../THIRD_PARTY_NOTICES.md)。
 
-语音识别在送入模型前会做**峰值归一化**（音量过低也能稳定识别），识别时启用 **VAD**（过滤静音与噪音段），并用**领域热词**做提示引导——课表、日程、提醒等高频词默认已配好，可在 `config.json` 的 `asr_hotwords` 里改成自己的课程名、人名、地名（空格分隔），提升专有词识别率。首次使用 VAD 会额外下载一个小体积的 Silero VAD 模型。
+语音识别默认使用 Whisper `small`，在本机对录音做峰值归一化和静音检测。可在 `config.json` 的 `asr_hotwords` 中填入课程名、人名或地名，用空格分隔。
+
+右键菜单的「AI 语音纠错」会把转写文字发给已配置的对话模型校对。录音由本地模型处理。校对后可在输入框修改文字，再按回车发送。未配置模型或服务异常时，输入框保留原转写供确认。关闭纠错后恢复转写完成即发送。
 
 ## 4. 使用说明
 
@@ -64,7 +66,7 @@ LLM_MODEL=deepseek-flash
 | 按住宠物拖动 | 移动位置 |
 | 点击宠物 | 唤出 / 收起输入框 |
 | 输入文字后回车 | 发送，宠物流式回复并语音播报 |
-| 点输入框右侧 🎤 | 开始录音（变 ⏹）；再点停止，转写后发送 |
+| 点输入框右侧 🎤 | 开始录音（变 ⏹），再点停止并转写。开启 AI 纠错时按回车确认发送 |
 | 按 Esc | 收起输入框 |
 | 右键宠物 | 弹出命令菜单，顶部为「隐藏至托盘」 |
 | 右键勾选「语音输出」 | 关闭后不再朗读回复（仍可正常对话）；状态写入 `config.json` 的 `enable_voice` |
@@ -188,7 +190,8 @@ Codex 使用与 Claude 独立的「监控 Codex」右键开关和角标。运行
   "sprite_size": 180,
   "tts_voice": "zh-CN-XiaoxiaoNeural", // 音色；旧默认 Xiaoyou 在加载时迁移
   "tts_rate": "+10%", "tts_pitch": "+20Hz",
-  "whisper_model": "base",        // 识别精度：base/small/medium
+  "whisper_model": "small",       // 本地识别模型：base/small/medium
+  "asr_ai_correction": true,      // 使用已配置的对话模型校对，回车确认后发送
   "asr_hotwords": "课表 日程 提醒 …", // 识别热词（空格分隔），引导专有词识别
   "habits_enabled": true,         // 生活习惯记忆总开关；false 时不注入、不暴露入口
   "habits_max": 50,               // 最多记住多少条习惯

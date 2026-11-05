@@ -151,6 +151,7 @@ class PetWindow(QWidget):
         # worker 引用（保持存活，防被 GC）
         self.chat_worker: ChatWorker | None = None
         self.asr_worker: ASRWorker | None = None
+        self._close_after_asr = False
         self.tts_worker: TTSWorker | None = None
         self._tts_tmp: str | None = None
         self._tool_status_active = False
@@ -351,6 +352,14 @@ class PetWindow(QWidget):
         commands.append(Command("切换图片…", self._choose_image))
         commands.append(Submenu(self._build_persona_menu()))
         commands.append(Command("设置语音快捷键…", self._set_voice_hotkey))
+        commands.append(
+            Command(
+                "AI 语音纠错（文字发往对话模型）",
+                lambda: self.settings.update_asr_ai_correction(not self.settings.asr_ai_correction),
+                checkable=True,
+                checked=lambda: self.settings.asr_ai_correction,
+            )
+        )
         commands.append(Command("生活习惯…", self._show_habit_dialog))
         commands.append(
             Command(
@@ -582,11 +591,25 @@ class PetWindow(QWidget):
             self._stop_recording()
 
     def _start_recording(self) -> None:
-        if self.asr_worker is not None and self.asr_worker.isRunning():
+        if self.asr_worker is not None:
             return
-        self.asr_worker = ASRWorker(self.asr_engine, self.settings.max_record_secs, parent=self)
+        if self.chat_worker is not None and self.chat_worker.isRunning():
+            self.input.set_listening(False)
+            return
+        correct = self.llm.provider.correct_transcript if self.settings.llm_api_key else None
+        self.asr_worker = ASRWorker(
+            self.asr_engine,
+            self.settings.max_record_secs,
+            parent=self,
+            review=self.settings.asr_ai_correction,
+            correct=correct,
+        )
+        self.input.set_listening(True)
         self.asr_worker.text.connect(self._on_asr_text)
+        self.asr_worker.draft.connect(self._on_asr_draft)
+        self.asr_worker.status.connect(self._on_asr_status)
         self.asr_worker.error.connect(self._on_asr_error)
+        self.asr_worker.finished.connect(self._on_asr_finished)
         self.asr_worker.start()
 
     def _stop_recording(self) -> None:
@@ -594,12 +617,44 @@ class PetWindow(QWidget):
             self.asr_worker.request_stop()
 
     def _on_asr_text(self, text: str) -> None:
+        if self._close_after_asr:
+            return
         self.input.set_listening(False)
         if text:
             self.input.edit.setText(text)
             self.send_text(text)
         else:
             self.bubble.set_text("没听清，再说一次嘛～")
+
+    def _on_asr_status(self, message: str) -> None:
+        self.input.set_listening(False)
+        self.input.mic.setEnabled(False)
+        self.bubble.set_text(message)
+
+    def _on_asr_finished(self) -> None:
+        worker = self.sender()
+        worker.deleteLater()
+        if worker is self.asr_worker:
+            self.asr_worker = None
+            if self._close_after_asr:
+                self.close()
+                return
+            if self.chat_worker is None or not self.chat_worker.isRunning():
+                self.input.mic.setEnabled(True)
+
+    def _on_asr_draft(self, text: str) -> None:
+        if self._close_after_asr:
+            return
+        self.input.set_listening(False)
+        self.input.edit.setText(text)
+        if self.isVisible():
+            self.input.show()
+            self.input.focus_input()
+        hint = "确认文字后按回车发送"
+        if not self.settings.llm_api_key:
+            hint = "未配置对话模型，已保留原转写"
+        self.bubble.set_text(hint)
+        self._position_bubble()
 
     def _on_asr_error(self, msg: str) -> None:
         self.input.set_listening(False)
@@ -801,7 +856,6 @@ class PetWindow(QWidget):
 
     def _on_hotkey_pressed(self) -> None:
         """长按快捷键：开始录音。"""
-        self.input.set_listening(True)
         self._start_recording()
 
     def _on_hotkey_released(self) -> None:
@@ -1060,6 +1114,13 @@ class PetWindow(QWidget):
         # 托盘启用时关闭只是隐藏；只有「退出」命令置 _quitting 后才真正收尾
         if self.settings.tray_enabled and not getattr(self, "_quitting", False):
             self.hide_to_tray()
+            event.ignore()
+            return
+        worker = getattr(self, "asr_worker", None)
+        if worker is not None:
+            self._close_after_asr = True
+            worker.requestInterruption()
+            worker.request_stop()
             event.ignore()
             return
         if self.hotkey is not None:

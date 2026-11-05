@@ -14,7 +14,9 @@
     "tray.webp"
   ],
   "sprite_size": 300,
-  "whisper_model": "base",
+  "whisper_model": "small",
+  "asr_hotwords": "",
+  "asr_ai_correction": true,
   "tts_voice": "zh-CN-XiaoxiaoNeural",
   "tts_timeout_seconds": 30,
   "tts_rate": "+10%",

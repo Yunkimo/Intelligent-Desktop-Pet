@@ -96,6 +96,7 @@ class Settings:
         self.asr_hotwords: str = str(
             data.get("asr_hotwords", "课表 日程 提醒 待办 上课 考试 作业 会议 图书馆 老师")
         )
+        self.asr_ai_correction: bool = data.get("asr_ai_correction", False) is True
         self.tts_voice: str = data.get("tts_voice", DEFAULT_TTS_VOICE)
         # 旧默认声音已不在服务声音列表中，仅迁移该旧值，保留其他自选声音。
         if self.tts_voice == "zh-CN-XiaoyouNeural":
@@ -218,6 +219,10 @@ class Settings:
         """更新语音输出开关并写回 config.json，使设置重启后仍然生效。"""
         self.enable_voice = bool(enabled)
         self._save_json(enable_voice=self.enable_voice)
+
+    def update_asr_ai_correction(self, enabled: bool) -> None:
+        self._save_json(asr_ai_correction=enabled)
+        self.asr_ai_correction = enabled
 
     def update_health(self, enabled: bool | None = None, sedentary_min: int | None = None) -> None:
         """更新健康关怀配置并写回 config.json（复用 _save_json）。"""
