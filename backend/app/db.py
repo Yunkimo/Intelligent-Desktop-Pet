@@ -103,6 +103,13 @@ def init_db() -> None:
         conn.execute("BEGIN IMMEDIATE")
         weather_subscriptions.migrate(conn)
 
+    from . import pairing_store
+
+    accounts.backup_before_upgrade(version=pairing_store.SCHEMA_VERSION, label="device-pairing")
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        pairing_store.migrate(conn)
+
 
 def _get_by_id(table: str, row_id: int, user_id: int = 1) -> dict | None:
     with _conn() as conn:

@@ -164,12 +164,12 @@ async function main() {
     assert.ok(Array.isArray(courses), '手动登录后请求恢复');
   });
 
-  await check('配对码：已登录生成 5 分钟有效，未登录被拒', async () => {
+  await check('配对码：已登录生成 6 位数字，90 天有效，未登录被拒', async () => {
     switchUser('alice');
     await api.getCourses();
     const pairing = await api.authPairing();
-    assert.ok(typeof pairing.pairing_code === 'string' && pairing.pairing_code.length > 0);
-    assert.strictEqual(pairing.expires_in, 300);
+    assert.match(pairing.pairing_code, /^[0-9]{6}$/);
+    assert.strictEqual(pairing.expires_in, 90 * 86400);
     // 显式退出（保持未登录）时请求业务接口应被拒绝
     await session.logout();
     const err = await api.authPairing().then(

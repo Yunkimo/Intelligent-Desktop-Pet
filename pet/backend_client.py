@@ -56,6 +56,11 @@ class BackendClient:
             )
         except httpx.HTTPError:
             raise BackendError("后端不可达，请检查网络和后端地址") from None
+        if path == "/api/auth/device" and json and "pairing_code" in json:
+            if resp.status_code == 401:
+                raise SessionExpired("配对码无效、已使用或已过期，请重新生成")
+            if resp.status_code == 429:
+                raise BackendError("配对尝试过多，请稍后再试")
         if resp.status_code == 401:
             if self.on_auth_error is not None:
                 self.on_auth_error()
