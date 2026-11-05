@@ -34,6 +34,31 @@ def _first_input_device() -> int | None:
     return None
 
 
+# 判定「正在说话」的 RMS 阈值；低于它连续若干秒即视为一句话说完
+_SPEECH_RMS = 0.005
+
+
+class _SilenceGate:
+    """按采样数累计连续静默时长，避免长时间空录一直停在「聆听中」。"""
+
+    def __init__(
+        self, samplerate: int, silence_secs: float, threshold: float = _SPEECH_RMS
+    ) -> None:
+        self._threshold = threshold
+        self._limit = max(1, int(samplerate * silence_secs))
+        self._silent = 0
+
+    def feed(self, block: np.ndarray) -> bool:
+        """喂入一块音频；返回 True 表示静默已超过阈值。"""
+        samples = np.asarray(block, dtype=np.float64).reshape(-1)
+        rms = float(np.sqrt(np.mean(samples**2))) if samples.size else 0.0
+        if rms >= self._threshold:
+            self._silent = 0
+        else:
+            self._silent += samples.size
+        return self._silent >= self._limit
+
+
 class ChatWorker(QThread):
     chunk = pyqtSignal(str)  # 流式增量
     status = pyqtSignal(str)  # 工具执行状态（如「正在安排日程…」）
@@ -71,12 +96,15 @@ class ASRWorker(QThread):
         *,
         review: bool = False,
         correct: Callable[[str], str] | None = None,
+        silence_secs: float = 3.0,
     ) -> None:
         super().__init__(parent)
         self.engine = engine
         self.max_duration = max_duration
         self.review = review
         self.correct = correct
+        # 连续静默超过该时长就结束录音并识别（0 表示不启用）
+        self.silence_secs = silence_secs
         self._stop = threading.Event()
 
     def request_stop(self) -> None:
@@ -104,17 +132,22 @@ class ASRWorker(QThread):
 
     def run(self) -> None:
         frames: list[np.ndarray] = []
+        gate = (
+            _SilenceGate(self.engine.samplerate, self.silence_secs)
+            if self.silence_secs > 0
+            else None
+        )
 
         def callback(indata, _frames, _time, _status):
             frames.append(indata.copy())
+            # 说到一半停下来也一样：静默够久就主动结束，用户不必再松手
+            if gate is not None and gate.feed(indata):
+                self._stop.set()
 
         try:
-            stream = self._open_stream(callback)
-            stream.start()
-            # 阻塞直到用户点击停止，或达到最大时长
-            self._stop.wait(timeout=self.max_duration)
-            stream.stop()
-            stream.close()
+            with self._open_stream(callback):
+                # 阻塞直到用户点击停止、静默超时，或达到最大时长
+                self._stop.wait(timeout=self.max_duration)
         except Exception as exc:  # noqa: BLE001
             self.error.emit(f"录音失败：{exc}")
             return

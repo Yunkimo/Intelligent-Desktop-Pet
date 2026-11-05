@@ -1,5 +1,6 @@
-"""录音设备回退：默认输入设备失效（如蓝牙耳机断开）后仍能录音。"""
+"""录音设备回退与静默自动结束。"""
 
+import numpy as np
 import pytest
 
 from pet import worker
@@ -65,3 +66,52 @@ def test_open_stream_reports_missing_microphone(monkeypatch):
 
     with pytest.raises(RuntimeError, match="没有可用的麦克风"):
         worker.ASRWorker(_Engine())._open_stream(_callback)
+
+
+def test_silence_gate_ignores_speech_and_counts_silence():
+    gate = worker._SilenceGate(samplerate=1000, silence_secs=1, threshold=0.01)
+    silent = np.zeros(400, dtype=np.float32)
+    speech = np.full(400, 0.5, dtype=np.float32)
+
+    assert gate.feed(silent) is False
+    assert gate.feed(speech) is False  # 检测到说话，静默计数清零
+    assert gate.feed(silent) is False
+    assert gate.feed(silent) is False  # 800 < 1000
+    assert gate.feed(silent) is True  # 1200 >= 1000
+
+
+def test_run_stops_on_silence_and_emits_text(monkeypatch):
+    captured = []
+    sizes = []
+
+    class _QuietEngine:
+        samplerate = 16000
+
+        def transcribe(self, audio):
+            sizes.append(audio.size)
+            return "你好"
+
+    monkeypatch.setattr(worker, "_refresh_audio_devices", lambda: None)
+    silence = np.zeros((8000, 1), dtype=np.float32)
+
+    class _FakeStream:
+        def __init__(self, callback):
+            self.callback = callback
+
+        def __enter__(self):
+            # 两块 0.5 秒静音，正好凑满 1 秒，触发自动结束
+            self.callback(silence, silence.shape[0], None, None)
+            self.callback(silence, silence.shape[0], None, None)
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    asr = worker.ASRWorker(_QuietEngine(), max_duration=60, silence_secs=1)
+    monkeypatch.setattr(asr, "_open_stream", lambda callback: _FakeStream(callback))
+    asr.text.connect(captured.append)
+
+    asr.run()
+
+    assert captured == ["你好"]
+    assert sizes == [16000]

@@ -617,12 +617,16 @@ class PetWindow(QWidget):
             self.asr_worker.request_stop()
 
     def _on_asr_text(self, text: str) -> None:
+        """识别完成：结果填进输入框，由用户确认（回车）后再发送。"""
         if self._close_after_asr:
             return
         self.input.set_listening(False)
         if text:
             self.input.edit.setText(text)
-            self.send_text(text)
+            if not self.input.isVisible():
+                self.input.show()
+            self.input.focus_input()
+            self._position_bubble()
         else:
             self.bubble.set_text("没听清，再说一次嘛～")
 
