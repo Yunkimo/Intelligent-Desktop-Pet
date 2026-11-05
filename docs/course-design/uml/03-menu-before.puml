@@ -1,0 +1,35 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Microsoft YaHei
+skinparam defaultFontSize 16
+skinparam shadowing false
+skinparam ArrowColor #3B5974
+skinparam componentBackgroundColor #E8F2FF
+skinparam componentBorderColor #507094
+skinparam classBackgroundColor #E8F2FF
+skinparam classBorderColor #507094
+skinparam participantBackgroundColor #E8F2FF
+skinparam participantBorderColor #507094
+skinparam databaseBackgroundColor #E7F4EF
+skinparam NoteBackgroundColor #FFF4DD
+skinparam NoteBorderColor #C19548
+skinparam TitleFontColor #18344E
+!pragma layout smetana
+title 图 3　菜单重构前 · 96ee58c 的父提交
+left to right direction
+class PetWindow {
+  +contextMenuEvent(event)
+}
+class QMenu <<Qt>> {
+  +addAction(label)
+}
+class QAction <<Qt>> {
+  +triggered
+}
+PetWindow ..> QMenu : 构造菜单与动作
+QMenu "1" o-- "0..*" QAction : 管理
+PetWindow ..> QAction : 内联绑定回调
+note bottom of PetWindow
+  窗口负责排序、创建菜单项和绑定动作。
+end note
+@enduml

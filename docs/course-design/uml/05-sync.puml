@@ -1,0 +1,38 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Microsoft YaHei
+skinparam defaultFontSize 16
+skinparam shadowing false
+skinparam ArrowColor #3B5974
+skinparam componentBackgroundColor #E8F2FF
+skinparam componentBorderColor #507094
+skinparam classBackgroundColor #E8F2FF
+skinparam classBorderColor #507094
+skinparam participantBackgroundColor #E8F2FF
+skinparam participantBorderColor #507094
+skinparam databaseBackgroundColor #E7F4EF
+skinparam NoteBackgroundColor #FFF4DD
+skinparam NoteBorderColor #C19548
+skinparam TitleFontColor #18344E
+title 图 7　同一账号跨端变更与断线补齐
+actor "用户" as User
+participant "桌宠端 A" as A
+participant "FastAPI B" as B
+database "SQLite" as DB
+participant "小程序 C" as C
+User -> A : 修改自己的日程
+A -> B : PUT /api/tasks/{id} · 设备会话
+B -> DB : 校验归属并提交日程与提醒变更
+DB --> B : 提交成功
+B --> A : 返回修改后的记录
+alt 小程序在线
+ B ->> C : WSS task.updated · 同账号
+ C -> C : 校验、去重、合并刷新
+else 断线后重新连接
+ C -> B : 重建 WSS 连接
+end
+C -> B : GET /api/tasks · 微信会话
+B -> DB : 按当前 user_id 查询
+DB --> B : 当前记录
+B --> C : 返回列表，校正页面
+@enduml

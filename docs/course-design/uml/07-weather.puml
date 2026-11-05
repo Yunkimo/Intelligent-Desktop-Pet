@@ -1,0 +1,43 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Microsoft YaHei
+skinparam defaultFontSize 16
+skinparam shadowing false
+skinparam ArrowColor #3B5974
+skinparam componentBackgroundColor #E8F2FF
+skinparam componentBorderColor #507094
+skinparam classBackgroundColor #E8F2FF
+skinparam classBorderColor #507094
+skinparam participantBackgroundColor #E8F2FF
+skinparam participantBorderColor #507094
+skinparam databaseBackgroundColor #E7F4EF
+skinparam NoteBackgroundColor #FFF4DD
+skinparam NoteBorderColor #C19548
+skinparam TitleFontColor #18344E
+title 图 6　一次带伞订阅的登记与发送
+actor "用户" as U
+participant "小程序 C" as C
+participant "后端 B" as B
+participant "天气服务" as W
+participant "微信平台" as X
+C -> B : 预准备事件
+B --> C : event_id 与模板
+U -> C : 点击订阅
+C -> X : 手势内请求一次授权
+X --> C : accept 或拒绝
+C -> B : 登记选择与 request_id
+alt 已接受且未过期
+ B -> W : 到点获取次日预报或读取有效缓存
+ alt 预报有降水
+  B -> X : 发送本次订阅消息
+  X --> B : 返回发送结果
+  X ->> U : 微信订阅消息
+ else 无降水
+  B -> B : 结束为 no_rain
+ else 预报未知
+  B -> B : 间隔重查，午夜停止
+ end
+else 拒绝或已过期
+ B -> B : 结束本次事件
+end
+@enduml

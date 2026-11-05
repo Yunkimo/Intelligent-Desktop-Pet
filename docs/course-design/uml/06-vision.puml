@@ -1,0 +1,32 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Microsoft YaHei
+skinparam defaultFontSize 16
+skinparam shadowing false
+skinparam ArrowColor #3B5974
+skinparam componentBackgroundColor #E8F2FF
+skinparam componentBorderColor #507094
+skinparam classBackgroundColor #E8F2FF
+skinparam classBorderColor #507094
+skinparam participantBackgroundColor #E8F2FF
+skinparam participantBorderColor #507094
+skinparam databaseBackgroundColor #E7F4EF
+skinparam NoteBackgroundColor #FFF4DD
+skinparam NoteBorderColor #C19548
+skinparam TitleFontColor #18344E
+title 图 5　课表图片识别的两种处理流程
+start
+:同一张课表图片;
+if (处理版本) then (旧版)
+ :两次视觉模型调用;
+ :取交集并合并候选;
+else (B7 / C7)
+ :校验图像类型和尺寸;
+ :单次视觉模型调用;
+ :归一化字段并去重;
+endif
+:小程序展示识别结果;
+:核对星期、周次和节次时间;
+:确认后写入课表;
+stop
+@enduml
