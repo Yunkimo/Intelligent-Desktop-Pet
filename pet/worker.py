@@ -10,6 +10,30 @@ from PyQt6.QtCore import QThread, pyqtSignal
 from .agent import Agent
 
 
+def _refresh_audio_devices() -> None:
+    """重建 PortAudio 设备列表。
+
+    蓝牙耳机等设备热插拔后，PortAudio 缓存的默认设备可能指向已消失的索引，
+    甚至变成 -1，此后每次录音都会报「Error querying device -1」。
+    """
+    try:
+        sd._terminate()
+        sd._initialize()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _first_input_device() -> int | None:
+    """返回第一个能录音的设备索引；没有输入设备时返回 None。"""
+    try:
+        for index, info in enumerate(sd.query_devices()):
+            if int(info["max_input_channels"]) > 0:
+                return index
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
 class ChatWorker(QThread):
     chunk = pyqtSignal(str)  # 流式增量
     status = pyqtSignal(str)  # 工具执行状态（如「正在安排日程…」）
@@ -58,6 +82,26 @@ class ASRWorker(QThread):
     def request_stop(self) -> None:
         self._stop.set()
 
+    def _open_stream(self, callback):
+        """打开麦克风流；默认设备失效时重建设备列表并退到第一个可录音设备。"""
+        kwargs = {
+            "samplerate": self.engine.samplerate,
+            "channels": 1,
+            "dtype": "float32",
+            "callback": callback,
+        }
+        try:
+            return sd.InputStream(**kwargs)
+        except Exception:  # noqa: BLE001
+            _refresh_audio_devices()
+            try:
+                return sd.InputStream(**kwargs)
+            except Exception as exc:
+                device = _first_input_device()
+                if device is None:
+                    raise RuntimeError("没有可用的麦克风") from exc
+                return sd.InputStream(device=device, **kwargs)
+
     def run(self) -> None:
         frames: list[np.ndarray] = []
 
@@ -65,14 +109,12 @@ class ASRWorker(QThread):
             frames.append(indata.copy())
 
         try:
-            with sd.InputStream(
-                samplerate=self.engine.samplerate,
-                channels=1,
-                dtype="float32",
-                callback=callback,
-            ):
-                # 阻塞直到用户点击停止，或达到最大时长
-                self._stop.wait(timeout=self.max_duration)
+            stream = self._open_stream(callback)
+            stream.start()
+            # 阻塞直到用户点击停止，或达到最大时长
+            self._stop.wait(timeout=self.max_duration)
+            stream.stop()
+            stream.close()
         except Exception as exc:  # noqa: BLE001
             self.error.emit(f"录音失败：{exc}")
             return
