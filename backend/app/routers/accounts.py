@@ -1,9 +1,9 @@
 """设备登录与会话管理；响应禁止缓存。"""
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
-from .. import accounts
+from .. import accounts, pairing_store
 from ..auth import current_user, require_token
 
 router = APIRouter(prefix="/api/auth", tags=["accounts"])
@@ -15,11 +15,21 @@ class DeviceIn(BaseModel):
 
 
 @router.post("/device")
-def login(payload: DeviceIn, response: Response, x_api_key: str = Header(default="")):
+def login(
+    payload: DeviceIn, response: Response, request: Request, x_api_key: str = Header(default="")
+):
     if payload.pairing_code is None:
         require_token(x_api_key)
     try:
-        result = accounts.device_session(payload.pairing_code)
+        result = accounts.device_session(
+            payload.pairing_code, source=request.client.host if request.client else "unknown"
+        )
+    except pairing_store.PairingRateLimited as exc:
+        raise HTTPException(
+            429, "pairing_rate_limited", headers={"Retry-After": str(exc.retry_after)}
+        ) from None
+    except pairing_store.PairingUnavailable:
+        raise HTTPException(503, "pairing_unavailable") from None
     except ValueError:
         raise HTTPException(401, "pairing_invalid") from None
     response.headers["Cache-Control"] = "no-store"
@@ -29,7 +39,10 @@ def login(payload: DeviceIn, response: Response, x_api_key: str = Header(default
 @router.post("/pairing")
 def pairing(response: Response, user_id: int = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"
-    return accounts.pair(user_id)
+    try:
+        return accounts.pair(user_id)
+    except pairing_store.PairingUnavailable:
+        raise HTTPException(503, "pairing_unavailable") from None
 
 
 @router.get("/me")

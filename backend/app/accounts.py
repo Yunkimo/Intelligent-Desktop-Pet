@@ -7,7 +7,7 @@ import time
 from contextlib import closing
 from uuid import uuid4
 
-from . import config, db
+from . import config, db, pairing_store
 
 DEFAULT_USER = 1
 
@@ -107,35 +107,28 @@ def session_user(token):
 
 
 def pair(user_id):
-    code = secrets.token_urlsafe(24)
     with db._conn() as conn:
-        conn.execute("DELETE FROM device_pairings WHERE expires_at<=?", (time.time(),))
-        conn.execute(
-            "INSERT INTO device_pairings VALUES (?,?,?)", (digest(code), user_id, time.time() + 300)
-        )
-    return {"pairing_code": code, "expires_in": 300}
+        conn.execute("BEGIN IMMEDIATE")
+        code = pairing_store.issue(conn, user_id, time.time())
+    return {"pairing_code": code, "expires_in": pairing_store.TTL_SECONDS}
 
 
-def device_session(code=None):
-    """API Key 仅能签发默认演示用户；私有用户由短期一次性配对码确定。"""
+def device_session(code=None, source: str | None = None):
+    """API Key 仅能签发默认演示用户；私有用户由一次性配对码确定。"""
     token = secrets.token_urlsafe(32)
     with db._conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
-        user_id = DEFAULT_USER
-        if code is not None:
-            row = conn.execute(
-                "SELECT user_id FROM device_pairings WHERE code_hash=? AND expires_at>?",
-                (digest(code), time.time()),
-            ).fetchone()
-            if row is None:
-                raise ValueError("pairing_invalid")
-            user_id = row[0]
-            conn.execute("DELETE FROM device_pairings WHERE code_hash=?", (digest(code),))
-        conn.execute("DELETE FROM device_sessions WHERE expires_at<=?", (time.time(),))
-        conn.execute(
-            "INSERT INTO device_sessions VALUES (?,?,?)",
-            (digest(token), user_id, time.time() + config.DEVICE_SESSION_TTL_SECONDS),
-        )
+        now = time.time()
+        user_id = DEFAULT_USER if code is None else pairing_store.consume(conn, code, now, source)
+        if user_id is not None:
+            conn.execute("DELETE FROM device_sessions WHERE expires_at<=?", (now,))
+            conn.execute(
+                "INSERT INTO device_sessions VALUES (?,?,?)",
+                (digest(token), user_id, now + config.DEVICE_SESSION_TTL_SECONDS),
+            )
+    if user_id is None:
+        # 离开事务后返回错误，让猜码失败记录落库。
+        raise ValueError("pairing_invalid")
     return {
         "user_id": user_id,
         "device_token": token,

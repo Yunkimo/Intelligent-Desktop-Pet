@@ -8,6 +8,19 @@ const { isMonday } = require('../../utils/datetime');
 
 const WEEK_COUNT_OPTIONS = Array.from({ length: 53 }, (_, i) => `${i + 1} 周`);
 
+function pairingValidity(seconds) {
+  if (!Number.isInteger(seconds) || seconds <= 0) {
+    return '';
+  }
+  if (seconds % 86400 === 0) {
+    return `${seconds / 86400} 天内有效`;
+  }
+  if (seconds % 60 === 0) {
+    return `${seconds / 60} 分钟内有效`;
+  }
+  return `${seconds} 秒内有效`;
+}
+
 Page({
   data: {
     startDate: '',
@@ -21,14 +34,23 @@ Page({
     loginAccount: '',
     loggingOut: false,
     pairingCode: '',
+    pairingValidity: '',
+    pairingExpiresAt: 0,
     pairingBusy: false,
   },
 
   onShow() {
+    const account = session.accountId() || '';
     this.setData({
-      loginAccount: session.accountId() || '',
+      loginAccount: account,
       loggedOut: session.isLoggedOut(),
     });
+    if (
+      this.data.pairingCode &&
+      (this.data.loggedOut || this._pairingOwner !== account || Date.now() >= this.data.pairingExpiresAt)
+    ) {
+      this.setData({ pairingCode: '', pairingValidity: '', pairingExpiresAt: 0 });
+    }
     this.load();
   },
 
@@ -112,16 +134,29 @@ Page({
     }
   },
 
-  // 生成桌宠配对码（B8 契约：5 分钟有效，交给桌宠一次性消费）
+  // 有效期由服务端决定，代码始终按字符串保留前导 0。
   async generatePairing() {
     if (this.data.pairingBusy || this.data.loggedOut) {
       return;
     }
-    this.setData({ pairingBusy: true, pairingCode: '' });
+    this.setData({ pairingBusy: true, pairingCode: '', pairingValidity: '', pairingExpiresAt: 0 });
     try {
       const result = await api.authPairing();
-      this.setData({ pairingCode: result.pairing_code || '' });
-      wx.showToast({ title: '配对码已生成（5 分钟内有效）', icon: 'none' });
+      if (session.isLoggedOut()) {
+        return;
+      }
+      const validity = pairingValidity(result.expires_in);
+      if (typeof result.pairing_code !== 'string' || !result.pairing_code || !validity) {
+        wx.showToast({ title: '配对码响应无效，请重试', icon: 'none' });
+        return;
+      }
+      this._pairingOwner = session.accountId() || '';
+      this.setData({
+        pairingCode: result.pairing_code,
+        pairingValidity: validity,
+        pairingExpiresAt: Date.now() + result.expires_in * 1000,
+      });
+      wx.showToast({ title: '配对码已生成', icon: 'none' });
     } catch (err) {
       wx.showToast({ title: (err && err.message) || '生成失败', icon: 'none' });
     } finally {
@@ -131,6 +166,15 @@ Page({
 
   copyPairing() {
     if (!this.data.pairingCode) {
+      return;
+    }
+    if (
+      session.isLoggedOut() ||
+      this._pairingOwner !== (session.accountId() || '') ||
+      Date.now() >= this.data.pairingExpiresAt
+    ) {
+      this.setData({ pairingCode: '', pairingValidity: '', pairingExpiresAt: 0 });
+      wx.showToast({ title: '请重新生成配对码', icon: 'none' });
       return;
     }
     wx.setClipboardData({ data: this.data.pairingCode });
@@ -144,7 +188,13 @@ Page({
     this.setData({ loggingOut: true });
     try {
       const result = await session.logout();
-      this.setData({ loggedOut: true, loginAccount: '' });
+      this.setData({
+        loggedOut: true,
+        loginAccount: '',
+        pairingCode: '',
+        pairingValidity: '',
+        pairingExpiresAt: 0,
+      });
       wx.showToast({
         title: result.revoked ? '已退出登录' : '已在本机退出（服务端会话稍后失效）',
         icon: 'none',

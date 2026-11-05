@@ -39,7 +39,8 @@
         <view class="pairing-code">{{pairingCode}}</view>
         <button class="btn btn-ghost mini" bindtap="copyPairing">复制</button>
       </view>
-      <text wx:else class="hint">生成后 5 分钟内有效，在桌宠端输入即与当前账号配对。</text>
+      <text wx:if="{{pairingCode}}" class="hint">{{pairingValidity}}，只能使用一次。重新生成后旧码失效。</text>
+      <text wx:else class="hint">生成后可复制到桌宠端绑定当前账号。</text>
       <button class="btn btn-primary save-btn" disabled="{{pairingBusy}}" loading="{{pairingBusy}}" bindtap="generatePairing">{{pairingCode ? '重新生成' : '生成配对码'}}</button>
     </view>
     <button wx:if="{{loggedOut}}" class="btn btn-primary" disabled="{{loggingOut}}" loading="{{loggingOut}}" bindtap="login">登录</button>

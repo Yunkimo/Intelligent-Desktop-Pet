@@ -3,10 +3,11 @@
 import asyncio
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
-from app import accounts, config, db, wechat_store
+from app import accounts, config, db, pairing_store, wechat_store
 from app.push_service import PushService
 from app.scheduler import Scheduler
 from starlette.websockets import WebSocketDisconnect
@@ -176,6 +177,93 @@ def test_pairing_concurrent_consume_once(client):
     assert results.count(a) == 1 and results.count(None) == 7
 
 
+def test_six_digit_pairing_lasts_90_days_but_device_session_has_own_ttl(client, monkeypatch):
+    a, ha, _ = identity("a")
+    now = 2_000_000_000
+    monkeypatch.setattr(accounts, "time", SimpleNamespace(time=lambda: now))
+    numbers = iter((12, 34))
+    monkeypatch.setattr(pairing_store.secrets, "randbelow", lambda _: next(numbers))
+    first = client.post("/api/auth/pairing", headers=ha)
+    assert first.headers["cache-control"] == "no-store"
+    assert first.json() == {"pairing_code": "000012", "expires_in": 90 * 86400}
+    second = accounts.pair(a)["pairing_code"]
+    assert second == "000034"
+    assert client.post("/api/auth/device", json={"pairing_code": "000012"}).status_code == 401
+    now += 90 * 86400 - 1
+    device = client.post("/api/auth/device", json={"pairing_code": second}).json()
+    assert device["user_id"] == a and device["expires_in"] == config.DEVICE_SESSION_TTL_SECONDS
+
+
+def test_pairing_expires_at_90_day_boundary(client, monkeypatch):
+    a, _, _ = identity("a")
+    now = 2_000_000_000
+    monkeypatch.setattr(accounts, "time", SimpleNamespace(time=lambda: now))
+    code = accounts.pair(a)["pairing_code"]
+    now += 90 * 86400
+    assert client.post("/api/auth/device", json={"pairing_code": code}).status_code == 401
+
+
+def test_consumed_pairing_code_is_not_reissued_before_expiry(client, monkeypatch):
+    a, _, _ = identity("a")
+    b, _, _ = identity("b")
+    numbers = iter((42, 42, 81))
+    monkeypatch.setattr(pairing_store.secrets, "randbelow", lambda _: next(numbers))
+    first = accounts.pair(a)["pairing_code"]
+    assert accounts.device_session(first)["user_id"] == a
+    assert accounts.pair(b)["pairing_code"] == "000081"
+    with pytest.raises(ValueError, match="pairing_invalid"):
+        accounts.device_session(first)
+
+
+def test_pairing_attempt_limit_persists_and_recovers(client, monkeypatch):
+    a, _, _ = identity("a")
+    now = 2_000_000_000
+    monkeypatch.setattr(accounts, "time", SimpleNamespace(time=lambda: now))
+    monkeypatch.setattr(pairing_store.secrets, "randbelow", lambda _: 123456)
+    code = accounts.pair(a)["pairing_code"]
+    for _ in range(5):
+        assert client.post("/api/auth/device", json={"pairing_code": "000000"}).status_code == 401
+    db.init_db()
+    limited = client.post("/api/auth/device", json={"pairing_code": code})
+    assert limited.status_code == 429 and limited.headers["retry-after"] == "900"
+    assert client.post("/api/auth/device", json={}, headers=KEY).status_code == 200
+    now += 900
+    assert client.post("/api/auth/device", json={"pairing_code": code}).json()["user_id"] == a
+
+
+def test_pairing_global_limit_applies_across_sources(client):
+    for index in range(20):
+        with pytest.raises(ValueError, match="pairing_invalid"):
+            accounts.device_session("000000", source=f"test-{index}")
+    result = client.post("/api/auth/device", json={"pairing_code": "000000"})
+    assert result.status_code == 429
+    assert int(result.headers["retry-after"]) > 23 * 3600
+
+
+def test_pairing_schema_upgrade_preserves_unexpired_legacy_code(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "legacy.db")
+    monkeypatch.setattr(config, "API_TOKEN", "test-token")
+    with monkeypatch.context() as old:
+        old.setattr(pairing_store, "migrate", lambda _: None)
+        db.init_db()
+    previous_backups = set(tmp_path.glob("*.pre-device-pairing-*.db"))
+    legacy_code = "legacy-test-pairing-code"
+    with db._conn() as conn:
+        conn.execute(
+            "INSERT INTO device_pairings VALUES (?,?,?)",
+            (accounts.digest(legacy_code), accounts.DEFAULT_USER, accounts.time.time() + 300),
+        )
+    db.init_db()
+    db.init_db()
+    backups = list(set(tmp_path.glob("*.pre-device-pairing-*.db")) - previous_backups)
+    assert len(backups) == 1
+    with sqlite3.connect(backups[0]) as backup:
+        assert backup.execute("SELECT MAX(version) FROM schema_migrations").fetchone() == (5,)
+    assert accounts.device_session(legacy_code)["user_id"] == accounts.DEFAULT_USER
+    with pytest.raises(ValueError, match="pairing_invalid"):
+        accounts.device_session(legacy_code)
+
+
 def test_websocket_routes_never_mix_users(client):
     _, ha, ta = identity("a")
     _, hb, tb = identity("b")
@@ -230,7 +318,10 @@ def test_scheduler_delivers_only_to_owner(client):
 def test_legacy_upgrade_backup_repeat_and_rollback(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DB_PATH", tmp_path / "old.db")
     # 创建与当前 develop 相同的迁移前结构，保留真实旧数据及学期设置。
-    with patch.object(accounts, "migrate", lambda conn: None):
+    with (
+        patch.object(accounts, "migrate", lambda conn: None),
+        patch.object(pairing_store, "migrate", lambda conn: None),
+    ):
         db.init_db()
     with sqlite3.connect(config.DB_PATH) as conn:
         conn.execute(

@@ -331,7 +331,7 @@ module.exports = {
     request('/api/calendar' + (date ? '?date=' + encodeURIComponent(date) : '')),
 
   // 账号（B8 契约见 docs/b8-accounts.md）：me 查当前业务账号，logout 撤销当前会话，
-  // pairing 生成桌宠跨端配对码（5 分钟有效，桌宠端 POST /api/auth/device 消费）
+  // 生成一次性桌宠配对码，expires_in 为服务端有效期（秒）。
   authMe: () => request('/api/auth/me'),
   authPairing: () => request('/api/auth/pairing', { method: 'POST' }),
 

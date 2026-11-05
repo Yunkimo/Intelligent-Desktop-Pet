@@ -42,7 +42,7 @@ class AccountDialog(QDialog):
         layout.addWidget(self.status)
         self.code = QLineEdit()
         self.code.setEchoMode(QLineEdit.EchoMode.Password)
-        self.code.setPlaceholderText("粘贴一次性配对码")
+        self.code.setPlaceholderText("输入或粘贴 6 位配对码")
         layout.addWidget(self.code)
         self.buttons = []
         for title, operation in (
