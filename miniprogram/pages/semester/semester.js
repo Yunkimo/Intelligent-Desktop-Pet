@@ -47,7 +47,9 @@ Page({
     });
     if (
       this.data.pairingCode &&
-      (this.data.loggedOut || this._pairingOwner !== account || Date.now() >= this.data.pairingExpiresAt)
+      (this.data.loggedOut ||
+        this._pairingOwner !== account ||
+        Date.now() >= this.data.pairingExpiresAt)
     ) {
       this.setData({ pairingCode: '', pairingValidity: '', pairingExpiresAt: 0 });
     }
