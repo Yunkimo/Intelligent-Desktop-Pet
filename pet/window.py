@@ -352,14 +352,6 @@ class PetWindow(QWidget):
         commands.append(Command("切换图片…", self._choose_image))
         commands.append(Submenu(self._build_persona_menu()))
         commands.append(Command("设置语音快捷键…", self._set_voice_hotkey))
-        commands.append(
-            Command(
-                "AI 语音纠错（文字发往对话模型）",
-                lambda: self.settings.update_asr_ai_correction(not self.settings.asr_ai_correction),
-                checkable=True,
-                checked=lambda: self.settings.asr_ai_correction,
-            )
-        )
         commands.append(Command("生活习惯…", self._show_habit_dialog))
         commands.append(
             Command(
