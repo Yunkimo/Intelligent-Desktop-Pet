@@ -1,9 +1,52 @@
-"""语音识别测试：归一化与 transcribe 参数（VAD / 热词 / 上下文）。"""
+"""语音识别测试：归一化、模型加载与 transcribe 参数（VAD / 热词 / 上下文）。"""
+
+import sys
+import types
 
 import numpy as np
 import pytest
 
 from pet.asr import ASREngine
+
+
+def _install_fake_whisper(monkeypatch, model_cls):
+    module = types.ModuleType("faster_whisper")
+    module.WhisperModel = model_cls
+    monkeypatch.setitem(sys.modules, "faster_whisper", module)
+
+
+def test_load_model_prefers_local_cache(monkeypatch):
+    calls = []
+
+    class _Model:
+        def __init__(self, *args, **kwargs):
+            calls.append(kwargs)
+
+    _install_fake_whisper(monkeypatch, _Model)
+
+    engine = ASREngine("base")
+    engine._load_model()
+
+    assert calls == [{"device": "cpu", "compute_type": "int8", "local_files_only": True}]
+
+
+def test_load_model_downloads_when_cache_missing(monkeypatch):
+    calls = []
+
+    class _Model:
+        def __init__(self, *args, **kwargs):
+            calls.append(kwargs)
+            if kwargs.get("local_files_only"):
+                raise RuntimeError("model not found")
+
+    _install_fake_whisper(monkeypatch, _Model)
+
+    engine = ASREngine("base")
+    engine._load_model()
+
+    assert calls[0]["local_files_only"] is True
+    assert "local_files_only" not in calls[1]
+    assert engine._model is not None
 
 
 def test_normalize_scales_peak_to_target():

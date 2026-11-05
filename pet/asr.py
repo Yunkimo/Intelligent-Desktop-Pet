@@ -20,8 +20,18 @@ class ASREngine:
         if self._model is None:
             from faster_whisper import WhisperModel
 
-            # int8 跑 CPU，速度和精度折中；首次会自动下载模型
-            self._model = WhisperModel(self.model_size, device="cpu", compute_type="int8")
+            # int8 跑 CPU，速度和精度折中。
+            # 优先只读本地缓存：无网/连不上 Hugging Face 时，在线校验会重试几十秒，
+            # 表现成按下快捷键后一直「聆听中」。缓存缺失（首次使用/换模型）才联网下载。
+            try:
+                self._model = WhisperModel(
+                    self.model_size,
+                    device="cpu",
+                    compute_type="int8",
+                    local_files_only=True,
+                )
+            except Exception:  # noqa: BLE001
+                self._model = WhisperModel(self.model_size, device="cpu", compute_type="int8")
         return self._model
 
     @staticmethod
