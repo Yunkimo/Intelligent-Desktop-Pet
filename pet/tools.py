@@ -12,6 +12,7 @@ from typing import Callable
 import httpx
 
 from .backend_client import BackendClient
+from .config import DEFAULT_WEATHER_CITY
 from .timeparse import normalize_datetime
 
 # 联网工具超时：避免工具循环长时间挂起（7 天预报 + 地理编码两次请求，留 10 秒）
@@ -368,7 +369,8 @@ def build_tools(backend: BackendClient, habits=None) -> dict[str, Tool]:
             return f"已把「{title}」定在 {label}，但后端没有接受每周重复，本次只提醒一次。"
         return f"已设好「{title}」：{label} 起，桌宠每周{weekday} {remind_time} 都会提醒你。"
 
-    def get_weather(city: str, day: str = "今天", **_args) -> str:
+    def get_weather(city: str | None = None, day: str = "今天", **_args) -> str:
+        city = (city or "").strip() or DEFAULT_WEATHER_CITY
         wanted = str(day or "今天").strip()
         try:
             place = _geocode(city)
@@ -538,7 +540,12 @@ def build_tools(backend: BackendClient, habits=None) -> dict[str, Tool]:
             {
                 "type": "object",
                 "properties": {
-                    "city": {"type": "string", "description": "城市名，如 北京"},
+                    "city": {
+                        "type": "string",
+                        "description": (
+                            f"用户指定的城市名；未指定且没有明确指代时省略，默认{DEFAULT_WEATHER_CITY}。"
+                        ),
+                    },
                     "day": {
                         "type": "string",
                         "description": (
@@ -548,7 +555,7 @@ def build_tools(backend: BackendClient, habits=None) -> dict[str, Tool]:
                         ),
                     },
                 },
-                "required": ["city", "day"],
+                "required": ["day"],
             },
             get_weather,
             "正在查天气…",

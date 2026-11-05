@@ -12,6 +12,7 @@ from .paths import app_dir
 BASE_DIR = app_dir()
 DEFAULT_TTS_VOICE = "zh-CN-XiaoxiaoNeural"
 DEFAULT_TTS_TIMEOUT_SECONDS = 30
+DEFAULT_WEATHER_CITY = "长沙"
 
 
 def save_env_values(**values: str) -> Path:

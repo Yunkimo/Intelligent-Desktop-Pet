@@ -221,6 +221,26 @@ def test_weather_today_reports_current_and_range(monkeypatch):
     assert "当前 7.9°C" in text and "体感 5.8°C" in text
 
 
+def test_weather_defaults_to_changsha_and_honors_explicit_city(monkeypatch):
+    import pet.tools as tools_module
+
+    calls = []
+
+    def geocode(city):
+        calls.append(city)
+        return 0.0, 0.0, city
+
+    monkeypatch.setattr(tools_module, "_geocode", geocode)
+    monkeypatch.setattr(tools_module, "_daily_forecast", lambda *_: _forecast_payload())
+    tool = build_tools(_FakeBackend())["get_weather"]
+
+    assert "city" not in tool.parameters["required"]
+    assert tool.fn(day="明天").startswith("长沙 明天")
+    assert tool.fn(city=" ", day="明天").startswith("长沙 明天")
+    assert tool.fn(city="北京", day="明天").startswith("北京 明天")
+    assert calls == ["长沙", "长沙", "北京"]
+
+
 def test_weather_tomorrow_reports_forecast_only(monkeypatch):
     fn, _ = _weather_tool(monkeypatch)
     text = fn(city="北京", day="明天")
