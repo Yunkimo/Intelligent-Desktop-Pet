@@ -18,8 +18,9 @@ from .config import Settings
 _STREAM_USAGE_UNSUPPORTED = (TypeError, BadRequestError)
 
 # DeepSeek 有时不返回结构化 tool_calls，而是把 DSML 标记写进正文。
-# 容忍分隔符两侧的空格与重复竖线，避免不同渲染下匹配不到。
-_DSML = r"<\s*/?\s*\|+\s*DSML\s*\|+"
+# 分隔符可能是半角 | 或全角 ｜（特殊 token 常用全角），还可能被空格隔开。
+_PIPE = r"(?:\s*[|｜]\s*)+"
+_DSML = r"<\s*/?" + _PIPE + r"DSML" + _PIPE
 _DSML_INVOKE_RE = re.compile(
     _DSML + r"\s*invoke\s+name=\"([^\"]+)\"\s*>(.*?)" + _DSML + r"\s*invoke\s*>", re.S
 )
@@ -31,8 +32,8 @@ _DSML_PARAM_RE = re.compile(
     re.S,
 )
 _DSML_TAG_RE = re.compile(_DSML + r"[^>]*>")
-_DSML_START_RE = re.compile(r"<\s*\|+\s*DSML\s*\|+")
-_DSML_PARTIAL_RE = re.compile(r"<[\s|]*(?:D(?:S(?:M(?:L)?)?)?)?[\s|]*$")
+_DSML_START_RE = re.compile(r"<\s*" + _PIPE + r"DSML" + _PIPE)
+_DSML_PARTIAL_RE = re.compile(r"<[\s|｜]*(?:D(?:S(?:M(?:L)?)?)?)?[\s|｜]*$")
 
 
 def _dsml_value(raw: str, kind: str | None):

@@ -5,7 +5,7 @@ import json
 import pytest
 
 from pet.llm import LLMClient, LLMError
-from pet.providers import OpenAICompatProvider, create_chat_provider
+from pet.providers import OpenAICompatProvider, create_chat_provider, extract_dsml_calls
 
 
 class _Delta:
@@ -242,6 +242,55 @@ def test_chat_with_tools_recovers_dsml_calls(monkeypatch):
 def test_stream_chat_hides_dsml_split_across_chunks(monkeypatch):
     provider = OpenAICompatProvider("sk", "https://x", "m")
     chunks = [_Chunk("好"), _Chunk("<|DS"), _Chunk('ML|invoke name="x">')]
+    monkeypatch.setattr(provider, "_client", _FakeClient(chunks))
+
+    collected = []
+    text = provider.stream_chat([{"role": "user", "content": "x"}], on_chunk=collected.append)
+
+    assert text == "好"
+    assert collected == ["好"]
+
+
+def test_extract_dsml_calls_supports_fullwidth_pipes():
+    """DeepSeek 特殊 token 用全角 ｜，截图里就是这种写法。"""
+    content = (
+        "好嘞～把「交实验报告」改到今天下午 3 点，提前一小时喊你\n"
+        "<｜DSML｜calls>\n"
+        '<｜DSML｜invoke name="list_tasks">\n\n'
+        "</｜DSML｜invoke>\n"
+        "</｜DSML｜calls>"
+    )
+
+    cleaned, calls = extract_dsml_calls(content)
+
+    assert cleaned == "好嘞～把「交实验报告」改到今天下午 3 点，提前一小时喊你"
+    assert calls == [
+        {
+            "id": "dsml-1",
+            "type": "function",
+            "function": {"name": "list_tasks", "arguments": "{}"},
+        }
+    ]
+
+
+def test_extract_dsml_calls_supports_spaced_pipes():
+    content = (
+        "好\n"
+        "< | | DSML | | calls>\n"
+        '< | | DSML | | invoke name="list_tasks">\n'
+        "</ | | DSML | | invoke>\n"
+        "</ | | DSML | | calls>"
+    )
+
+    cleaned, calls = extract_dsml_calls(content)
+
+    assert cleaned == "好"
+    assert [c["function"]["name"] for c in calls] == ["list_tasks"]
+
+
+def test_stream_chat_hides_fullwidth_dsml(monkeypatch):
+    provider = OpenAICompatProvider("sk", "https://x", "m")
+    chunks = [_Chunk("好"), _Chunk("<｜DS"), _Chunk("ML｜invoke>")]
     monkeypatch.setattr(provider, "_client", _FakeClient(chunks))
 
     collected = []
