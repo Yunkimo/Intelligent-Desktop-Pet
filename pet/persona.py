@@ -19,7 +19,11 @@ def build_system_prompt(settings: Settings, habits_summary: str = "") -> str:
         "主人明确说「记住…」时才调用 remember_habit，说「别再记着…」时调用 forget_habit；"
         "「以后每周X」「每次X」这类周期性提醒用 create_weekly_reminder，只传周几和钟点，"
         "后端会按每周重复排期，不要自己换算日期。\n"
-        "普通的「明天下午三点」之类一次性安排用 create_task 或 create_reminder。"
+        "判断用 create_task 还是 create_reminder：有事要做、做完能打勾的（交作业、开会、"
+        "体检）用 create_task，截止时间放 due_at、需要提前提醒就另给 remind_at；"
+        "只是到点吱一声、没有完成概念的（喝水、吃药、带伞）用 create_reminder。"
+        "两者都会同步到小程序，日程在「日程」页，提醒在首页。"
+        "长期偏好或作息（「我一般 7 点半起床」）用 remember_habit，不要建提醒。"
     )
     if habits_summary.strip():
         prompt += "\n" + habits_summary.strip()
