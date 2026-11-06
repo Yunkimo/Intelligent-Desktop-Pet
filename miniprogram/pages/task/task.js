@@ -1,4 +1,6 @@
 // 日程页：列出全部日程/待办，支持添加/编辑/删除与勾选完成，数据同步到后端 SQLite。
+// 独立提醒（一次性 / 每周）也并入本页展示，方便和日程一起查看；挂在日程下的
+// 提醒由日程行展示，不重复列出。
 // 设置了提醒时间的日程可点「订阅提醒」走微信一次性订阅流程（C3，见 utils/subscribe.js）。
 // 一句话创建（C8，B7 契约见 docs/b7-parsing.md）：右下「＋」优先打开文本输入，
 // 解析为可确认草稿（缺失/歧义/过去时间标记待确认），确认后逐项 POST /api/tasks
@@ -8,13 +10,14 @@ const ws = require('../../utils/ws');
 const subscribe = require('../../utils/subscribe');
 const taskParse = require('../../utils/task_parse');
 const { dateStr, reminderParts, reminderInput } = require('../../utils/datetime');
-const { weeklyReminders } = require('../../utils/weekly');
+const { weeklyReminders, oneOffReminders } = require('../../utils/weekly');
 
 // 日程页关心的后端事件（B6 起后端会在其他端增改删时推送更新/删除事件）
 const WS_EVENTS = ['task.created', 'task.updated', 'task.deleted', 'reminder.due', 'reconnect'];
 
 const EMPTY_FORM = {
   id: null,
+  kind: 'task',
   title: '',
   note: '',
   due_at: '',
@@ -98,6 +101,7 @@ Page({
       }
       const tasks = (await api.getTasks()).map((t) => ({
         ...t,
+        key: 'task-' + t.id,
         checked: !!t.done,
         subscriptionText: t.remind_at
           ? stateError
@@ -110,11 +114,15 @@ Page({
           : '',
         overdue: !!t.due_at && !t.done && t.due_at.slice(0, 10) < today,
       }));
-      // 每周固定安排并进日程列表：没有单一截止日期，排在普通日程之后
+      // 独立提醒并进日程列表：每周固定安排排日程之后，再一次性的提醒。
+      // 挂在日程下的提醒（task_id 非空）由日程行展示，不重复列出。
       let weekly = [];
+      let oneOff = [];
       try {
-        weekly = weeklyReminders(await api.getReminders()).map((item) => ({
+        const reminders = await api.getReminders();
+        weekly = weeklyReminders(reminders).map((item) => ({
           id: item.id,
+          key: 'weekly-' + item.id,
           weekly: true,
           title: item.title,
           note: item.body,
@@ -124,10 +132,26 @@ Page({
           remindText: '',
           subscriptionText: '',
         }));
+        oneOff = oneOffReminders(reminders).map((item) => {
+          const parts = reminderParts(item.remind_at);
+          return {
+            id: item.id,
+            key: 'reminder-' + item.id,
+            reminder: true,
+            title: item.title,
+            note: item.body,
+            checked: false,
+            overdue: false,
+            dueText: '',
+            remindText: parts.date + ' ' + parts.time,
+            remind_at: item.remind_at,
+            subscriptionText: '',
+          };
+        });
       } catch (_) {
         /* 提醒读取失败不影响日程列表 */
       }
-      this.setData({ tasks: tasks.concat(weekly) });
+      this.setData({ tasks: tasks.concat(weekly, oneOff) });
     } catch (err) {
       this.setData({ error: err.message || '加载失败' });
     } finally {
@@ -145,6 +169,7 @@ Page({
       editing: true,
       form: {
         id: t.id,
+        kind: t.reminder ? 'reminder' : 'task',
         title: t.title,
         note: t.note || '',
         due_at: t.due_at ? t.due_at.slice(0, 10) : '',
@@ -181,7 +206,18 @@ Page({
     };
     wx.showLoading({ title: '保存中' });
     try {
-      if (form.id) {
+      if (form.kind === 'reminder') {
+        if (!form.remind_date) {
+          wx.hideLoading();
+          wx.showToast({ title: '请选择提醒时间', icon: 'none' });
+          return;
+        }
+        await api.updateReminder(form.id, {
+          title: payload.title,
+          body: payload.note,
+          remind_at: reminderInput(form.remind_date, form.remind_time),
+        });
+      } else if (form.id) {
         await api.updateTask(form.id, payload);
         // 服务端事务处理旧提醒失效；保存成功后仍需主动订阅新事件。
       } else {
@@ -189,7 +225,10 @@ Page({
       }
       this.setData({ editing: false });
       wx.hideLoading();
-      wx.showToast({ title: '已保存；改期后请重新订阅', icon: 'none' });
+      wx.showToast({
+        title: form.kind === 'reminder' ? '已保存' : '已保存；改期后请重新订阅',
+        icon: 'none',
+      });
       await this.load();
     } catch (err) {
       wx.showToast({ title: err.message, icon: 'none' });
@@ -220,9 +259,10 @@ Page({
   },
 
   async toggleDone(e) {
-    const { id, done } = e.currentTarget.dataset;
+    const { id, done, kind } = e.currentTarget.dataset;
     try {
-      await api.updateTask(id, { done: done ? 0 : 1 });
+      const update = kind === 'reminder' ? api.updateReminder : api.updateTask;
+      await update(id, { done: done ? 0 : 1 });
       await this.load();
     } catch (err) {
       wx.showToast({ title: err.message, icon: 'none' });
@@ -230,18 +270,25 @@ Page({
   },
 
   remove(e) {
-    const { id, title } = e.currentTarget.dataset;
+    const { id, title, kind } = e.currentTarget.dataset;
+    const isReminder = kind === 'reminder';
     wx.showModal({
-      title: '删除日程',
-      content: `确定删除「${title}」吗？后端数据库将同步删除。`,
+      title: isReminder ? '删除提醒' : '删除日程',
+      content: isReminder
+        ? `确定删除提醒「${title}」吗？`
+        : `确定删除「${title}」吗？后端数据库将同步删除。`,
       success: async (res) => {
         if (!res.confirm) {
           return;
         }
         wx.showLoading({ title: '删除中' });
         try {
-          await api.deleteTask(id);
-          // 后端在同一事务中删除任务、关联提醒与订阅。
+          if (isReminder) {
+            await api.deleteReminder(id);
+          } else {
+            await api.deleteTask(id);
+            // 后端在同一事务中删除任务、关联提醒与订阅。
+          }
           wx.showToast({ title: '已删除', icon: 'success' });
         } catch (err) {
           // 删除失败（如服务端已不存在该日程）也刷新列表，避免页面残留陈旧卡片

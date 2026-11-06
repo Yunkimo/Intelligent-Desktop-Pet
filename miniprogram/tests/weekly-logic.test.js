@@ -66,4 +66,31 @@ check('非数组与空值不会抛错', () => {
   assert.deepStrictEqual(plain(weekly.weeklyReminders([])), []);
 });
 
+// ===== 一次性提醒并入日程页 =====
+check('一次性提醒只保留未完成、非每周、不挂日程的项', () => {
+  const result = weekly.oneOffReminders([
+    reminder({ id: 1, repeat_rule: null, remind_at: '2026-11-07T10:00' }),
+    reminder({ id: 2, repeat_rule: 'weekly' }), // 每周单独处理
+    reminder({ id: 3, repeat_rule: null, done: 1 }), // 已完成不显示
+    reminder({ id: 4, repeat_rule: null, task_id: 9 }), // 挂在日程下，由日程行展示
+    reminder({ id: 5, repeat_rule: null, remind_at: '' }),
+    null,
+  ]);
+  const ids = plain(result.map((item) => item.id));
+  assert.deepStrictEqual(ids, [1]);
+});
+
+check('一次性提醒按提醒时间排序', () => {
+  const result = weekly.oneOffReminders([
+    reminder({ id: 1, repeat_rule: null, remind_at: '2026-11-08T10:00' }),
+    reminder({ id: 2, repeat_rule: null, remind_at: '2026-11-07T09:00' }),
+  ]);
+  const ids = plain(result.map((item) => item.id));
+  assert.deepStrictEqual(ids, [2, 1]);
+});
+
+check('一次性提醒空值安全', () => {
+  assert.deepStrictEqual(plain(weekly.oneOffReminders(undefined)), []);
+});
+
 console.log(`weekly logic: ${passed} passed`);

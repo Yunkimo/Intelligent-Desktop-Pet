@@ -38,7 +38,7 @@
   color: #e74c3c;
 }
 
-/* 每周固定安排：列表里与普通日程区分开 */
+/* 每周固定安排 / 独立提醒：列表里与普通日程区分开 */
 .badge-weekly {
   display: inline-block;
   margin-right: 8rpx;
@@ -46,6 +46,16 @@
   border-radius: 6rpx;
   background: #eef4ff;
   color: #3b6fd4;
+  font-size: 22rpx;
+}
+
+.badge-reminder {
+  display: inline-block;
+  margin-right: 8rpx;
+  padding: 0 8rpx;
+  border-radius: 6rpx;
+  background: #fff4e6;
+  color: #c46a00;
   font-size: 22rpx;
 }
 

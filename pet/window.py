@@ -475,6 +475,8 @@ class PetWindow(QWidget):
         if getattr(self, "_account_dialog", None) is not None:
             self.show_hint("请先完成账号操作")
             return
+        # 每轮发送前重建提示词，让「现在几点」跟随真实时间，而不是启动时的旧时间
+        self._refresh_system_prompt()
         self.memory.add_user(text)
         self.input.hide()
         self.bubble.clear()

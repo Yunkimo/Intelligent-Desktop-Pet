@@ -113,6 +113,16 @@ def test_tool_schema_shape():
     assert "title" in schema["function"]["parameters"]["properties"]
 
 
+def test_tool_descriptions_distinguish_task_and_reminder():
+    tools = build_tools(_FakeBackend())
+    task_schema = tool_schema(tools["create_task"])
+    reminder_schema = tool_schema(tools["create_reminder"])
+    task_props = task_schema["function"]["parameters"]["properties"]
+    assert "提前" in task_props["remind_at"]["description"]
+    assert "日程" in task_schema["function"]["description"]
+    assert "完成" in reminder_schema["function"]["description"]
+
+
 def test_list_courses_missing_fields_no_keyerror():
     b = _FakeBackend()
     b.courses = [{"name": "缺字段课"}]
