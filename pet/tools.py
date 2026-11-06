@@ -449,14 +449,16 @@ def build_tools(backend: BackendClient, habits=None) -> dict[str, Tool]:
         ),
         "create_task": Tool(
             "create_task",
-            "新增一条日程/待办。due_at/remind_at 用 ISO 格式（如 2026-10-11T14:00）。",
+            "新增一条日程/待办，小程序「日程」页可见。主人的事要做完能打勾时用它；"
+            "due_at 是截止时间，remind_at 是提前提醒时间（如提前一小时）。"
+            "时间用 ISO 格式（如 2026-10-11T14:00）。",
             {
                 "type": "object",
                 "properties": {
                     "title": {"type": "string", "description": "日程标题"},
                     "note": {"type": "string", "description": "备注"},
                     "due_at": {"type": "string", "description": "截止时间"},
-                    "remind_at": {"type": "string", "description": "提醒时间"},
+                    "remind_at": {"type": "string", "description": "提前提醒时间，如截止前一小时"},
                 },
                 "required": ["title"],
             },
@@ -494,7 +496,9 @@ def build_tools(backend: BackendClient, habits=None) -> dict[str, Tool]:
         ),
         "create_reminder": Tool(
             "create_reminder",
-            "设置提醒。remind_at 用 ISO 格式（如 2026-10-11T14:00）。",
+            "设置一次性到点提醒，适合没有完成概念的事（喝水、吃药、带伞）；"
+            "「要完成一件事」请改用 create_task。提醒会显示在小程序首页，"
+            "remind_at 用 ISO 格式（如 2026-10-11T14:00）。",
             {
                 "type": "object",
                 "properties": {

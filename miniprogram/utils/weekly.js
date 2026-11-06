@@ -35,4 +35,21 @@ function weeklyReminders(reminders) {
     .sort((a, b) => a.sortKey - b.sortKey);
 }
 
-module.exports = { WEEKDAY_LABELS, weeklyReminders, weekdayIndex };
+// 一次性提醒：未完成、非每周重复、也没有挂在日程下的提醒。
+// 挂在日程下的提醒由对应日程行展示，这里跳过避免重复。
+function oneOffReminders(reminders) {
+  if (!Array.isArray(reminders)) {
+    return [];
+  }
+  return reminders
+    .filter((item) => item && !item.done && item.remind_at && !item.repeat_rule && !item.task_id)
+    .map((item) => ({
+      id: item.id,
+      title: item.title || '',
+      body: item.body || '',
+      remind_at: item.remind_at,
+    }))
+    .sort((a, b) => String(a.remind_at).localeCompare(String(b.remind_at)));
+}
+
+module.exports = { WEEKDAY_LABELS, weeklyReminders, oneOffReminders, weekdayIndex };
