@@ -82,6 +82,29 @@ def test_dialog_saves_only_to_account_file(qapp, tmp_path):
     dialog.close()
 
 
+def test_dialog_shows_current_logged_in_account(qapp, tmp_path):
+    store = AccountStore(tmp_path / "data/account.json", "http://server")
+    store.save({"device_token": "session", "user_id": 7})
+
+    dialog = AccountDialog(BackendClient("http://server", "legacy"), store)
+
+    assert "已登录用户 7" in dialog.status.text()
+    assert "http://server" in dialog.status.text()
+    assert dialog.buttons[2].isEnabled()
+    dialog.close()
+
+
+def test_dialog_shows_signed_out_state(qapp, tmp_path):
+    store = AccountStore(tmp_path / "data/account.json", "http://server")
+    store.clear()
+
+    dialog = AccountDialog(BackendClient("http://server", "legacy"), store)
+
+    assert "未登录" in dialog.status.text()
+    assert not dialog.buttons[2].isEnabled()
+    dialog.close()
+
+
 def test_ws_auth_failure_stops_without_leaking(qapp, monkeypatch):
     class AuthError(Exception):
         status_code = 403
