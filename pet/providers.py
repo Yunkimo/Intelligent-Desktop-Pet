@@ -5,6 +5,7 @@ DeepSeek / 通义 / 智谱 / Moonshot 等任意 OpenAI 兼容服务。
 """
 
 import json
+import re
 from abc import ABC, abstractmethod
 from typing import Callable
 from urllib.parse import urlsplit
@@ -15,6 +16,55 @@ from .config import Settings
 
 # 服务商拒绝 stream_options 时抛出的内部信号，用于降级重试且不重复计费
 _STREAM_USAGE_UNSUPPORTED = (TypeError, BadRequestError)
+
+# DeepSeek 有时不返回结构化 tool_calls，而是把 DSML 标记写进正文。
+# 分隔符可能是半角 | 或全角 ｜（特殊 token 常用全角），还可能被空格隔开。
+_PIPE = r"(?:\s*[|｜]\s*)+"
+_DSML = r"<\s*/?" + _PIPE + r"DSML" + _PIPE
+_DSML_INVOKE_RE = re.compile(
+    _DSML + r"\s*invoke\s+name=\"([^\"]+)\"\s*>(.*?)" + _DSML + r"\s*invoke\s*>", re.S
+)
+_DSML_PARAM_RE = re.compile(
+    _DSML
+    + r"\s*parameter\s+name=\"([^\"]+)\"(?:\s+string=\"(true|false)\")?\s*>(.*?)"
+    + _DSML
+    + r"\s*parameter\s*>",
+    re.S,
+)
+_DSML_TAG_RE = re.compile(_DSML + r"[^>]*>")
+_DSML_START_RE = re.compile(r"<\s*" + _PIPE + r"DSML" + _PIPE)
+_DSML_PARTIAL_RE = re.compile(r"<[\s|｜]*(?:D(?:S(?:M(?:L)?)?)?)?[\s|｜]*$")
+
+
+def _dsml_value(raw: str, kind: str | None):
+    """string="false" 的参数按 JSON 解析（数字/布尔），否则保持字符串。"""
+    raw = raw.strip()
+    if kind == "false":
+        try:
+            return json.loads(raw)
+        except ValueError:
+            return raw
+    return raw
+
+
+def extract_dsml_calls(content: str) -> tuple[str, list[dict]]:
+    """解析误写进正文的 DSML 工具调用，返回（清理后的正文, 标准 tool_calls）。"""
+    calls = []
+    for index, (name, body) in enumerate(_DSML_INVOKE_RE.findall(content), start=1):
+        args = {key: _dsml_value(value, kind) for key, kind, value in _DSML_PARAM_RE.findall(body)}
+        calls.append(
+            {
+                "id": f"dsml-{index}",
+                "type": "function",
+                "function": {"name": name, "arguments": json.dumps(args, ensure_ascii=False)},
+            }
+        )
+    # 先整块删掉 invoke（含参数文本），再清掉外层 calls 等残留标签
+    cleaned = _DSML_INVOKE_RE.sub("", content)
+    cleaned = _DSML_TAG_RE.sub("", cleaned)
+    cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+    return cleaned, calls
 
 
 class _UnsupportedStreamOptions(Exception):
@@ -106,7 +156,17 @@ class OpenAICompatProvider(ChatProvider):
         """
         extra = {"stream_options": {"include_usage": True}} if include_usage else {}
         parts: list[str] = []
+        pending = ""
+        dropping = False
         received = False
+
+        def emit(text: str) -> None:
+            if not text:
+                return
+            parts.append(text)
+            if on_chunk is not None:
+                on_chunk(text)
+
         try:
             stream = self._get_client().chat.completions.create(
                 model=self.model,
@@ -120,17 +180,32 @@ class OpenAICompatProvider(ChatProvider):
             for chunk in stream:
                 received = True
                 self._report_usage(getattr(chunk, "usage", None))
-                if not chunk.choices:
+                if not chunk.choices or dropping:
                     continue
                 content = getattr(chunk.choices[0].delta, "content", None)
-                if content:
-                    parts.append(content)
-                    if on_chunk is not None:
-                        on_chunk(content)
+                if not content:
+                    continue
+                pending += content
+                if _DSML_START_RE.search(pending):
+                    # 模型把工具调用写成了正文：只保留标记之前的话，后续一律不展示
+                    emit(_DSML_START_RE.split(pending, maxsplit=1)[0])
+                    pending = ""
+                    dropping = True
+                    continue
+                cut = pending.rfind("<")
+                if cut != -1 and _DSML_PARTIAL_RE.fullmatch(pending[cut:]):
+                    # 末尾可能是被拆开的标签前缀，先留到下一块再决定
+                    emit(pending[:cut])
+                    pending = pending[cut:]
+                else:
+                    emit(pending)
+                    pending = ""
         except _STREAM_USAGE_UNSUPPORTED as exc:
             if include_usage and not received:
                 raise _UnsupportedStreamOptions from exc
             raise
+        if not dropping:
+            emit(_DSML_TAG_RE.sub("", pending))
         return "".join(parts)
 
     def correct_transcript(self, text: str) -> str:
@@ -185,6 +260,7 @@ class OpenAICompatProvider(ChatProvider):
         )
         self._report_usage(getattr(resp, "usage", None))
         msg = resp.choices[0].message
+        content, dsml_calls = extract_dsml_calls(msg.content or "")
         tool_calls = [
             {
                 "id": tc.id,
@@ -193,7 +269,10 @@ class OpenAICompatProvider(ChatProvider):
             }
             for tc in (msg.tool_calls or [])
         ]
-        return {"content": msg.content or "", "tool_calls": tool_calls}
+        if not tool_calls:
+            # 结构化字段为空、正文里却有 DSML：按工具调用处理，而不是把标记念给用户
+            tool_calls = dsml_calls
+        return {"content": content, "tool_calls": tool_calls}
 
 
 def create_chat_provider(
