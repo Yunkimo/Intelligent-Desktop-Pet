@@ -2,7 +2,8 @@
 
 import sqlite3
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 
 from .. import db, reminder_store, wechat_store
 from ..auth import current_user
@@ -31,9 +32,13 @@ def delivery_status(reminder_id: int, user_id: int = Depends(current_user)) -> d
 
 
 @router.post("", status_code=201)
-def create_reminder(payload: ReminderIn, user_id: int = Depends(current_user)):
+async def create_reminder(
+    payload: ReminderIn, request: Request, user_id: int = Depends(current_user)
+):
     try:
-        return db.create_reminder(**payload.model_dump(), user_id=user_id)
+        reminder = await run_in_threadpool(
+            db.create_reminder, **payload.model_dump(), user_id=user_id
+        )
     except db.OwnershipError:
         raise HTTPException(404, "resource_not_found") from None
     except ValueError as exc:
@@ -43,15 +48,20 @@ def create_reminder(payload: ReminderIn, user_id: int = Depends(current_user)):
         ) from None
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=422, detail="微信接收用户不存在") from None
+    await request.app.state.push_service.notify("reminder.created", reminder["id"], user_id)
+    return reminder
 
 
 @router.put("/{reminder_id}")
-def update_reminder(
-    reminder_id: int, payload: ReminderUpdate, user_id: int = Depends(current_user)
+async def update_reminder(
+    reminder_id: int,
+    payload: ReminderUpdate,
+    request: Request,
+    user_id: int = Depends(current_user),
 ):
     try:
-        reminder = db.update_reminder(
-            reminder_id, payload.model_dump(exclude_unset=True), user_id=user_id
+        reminder = await run_in_threadpool(
+            db.update_reminder, reminder_id, payload.model_dump(exclude_unset=True), user_id=user_id
         )
     except db.OwnershipError:
         raise HTTPException(404, "resource_not_found") from None
@@ -64,13 +74,15 @@ def update_reminder(
         raise HTTPException(status_code=422, detail="微信接收用户不存在") from None
     if reminder is None:
         raise HTTPException(status_code=404, detail="提醒不存在")
+    await request.app.state.push_service.notify("reminder.updated", reminder_id, user_id)
     return reminder
 
 
 @router.delete("/{reminder_id}", status_code=204)
-def delete_reminder(reminder_id: int, user_id: int = Depends(current_user)):
-    if not db.delete_reminder(reminder_id, user_id):
+async def delete_reminder(reminder_id: int, request: Request, user_id: int = Depends(current_user)):
+    if not await run_in_threadpool(db.delete_reminder, reminder_id, user_id):
         raise HTTPException(status_code=404, detail="提醒不存在")
+    await request.app.state.push_service.notify("reminder.deleted", reminder_id, user_id)
 
 
 @router.get("/{reminder_id}")

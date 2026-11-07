@@ -113,6 +113,8 @@ def run(interval: float, samples: int, max_delay: float) -> dict:
                                 break
                             arrived = time.time()
                             event = json.loads(message)
+                            if event["type"] == "reminder.created":
+                                continue  # 列表刷新通知不计入到期延迟。
                             assert event["type"] == "reminder.due"
                             row = rows[event["data"]["id"]]
                             if row["event_id"] is not None:

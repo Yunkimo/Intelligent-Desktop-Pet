@@ -4,22 +4,18 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from .. import accounts, pairing_store
-from ..auth import current_user, require_token
+from ..auth import current_session_user, current_user
 
 router = APIRouter(prefix="/api/auth", tags=["accounts"])
 
 
 class DeviceIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    pairing_code: str | None = Field(default=None, min_length=1, max_length=128)
+    pairing_code: str = Field(min_length=1, max_length=128)
 
 
 @router.post("/device")
-def login(
-    payload: DeviceIn, response: Response, request: Request, x_api_key: str = Header(default="")
-):
-    if payload.pairing_code is None:
-        require_token(x_api_key)
+def login(payload: DeviceIn, response: Response, request: Request):
     try:
         result = accounts.device_session(
             payload.pairing_code, source=request.client.host if request.client else "unknown"
@@ -37,7 +33,7 @@ def login(
 
 
 @router.post("/pairing")
-def pairing(response: Response, user_id: int = Depends(current_user)):
+def pairing(response: Response, user_id: int = Depends(current_session_user)):
     response.headers["Cache-Control"] = "no-store"
     try:
         return accounts.pair(user_id)

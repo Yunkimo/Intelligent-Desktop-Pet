@@ -145,17 +145,20 @@ def test_pairing_device_expiry_and_revocation(client):
         == 401
     )
     assert client.post("/api/auth/device", json={"user_id": a}, headers=KEY).status_code == 422
-    default = client.post("/api/auth/device", json={}, headers=KEY).json()
-    assert default["user_id"] == 1
-    assert client.post("/api/auth/device", json={}).status_code == 401
+    assert client.post("/api/auth/device", json={}, headers=KEY).status_code == 422
+    assert client.post("/api/auth/device", json={}).status_code == 422
+    assert client.post("/api/auth/pairing", headers=KEY).status_code == 401
     with db._conn() as conn:
         hashes = str([tuple(r) for r in conn.execute("SELECT * FROM device_sessions")])
         assert device["device_token"] not in hashes and pairing["pairing_code"] not in hashes
     assert client.post("/api/auth/logout", headers=hd).status_code == 204
     assert client.get("/api/tasks", headers=hd).status_code == 401
     with db._conn() as conn:
-        conn.execute("UPDATE device_sessions SET expires_at=0")
-    assert accounts.session_user(default["device_token"]) is None
+        conn.execute(
+            "INSERT INTO device_sessions VALUES (?,?,?)",
+            (accounts.digest("old-demo"), accounts.DEFAULT_USER, accounts.time.time() + 300),
+        )
+    assert client.get("/api/tasks", headers={"Authorization": "Bearer old-demo"}).status_code == 401
     code = accounts.pair(a)["pairing_code"]
     with db._conn() as conn:
         conn.execute("UPDATE device_pairings SET expires_at=0")
@@ -226,7 +229,7 @@ def test_pairing_attempt_limit_persists_and_recovers(client, monkeypatch):
     db.init_db()
     limited = client.post("/api/auth/device", json={"pairing_code": code})
     assert limited.status_code == 429 and limited.headers["retry-after"] == "900"
-    assert client.post("/api/auth/device", json={}, headers=KEY).status_code == 200
+    assert client.post("/api/auth/device", json={}, headers=KEY).status_code == 422
     now += 900
     assert client.post("/api/auth/device", json={"pairing_code": code}).json()["user_id"] == a
 
@@ -247,11 +250,12 @@ def test_pairing_schema_upgrade_preserves_unexpired_legacy_code(tmp_path, monkey
         old.setattr(pairing_store, "migrate", lambda _: None)
         db.init_db()
     previous_backups = set(tmp_path.glob("*.pre-device-pairing-*.db"))
+    owner, _, _ = identity("legacy-pairing")
     legacy_code = "legacy-test-pairing-code"
     with db._conn() as conn:
         conn.execute(
             "INSERT INTO device_pairings VALUES (?,?,?)",
-            (accounts.digest(legacy_code), accounts.DEFAULT_USER, accounts.time.time() + 300),
+            (accounts.digest(legacy_code), owner, accounts.time.time() + 300),
         )
     db.init_db()
     db.init_db()
@@ -259,7 +263,7 @@ def test_pairing_schema_upgrade_preserves_unexpired_legacy_code(tmp_path, monkey
     assert len(backups) == 1
     with sqlite3.connect(backups[0]) as backup:
         assert backup.execute("SELECT MAX(version) FROM schema_migrations").fetchone() == (5,)
-    assert accounts.device_session(legacy_code)["user_id"] == accounts.DEFAULT_USER
+    assert accounts.device_session(legacy_code)["user_id"] == owner
     with pytest.raises(ValueError, match="pairing_invalid"):
         accounts.device_session(legacy_code)
 

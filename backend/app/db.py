@@ -6,7 +6,7 @@
 import json
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from . import config
 
@@ -109,6 +109,21 @@ def init_db() -> None:
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         pairing_store.migrate(conn)
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(tasks)")}
+        for name, declaration in (
+            ("kind", "TEXT NOT NULL DEFAULT 'todo'"),
+            ("start_at", "TEXT"),
+            ("end_at", "TEXT"),
+            ("remind_before_minutes", "INTEGER"),
+        ):
+            if name not in columns:
+                conn.execute(f"ALTER TABLE tasks ADD COLUMN {name} {declaration}")
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS captures ("
+            "user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, "
+            "request_id TEXT NOT NULL, input TEXT NOT NULL, result TEXT NOT NULL, "
+            "PRIMARY KEY (user_id, request_id))"
+        )
 
 
 def _get_by_id(table: str, row_id: int, user_id: int = 1) -> dict | None:
@@ -240,21 +255,47 @@ def create_task(
         normalize_reminder_time(remind_at)
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
-        cur = conn.execute(
-            "INSERT INTO tasks (title, note, due_at, remind_at, created_at, user_id) VALUES (?, ?, ?, ?, ?, ?)",
-            (title, note, due_at, remind_at, _iso_now(), user_id),
-        )
-        new_id = cur.lastrowid
-        task = dict(conn.execute("SELECT * FROM tasks WHERE id=?", (new_id,)).fetchone())
-        _sync_task_reminders(conn, task, reopened=False)
-        return task
+        return _insert_task(conn, user_id, title, note, due_at, remind_at)
+
+
+def _insert_task(
+    conn,
+    user_id,
+    title,
+    note="",
+    due_at=None,
+    remind_at=None,
+    kind="todo",
+    start_at=None,
+    end_at=None,
+    remind_before_minutes=None,
+) -> dict:
+    new_id = conn.execute(
+        "INSERT INTO tasks (title,note,due_at,remind_at,created_at,user_id,"
+        "kind,start_at,end_at,remind_before_minutes) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (
+            title,
+            note,
+            due_at,
+            remind_at,
+            _iso_now(),
+            user_id,
+            kind,
+            start_at,
+            end_at,
+            remind_before_minutes,
+        ),
+    ).lastrowid
+    task = dict(conn.execute("SELECT * FROM tasks WHERE id=?", (new_id,)).fetchone())
+    _sync_task_reminders(conn, task, reopened=False)
+    return task
 
 
 def update_task(task_id: int, fields: dict, user_id: int = 1) -> dict | None:
     """日程改期与关联提醒在同一事务更新，取消旧事件的待发授权。"""
     from .reminder_time import normalize_reminder_time
 
-    cols = {"title", "note", "due_at", "remind_at", "done"}
+    cols = {"title", "note", "due_at", "remind_at", "done", "start_at", "end_at"}
     updates = {key: value for key, value in fields.items() if key in cols}
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -265,6 +306,25 @@ def update_task(task_id: int, fields: dict, user_id: int = 1) -> dict | None:
             return None
         if "remind_at" in updates and updates["remind_at"] is not None:
             updates["remind_at"] = normalize_reminder_time(updates["remind_at"])
+        start = updates.get("start_at", old["start_at"])
+        end = updates.get("end_at", old["end_at"])
+        if old["kind"] == "schedule" and (
+            not start or (end and datetime.fromisoformat(end) <= datetime.fromisoformat(start))
+        ):
+            raise ValueError("日程结束时间须晚于开始时间")
+        if old["kind"] != "schedule" and (start or end):
+            raise ValueError("只有日程可以设置起止时间")
+        anchor_field = "start_at" if old["kind"] == "schedule" else "due_at"
+        lead = old["remind_before_minutes"]
+        if anchor_field in updates and lead is not None and "remind_at" not in updates:
+            anchor = updates[anchor_field]
+            if anchor and ("T" in anchor or " " in anchor):
+                instant = datetime.fromisoformat(normalize_reminder_time(anchor))
+                updates["remind_at"] = (instant - timedelta(minutes=lead)).isoformat()
+            else:
+                updates.update(remind_at=None, remind_before_minutes=None)
+        if "remind_at" in fields and updates["remind_at"] != old["remind_at"]:
+            updates["remind_before_minutes"] = None
         if updates:
             sql = ", ".join(f"{key}=?" for key in updates)
             conn.execute(f"UPDATE tasks SET {sql} WHERE id=?", (*updates.values(), task_id))
@@ -365,7 +425,6 @@ def create_reminder(
     repeat_rule=None,
 ) -> dict:
     """创建提醒及持久化调度状态，两者在同一事务提交。"""
-    from .reminder_store import seed_delivery
     from .reminder_time import normalize_reminder_time
 
     remind_at = normalize_reminder_time(remind_at)
@@ -387,16 +446,35 @@ def create_reminder(
             ).fetchone()
             if existing is not None:
                 return dict(existing)
-        cur = conn.execute(
-            "INSERT INTO reminders (title, body, remind_at, channel, task_id, wechat_user_id, user_id, repeat_rule) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (title, body, remind_at, channel, task_id, wechat_user_id, user_id, repeat_rule),
+        return _insert_reminder(
+            conn, user_id, title, remind_at, body, channel, task_id, wechat_user_id, repeat_rule
         )
-        new_id = cur.lastrowid
-        seed_delivery(
-            conn, dict(conn.execute("SELECT * FROM reminders WHERE id=?", (new_id,)).fetchone())
-        )
-    return _get_by_id("reminders", new_id, user_id)
+
+
+def _insert_reminder(
+    conn,
+    user_id,
+    title,
+    remind_at,
+    body="",
+    channel="pc",
+    task_id=None,
+    wechat_user_id=None,
+    repeat_rule=None,
+) -> dict:
+    from .reminder_store import seed_delivery
+
+    reminder_id = conn.execute(
+        "INSERT INTO reminders (title,body,remind_at,channel,task_id,wechat_user_id,"
+        "user_id,repeat_rule) VALUES (?,?,?,?,?,?,?,?)",
+        (title, body, remind_at, channel, task_id, wechat_user_id, user_id, repeat_rule),
+    ).lastrowid
+    reminder = dict(conn.execute("SELECT * FROM reminders WHERE id=?", (reminder_id,)).fetchone())
+    seed_delivery(conn, reminder)
+    reminder["remind_at"] = conn.execute(
+        "SELECT remind_at FROM reminders WHERE id=?", (reminder_id,)
+    ).fetchone()[0]
+    return reminder
 
 
 def update_reminder(reminder_id: int, fields: dict, user_id: int = 1) -> dict | None:

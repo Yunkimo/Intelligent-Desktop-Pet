@@ -7,16 +7,15 @@
 - 通用 `users` 为业务主表；`wechat_users.business_user_id` 关联它。一个 AppID/openid 对应一个业务用户。
 - 微信登录 `POST /api/wechat/login {"code":"..."}` 不再要求共享 API Key；仍由真实微信 code 交换校验。返回原有 `user_id`（微信身份 ID）、新增 `account_id`（业务用户 ID）、`session_token`、`expires_in`、openid。openid 不是凭据。
 - 业务接口使用 `Authorization: Bearer <session_token 或 device_token>`。缺失、过期、撤销或错误令牌返回 401。显式错误 Bearer 不会退回 API Key。
-- `ALLOW_LEGACY_API_KEY=true` 为过渡默认值：旧 `X-API-Key` 和 WS API Key 仅映射默认演示用户 `1`，只能读写其历史共享数据，不能读写微信用户数据。正式多用户部署设为 `false`。保留 `require_token` 用于设备默认账号登录和服务端测试/管理通道。
+- `ALLOW_LEGACY_API_KEY=true` 为过渡默认值：旧 `X-API-Key` 和 WS API Key 仅映射默认演示用户 `1`，只能读写其历史共享数据，不能读写微信用户数据。正式多用户部署设为 `false`。保留 `require_token` 用于服务端测试和管理通道。
 - 学期配置使用 `user:<account_id>` 作用域，课程、日程、提醒均有 `user_id`；客户端提供的 `user_id` 不参与归属判定。解析接口只返回当前请求草稿，不读写其他用户数据。
 - `GET/PUT/DELETE /api/{courses|tasks|reminders}/{id}` 对不存在和非本人资源均返回 404。提醒关联 task_id、wechat_user_id 也校验同一业务用户；越权关联 404。微信订阅历史仍保持 B3 的空列表语义，非本人只返回 `[]`，不泄露记录。
 
 ## 桌宠设备登录（A19）
 
-两条入口都调用 `POST /api/auth/device`，响应禁止缓存；令牌只在签发时返回，数据库仅存 SHA-256 摘要。
+桌宠通过 `POST /api/auth/device` 兑换配对码。响应禁止缓存，令牌只在签发时返回，数据库仅存 SHA-256 摘要。
 
-1. 默认演示账号：请求头 `X-API-Key`，JSON `{}`。返回用户 1 的设备会话。**API Key 不能指定或兑换任意私人用户**。
-2. 私人账号跨端配对：已登录用户通过 Bearer 调用 `POST /api/auth/pairing`，返回 6 位数字字符串 `pairing_code` 和 `expires_in=7776000`（90 天）。桌宠发送 `{"pairing_code":"012345"}`，保留前导零。新码生成后旧码失效。兑换配对码与签发设备会话在同一事务内完成。重放、过期或错误返回 401。
+私人账号跨端配对：已登录用户通过 Bearer 调用 `POST /api/auth/pairing`，返回 6 位数字字符串 `pairing_code` 和 `expires_in=7776000`（90 天）。桌宠发送 `{"pairing_code":"012345"}`，保留前导零。新码生成后旧码失效。兑换配对码与签发设备会话在同一事务内完成。重放、过期或错误返回 401。
 
 同一来源在 15 分钟内 5 次失败，或服务内 24 小时内累计 20 次失败后，配对兑换返回 429 和 `Retry-After`。限流状态保存在 SQLite，已有会话可继续访问业务接口。数字码以服务端密钥计算 HMAC。签发时优先使用 `WX_SECRET`，未配置时使用 `API_TOKEN`，轮换对应密钥会使已有数字码失效。版本 6 迁移前备份数据库，旧版长码仍按原到期时间兑换。
 

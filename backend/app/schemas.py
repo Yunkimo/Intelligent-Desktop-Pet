@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 from .reminder_time import normalize_reminder_time
 
@@ -43,6 +43,8 @@ class TaskIn(BaseModel):
 
 
 class TaskUpdate(BaseModel):
+    start_at: AwareDatetime | None = None
+    end_at: AwareDatetime | None = None
     title: str | None = None
     note: str | None = None
     due_at: str | None = None

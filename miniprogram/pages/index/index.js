@@ -17,6 +17,9 @@ const WS_EVENTS = [
   'course.deleted',
   'semester.updated',
   'reminder.due',
+  'reminder.created',
+  'reminder.updated',
+  'reminder.deleted',
   'reconnect',
 ];
 

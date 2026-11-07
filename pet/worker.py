@@ -2,6 +2,7 @@
 
 import threading
 from collections.abc import Callable
+from uuid import uuid4
 
 import numpy as np
 import sounddevice as sd
@@ -66,15 +67,73 @@ class ChatWorker(QThread):
     error = pyqtSignal(str)
 
     def __init__(
-        self, client, messages: list[dict], tools: dict | None = None, parent=None
+        self,
+        client,
+        messages: list[dict],
+        tools: dict | None = None,
+        parent=None,
+        *,
+        backend=None,
+        pending=None,
+        capture_retry=None,
     ) -> None:
         super().__init__(parent)
         self.client = client
         self.messages = messages
         self.tools = tools or {}
+        self.backend = backend
+        self.pending = pending
+        self.capture_retry = capture_retry
+
+    def _capture(self):
+        if self.backend is None or not self.backend.session_token:
+            return None
+        text = self.messages[-1]["content"]
+        if not isinstance(text, str):
+            return None
+        session = self.backend.session_token
+        choice = text.strip()
+        if self.pending and self.pending[0] == session and choice in self.pending[2]:
+            result = self.backend.confirm_capture(
+                self.pending[1], self.pending[2][choice], self.pending[3]
+            )
+            self.pending = None
+        else:
+            self.pending = None
+            request_id = (
+                self.capture_retry[2]
+                if self.capture_retry and self.capture_retry[:2] == (session, text)
+                else uuid4().hex
+            )
+            self.capture_retry = (session, text, request_id)
+            result = self.backend.capture_text(text, request_id)
+            self.capture_retry = None
+        if result["status"] == "not_action":
+            return None
+        choices = result.get("choices", [])
+        message = result["message"]
+        if choices:
+            numbers = [str(i) for i in range(1, len(choices) + 1)]
+            stage = result.get("stage", "item")
+            selections = {number: int(number) for number in numbers}
+            if stage == "reminder":
+                selections["不提醒"] = len(choices)
+                if not choices[0].get("disabled"):
+                    selections.update({"默认": 1, "提前一小时": 1, "提前1小时": 1})
+            self.pending = (session, result["request_id"], selections, stage)
+            message += "\n" + "\n".join(
+                f"{number}. {option.get('choice_label', option['label'])}"
+                for number, option in zip(numbers, choices, strict=True)
+            )
+            message += "\n请回复序号。"
+        return message
 
     def run(self) -> None:
         try:
+            if (message := self._capture()) is not None:
+                self.chunk.emit(message)
+                self.done.emit(message)
+                return
             agent = Agent(self.client, self.tools)
             result = agent.run(self.messages, on_chunk=self.chunk.emit, on_status=self.status.emit)
             self.done.emit(result)

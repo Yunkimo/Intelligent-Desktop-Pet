@@ -13,7 +13,12 @@ const { dateStr, reminderParts, reminderInput } = require('../../utils/datetime'
 const { weeklyReminders, oneOffReminders } = require('../../utils/weekly');
 
 // 日程页关心的后端事件（B6 起后端会在其他端增改删时推送更新/删除事件）
-const WS_EVENTS = ['task.created', 'task.updated', 'task.deleted', 'reminder.due', 'reconnect'];
+const WS_EVENTS = ['task.created', 'task.updated', 'task.deleted', 'reminder.due', 'reminder.created', 'reminder.updated', 'reminder.deleted', 'reconnect'];
+
+function formatInstant(value) {
+  const { date, time } = reminderParts(value);
+  return date ? date + ' ' + time : '';
+}
 
 const EMPTY_FORM = {
   id: null,
@@ -59,6 +64,7 @@ Page({
     // 一句话创建状态机：'' / 'input' / 'draft'
     parseStage: '',
     parseText: '',
+    captureChoices: [],
     parsing: false,
     savingDrafts: false,
     parseFailedText: '',
@@ -108,7 +114,9 @@ Page({
             ? '订阅状态待确认'
             : states[t.id] || '尚未查询或未订阅'
           : '',
-        dueText: t.due_at ? t.due_at.slice(0, 10) : '无截止日期',
+        dueText: t.kind === 'schedule'
+          ? formatInstant(t.start_at) + (t.end_at ? ' 至 ' + formatInstant(t.end_at) : '')
+          : t.due_at ? t.due_at.slice(0, 16).replace('T', ' ') + ' 截止' : '无截止日期',
         remindText: t.remind_at
           ? reminderParts(t.remind_at).date + ' ' + reminderParts(t.remind_at).time
           : '',
@@ -169,7 +177,13 @@ Page({
       editing: true,
       form: {
         id: t.id,
-        kind: t.reminder ? 'reminder' : 'task',
+        kind: t.reminder ? 'reminder' : t.kind || 'task',
+        originalDue: t.due_at,
+        originalRemind: t.remind_at,
+        start_date: reminderParts(t.start_at).date,
+        start_time: reminderParts(t.start_at).time,
+        end_date: reminderParts(t.end_at).date,
+        end_time: reminderParts(t.end_at).time,
         title: t.title,
         note: t.note || '',
         due_at: t.due_at ? t.due_at.slice(0, 10) : '',
@@ -204,6 +218,25 @@ Page({
       due_at: form.due_at || null,
       remind_at: form.remind_date ? reminderInput(form.remind_date, form.remind_time) : null,
     };
+    if (form.originalDue && form.originalDue.slice(0, 10) === form.due_at) {
+      delete payload.due_at;
+    } else if (form.originalDue && form.due_at && form.originalDue.length > 10) {
+      payload.due_at = form.due_at + form.originalDue.slice(10);
+    }
+    const original = reminderParts(form.originalRemind);
+    if (form.id && form.kind !== 'reminder' &&
+        (original.date || '') === form.remind_date &&
+        (!form.remind_date || original.time === form.remind_time)) {
+      delete payload.remind_at;
+    }
+    if (form.kind === 'schedule') {
+      if (!form.start_date || !form.start_time || (form.end_date && !form.end_time)) {
+        wx.showToast({ title: '请补充日程时间', icon: 'none' });
+        return;
+      }
+      payload.start_at = reminderInput(form.start_date, form.start_time);
+      payload.end_at = form.end_date ? reminderInput(form.end_date, form.end_time) : null;
+    }
     wx.showLoading({ title: '保存中' });
     try {
       if (form.kind === 'reminder') {
@@ -342,9 +375,12 @@ Page({
 
   closeParse() {
     this._drafts = null;
+    this._capture = null;
+    this._captureStage = 'item';
     this.setData({
       parseStage: '',
       parseText: '',
+      captureChoices: [],
       parseFailedText: '',
       draftViews: [],
       draftForm: null,
@@ -352,7 +388,9 @@ Page({
   },
 
   onParseTextInput(e) {
-    this.setData({ parseText: e.detail.value });
+    this._capture = null;
+    this._captureStage = 'item';
+    this.setData({ parseText: e.detail.value, captureChoices: [], parseFailedText: '' });
   },
 
   // 从文本输入回退到手动表单
@@ -362,6 +400,53 @@ Page({
   },
 
   // 解析：防连点；失败保留原文可重试
+  async captureText() {
+    if (this.data.parsing) return;
+    const text = this.data.parseText.trim();
+    if (!text) {
+      wx.showToast({ title: '请输入事项', icon: 'none' });
+      return;
+    }
+    if (!this._capture || this._capture.text !== text) {
+      this._captureStage = 'item';
+      this._capture = {
+        text,
+        request_id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2),
+        timezone: taskParse.buildReference().timezone,
+      };
+    }
+    await this.runCapture(() => api.captureText(this._capture));
+  },
+
+  async chooseCapture(e) {
+    if (!this._capture || this.data.parsing) return;
+    const option = Number(e.currentTarget.dataset.option);
+    await this.runCapture(() => api.confirmCapture(this._capture.request_id, option, this._captureStage));
+  },
+
+  async runCapture(send) {
+    this.setData({ parsing: true, parseFailedText: '' });
+    const capture = this._capture;
+    try {
+      const result = await send();
+      if (this._capture !== capture) return;
+      if (result.status === 'created') {
+        this.closeParse();
+        wx.showToast({ title: '已添加' + { todo: '待办', schedule: '日程', reminder: '提醒' }[result.kind], icon: 'none' });
+        await this.load();
+      } else {
+        this._captureStage = result.stage || 'item';
+        this.setData({ parseFailedText: result.message, captureChoices: result.choices || [] });
+      }
+    } catch (err) {
+      if (this._capture === capture) {
+        this.setData({ parseFailedText: err.message || '提交失败，请重试' });
+      }
+    } finally {
+      this.setData({ parsing: false });
+    }
+  },
+
   async parseText() {
     if (this.data.parsing) {
       return;

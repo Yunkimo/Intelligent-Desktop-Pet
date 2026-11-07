@@ -299,7 +299,12 @@ def _fmt_tasks(tasks: list[dict]) -> str:
     for t in tasks:
         mark = "✓" if t.get("done") else "○"
         due = f"，截止 {t['due_at']}" if t.get("due_at") else ""
-        parts.append(f"[#{t.get('id', '?')}]{mark} {t.get('title', '未命名')}{due}")
+        start = f"，开始 {t['start_at']}" if t.get("start_at") else ""
+        end = f"，结束 {t['end_at']}" if t.get("end_at") else ""
+        kind = {"todo": "待办", "schedule": "日程"}.get(t.get("kind"), "")
+        parts.append(
+            f"[#{t.get('id', '?')}]{mark} {kind} {t.get('title', '未命名')}{due}{start}{end}"
+        )
     return "；".join(parts)
 
 
