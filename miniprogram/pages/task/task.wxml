@@ -9,7 +9,7 @@
     <checkbox wx:if="{{!item.weekly}}" class="task-check" checked="{{item.checked}}" data-id="{{item.id}}" data-done="{{item.done}}" data-kind="{{item.reminder ? 'reminder' : 'task'}}" bindtap="toggleDone" />
     <view class="task-body">
       <view class="task-title {{item.done ? 'finished' : ''}}">
-        <text wx:if="{{item.weekly}}" class="badge-weekly">每周</text><text wx:if="{{item.reminder}}" class="badge-reminder">提醒</text>{{item.title}}
+        <text wx:if="{{item.weekly}}" class="badge-weekly">每周</text><text wx:if="{{item.reminder}}" class="badge-reminder">提醒</text><text wx:if="{{item.kind}}" class="badge-reminder">{{item.kind === 'schedule' ? '日程' : '待办'}}</text>{{item.title}}
       </view>
       <view wx:if="{{item.note}}" class="task-note">{{item.note}}</view>
       <view class="task-meta">
@@ -32,13 +32,17 @@
   <!-- 一句话创建：文本输入 -->
   <view wx:if="{{parseStage === 'input'}}" class="mask">
     <view class="modal">
-      <view class="modal-title">一句话创建日程</view>
-      <textarea class="parse-textarea" value="{{parseText}}" bindinput="onParseTextInput" maxlength="2000" placeholder="例如：明天下午三点提醒我交实验报告；下周五前交报告" auto-height="{{false}}" />
+      <view class="modal-title">一句话添加事项</view>
+      <textarea class="parse-textarea" value="{{parseText}}" bindinput="onParseTextInput" maxlength="2000" placeholder="例如：明早九点开会，提前十分钟提醒我" auto-height="{{false}}" />
       <view wx:if="{{parseFailedText}}" class="parse-failed">{{parseFailedText}}</view>
+      <view wx:for="{{captureChoices}}" wx:key="label">
+        <button class="btn btn-ghost" disabled="{{parsing || item.disabled}}" data-option="{{index + 1}}" bindtap="chooseCapture">{{item.choice_label || item.label}}</button>
+      </view>
       <view class="modal-actions">
+        <button class="btn btn-ghost" disabled="{{parsing}}" bindtap="parseText">批量解析</button>
         <button class="btn btn-ghost" bindtap="openManualFromText">手动添加</button>
         <button class="btn btn-ghost" bindtap="closeParse">取消</button>
-        <button class="btn btn-primary" disabled="{{parsing}}" loading="{{parsing}}" bindtap="parseText">解析</button>
+        <button class="btn btn-primary" disabled="{{parsing}}" loading="{{parsing}}" bindtap="captureText">提交</button>
       </view>
     </view>
   </view>
@@ -120,10 +124,28 @@
         <text class="label">备注</text>
         <input class="input" value="{{form.note}}" data-field="note" bindinput="onFormInput" placeholder="选填" />
       </view>
-      <view wx:if="{{form.kind !== 'reminder'}}" class="form-item">
+      <view wx:if="{{form.kind !== 'reminder' && form.kind !== 'schedule'}}" class="form-item">
         <text class="label">截止日期</text>
         <picker mode="date" value="{{form.due_at}}" data-field="due_at" bindchange="onFormInput">
           <view class="picker-value">{{form.due_at || '选择日期'}}</view>
+        </picker>
+      </view>
+      <view wx:if="{{form.kind === 'schedule'}}" class="form-item">
+        <text class="label">开始时间</text>
+        <picker mode="date" value="{{form.start_date}}" data-field="start_date" bindchange="onFormInput">
+          <view class="picker-value">{{form.start_date || '选择日期'}}</view>
+        </picker>
+        <picker mode="time" value="{{form.start_time}}" data-field="start_time" bindchange="onFormInput">
+          <view class="picker-value">{{form.start_time || '选择时刻'}}</view>
+        </picker>
+      </view>
+      <view wx:if="{{form.kind === 'schedule'}}" class="form-item">
+        <text class="label">结束时间（选填）</text>
+        <picker mode="date" value="{{form.end_date}}" data-field="end_date" bindchange="onFormInput">
+          <view class="picker-value">{{form.end_date || '选择日期'}}</view>
+        </picker>
+        <picker mode="time" value="{{form.end_time}}" data-field="end_time" bindchange="onFormInput">
+          <view class="picker-value">{{form.end_time || '选择时刻'}}</view>
         </picker>
       </view>
       <view class="form-item">

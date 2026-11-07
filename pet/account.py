@@ -18,6 +18,9 @@ class AccountStore:
             value = json.loads(self.path.read_text(encoding="utf-8"))
             if value.get("base_url") != self.base_url:
                 return None
+            # 旧版演示会话不能作为配对会话恢复。
+            if value.get("user_id") == 1:
+                return None
             if value.get("signed_out") is True:
                 return value
             if not isinstance(value.get("device_token"), str) or not value["device_token"]:

@@ -71,7 +71,7 @@ def _is_confused_reply(text: str) -> bool:
 class PetWindow(QWidget):
     account_expired = pyqtSignal()
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, *, backend: BackendClient | None = None) -> None:
         super().__init__()
         self.settings = settings
 
@@ -103,7 +103,7 @@ class PetWindow(QWidget):
             )
 
         # —— 后端客户端（惰性：不配置后端也不影响纯聊天）——
-        self.backend = BackendClient(settings.backend_url, settings.api_token)
+        self.backend = backend if backend is not None else BackendClient(settings.backend_url)
         self.tools = build_tools(self.backend, self.habits)
 
         self.account_store = AccountStore(
@@ -124,7 +124,7 @@ class PetWindow(QWidget):
         self._restart_account_ws()
         if not self.backend.session_token:
             QTimer.singleShot(
-                500, lambda: self.show_hint("首次使用请打开「后端账号」绑定；可选择演示账号登录")
+                500, lambda: self.show_hint("首次使用请打开「后端账号」，输入小程序生成的配对码")
             )
 
         # —— 记忆 ——
@@ -150,6 +150,8 @@ class PetWindow(QWidget):
 
         # worker 引用（保持存活，防被 GC）
         self.chat_worker: ChatWorker | None = None
+        self._capture_pending = None
+        self._capture_retry = None
         self.asr_worker: ASRWorker | None = None
         self._close_after_asr = False
         self.tts_worker: TTSWorker | None = None
@@ -487,7 +489,15 @@ class PetWindow(QWidget):
             return
         self.input.set_busy(True)
         self._tool_status_active = False
-        self.chat_worker = ChatWorker(self.llm, messages, tools=self.tools, parent=self)
+        self.chat_worker = ChatWorker(
+            self.llm,
+            messages,
+            tools=self.tools,
+            parent=self,
+            backend=self.backend,
+            pending=self._capture_pending,
+            capture_retry=self._capture_retry,
+        )
         self.chat_worker.chunk.connect(self._on_chunk)
         self.chat_worker.status.connect(self._on_tool_status)
         self.chat_worker.done.connect(self._on_chat_done)
@@ -507,6 +517,7 @@ class PetWindow(QWidget):
         self.bubble.set_text(text)
 
     def _on_chat_done(self, text: str) -> None:
+        self._remember_capture_state()
         self.input.set_busy(False)
         # 本轮可能新增/删除了习惯（工具调用），重建提示词让下一轮立即带上
         self._refresh_system_prompt()
@@ -522,7 +533,13 @@ class PetWindow(QWidget):
             self.avatar.react("confused")
             self.bubble.set_text("嗯…这个我答不上来…")
 
+    def _remember_capture_state(self) -> None:
+        if self.chat_worker is not None:
+            self._capture_pending = self.chat_worker.pending
+            self._capture_retry = self.chat_worker.capture_retry
+
     def _on_chat_error(self, msg: str) -> None:
+        self._remember_capture_state()
         self.input.set_busy(False)
         self.avatar.react("confused")
         self.bubble.set_text(f"呜…出错了：{msg}")
@@ -920,9 +937,7 @@ class PetWindow(QWidget):
         generation = self._ws_generation
         if hasattr(self, "ws"):
             self.ws.request_stop()
-        credential = self.backend.session_token or (
-            "" if self.backend.session_required else self.settings.api_token
-        )
+        credential = self.backend.ws_credential()
         self.ws = WsListener(build_ws_url(self.settings.backend_url, credential), parent=self)
         self._ws_threads.append(self.ws)
         self.ws.event.connect(
@@ -970,7 +985,7 @@ class PetWindow(QWidget):
         data = event.get("data")
         if (
             event.get("version") != 1
-            or etype not in {"reminder.due", "task.created", "course.created"}
+            or etype not in {"reminder.due", "task.created", "course.created", "reminder.created"}
             or not isinstance(event_id, str)
             or not 1 <= len(event_id) <= 128
             or not isinstance(data, dict)
@@ -983,7 +998,9 @@ class PetWindow(QWidget):
         if etype == "reminder.due":
             self._remind_health(self._reminder_text(data["id"]))
         elif etype == "task.created":
-            self.show_hint("收到新日程啦，需要我帮你看看吗～")
+            self.show_hint("事项已同步")
+        elif etype == "reminder.created":
+            self.show_hint("提醒已同步")
         elif etype == "course.created":
             self.show_hint("课表有更新啦～")
         self._recent_events.remember(event_id)

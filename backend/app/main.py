@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 
-from . import config, db
+from . import capture, config, db
 from .logging_config import install_log_filters
 from .push_service import PushService
 from .routers import (
@@ -77,6 +77,7 @@ app = FastAPI(title="智能桌宠后端", version="0.1.0", lifespan=lifespan)
 
 app.include_router(accounts.router)
 app.include_router(tasks.router)
+app.include_router(capture.router)
 app.include_router(semester.router)
 app.include_router(course_import.router)
 app.include_router(courses.router)

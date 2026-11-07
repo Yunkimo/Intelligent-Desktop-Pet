@@ -49,7 +49,6 @@ class AccountDialog(QDialog):
         self.buttons = []
         for title, operation in (
             ("配对绑定", "pair"),
-            ("API Key 登录演示账号", "demo"),
             ("退出并清除本机账号", "logout"),
         ):
             button = QPushButton(title)
@@ -57,7 +56,7 @@ class AccountDialog(QDialog):
             layout.addWidget(button)
             self.buttons.append(button)
         # 未登录时没有可退出的账号，避免误点
-        self.buttons[2].setEnabled(self._logged_in)
+        self.buttons[-1].setEnabled(self._logged_in)
 
     def _load_current(self):
         """读取本机账号；文件损坏时返回错误文案由状态栏展示。"""
@@ -67,7 +66,7 @@ class AccountDialog(QDialog):
             return None, str(exc)
 
     def _status_text(self) -> str:
-        hint = "从小程序取得配对码后绑定私人账号；API Key 登录使用默认演示账号。"
+        hint = "请从小程序取得配对码后绑定。"
         if self.load_error:
             return self.load_error
         if self._logged_in:
@@ -83,7 +82,7 @@ class AccountDialog(QDialog):
             self.status.setText("请先输入配对码")
             return
         # 使用快照，登录失败不改变当前账号。
-        client = BackendClient(self.backend.base_url, self.backend._token)
+        client = BackendClient(self.backend.base_url)
         client.session_token = self.backend.session_token
         if operation == "logout":
             try:
@@ -109,7 +108,7 @@ class AccountDialog(QDialog):
     def complete(self, result, operation):
         if operation == "logout":
             self._logged_in = False
-            self.buttons[2].setEnabled(False)
+            self.buttons[-1].setEnabled(False)
             self.status.setText("本机账号已清除")
             return
         try:
@@ -119,13 +118,13 @@ class AccountDialog(QDialog):
             return
         self.code.clear()
         self._logged_in = True
-        self.buttons[2].setEnabled(True)
+        self.buttons[-1].setEnabled(True)
         self.changed.emit(result)
         self.status.setText(f"已绑定用户 {result['user_id']}，之后打开会显示当前账号")
 
     def finished_work(self):
-        for button in self.buttons:
-            button.setEnabled(True)
+        self.buttons[0].setEnabled(True)
+        self.buttons[-1].setEnabled(self._logged_in)
 
     def reject(self):
         if self.worker is None or not self.worker.isRunning():

@@ -21,6 +21,9 @@ EventType = Literal[
     "course.deleted",
     "semester.updated",
     "reminder.due",
+    "reminder.created",
+    "reminder.updated",
+    "reminder.deleted",
 ]
 
 

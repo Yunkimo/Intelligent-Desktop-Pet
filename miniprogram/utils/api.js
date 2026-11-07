@@ -322,6 +322,11 @@ module.exports = {
   deleteReminder: (id) => request(`/api/reminders/${id}`, { method: 'DELETE' }),
 
   // 一句话日程解析（C8，B7 契约见 docs/b7-parsing.md 第二节）：只返回待确认草稿
+  captureText: (data) => request('/api/capture', { method: 'POST', data }),
+  confirmCapture: (id, option, stage = 'item') =>
+    request('/api/capture/' + encodeURIComponent(id) + '/confirm', {
+      method: 'POST', data: { option, stage },
+    }),
   parseTaskText: (payload) => request('/api/tasks/parse-text', { method: 'POST', data: payload }),
 
   // 学期与日历（B6 契约见 docs/b6-contract.md；B8 起按账号隔离）

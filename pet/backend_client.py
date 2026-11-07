@@ -1,6 +1,6 @@
 """后端客户端：REST（httpx）与 WebSocket（websocket-client）的统一入口。
 
-REST 部分封装课表/日程/提醒 CRUD，自动携带 X-API-Key 鉴权头；
+REST 部分封装课表/日程/提醒 CRUD，使用账号会话，兼容测试工具可显式传入 API Key；
 WebSocket 部分用后台线程接收后端事件广播，解析后经 Qt 信号上抛。
 """
 
@@ -24,10 +24,10 @@ class SessionExpired(BackendError):
 class BackendClient:
     """访问后端 REST 的客户端，封装课表 / 日程 / 提醒的 CRUD。
 
-    base_url 与 api_token 来自配置（见 Settings.backend_url / Settings.api_token）。
+    正常桌宠仅配置后端地址；显式 API Key 仅供兼容调用方使用。
     """
 
-    def __init__(self, base_url: str, api_token: str, timeout: float = 5.0) -> None:
+    def __init__(self, base_url: str, api_token: str = "", timeout: float = 5.0) -> None:
         self.base_url = base_url.rstrip("/")
         self._token = api_token
         self._timeout = timeout
@@ -35,11 +35,22 @@ class BackendClient:
         self.on_auth_error = None
         self.session_required = False
 
+    def capture_text(self, text: str, request_id: str):
+        return self._request("POST", "/api/capture", {"text": text, "request_id": request_id})
+
+    def confirm_capture(self, request_id: str, option: int, stage: str = "item"):
+        return self._request(
+            "POST", f"/api/capture/{request_id}/confirm", {"option": option, "stage": stage}
+        )
+
     # ---------- 底层 ----------
+    def ws_credential(self) -> str:
+        return self.session_token or ("" if self.session_required else self._token)
+
     def _headers(self) -> dict[str, str]:
         if self.session_token:
             return {"Authorization": "Bearer " + self.session_token}
-        if self.session_required:
+        if not self.ws_credential():
             raise SessionExpired("账号未绑定，请打开「后端账号」重新绑定")
         return {"X-API-Key": self._token}
 
@@ -74,14 +85,12 @@ class BackendClient:
         except ValueError as exc:  # 非 JSON 的 2xx 响应，避免向上抛裸异常
             raise BackendError("后端响应不是合法 JSON") from exc
 
-    def device_login(self, pairing_code=""):
-        """登录不沿用旧 Bearer；配对失败不降级为演示账号。"""
-        payload = {"pairing_code": pairing_code} if pairing_code else {}
+    def device_login(self, pairing_code: str):
+        """用一次性配对码登录，不携带已有会话或 API Key。"""
+        if not pairing_code.strip():
+            raise BackendError("请先输入配对码")
         result = self._request(
-            "POST",
-            "/api/auth/device",
-            payload,
-            headers={} if pairing_code else {"X-API-Key": self._token},
+            "POST", "/api/auth/device", {"pairing_code": pairing_code.strip()}, headers={}
         )
         if (
             not isinstance(result, dict)
@@ -108,7 +117,7 @@ class BackendClient:
     # ---------- 健康检查（无鉴权） ----------
     def health(self) -> dict:
         """GET /api/health，返回后端健康状态。"""
-        return self._request("GET", "/api/health")
+        return self._request("GET", "/api/health", headers={})
 
     # ---------- 课表 ----------
     def list_courses(self) -> list[dict]:

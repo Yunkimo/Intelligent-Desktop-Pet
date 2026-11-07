@@ -7,7 +7,7 @@ import pytest
 
 from pet.account import AccountStore
 from pet.account_dialog import AccountDialog
-from pet.backend_client import BackendClient, SessionExpired, WsListener, build_ws_url
+from pet.backend_client import BackendClient, BackendError, SessionExpired, WsListener, build_ws_url
 
 
 def test_store_scoped_atomic_and_logout(tmp_path):
@@ -66,8 +66,9 @@ def test_pairing_payload_not_old_bearer(monkeypatch):
     client.device_login("one-time-code")
     assert seen[0]["headers"] == {}
     assert seen[0]["json"] == {"pairing_code": "one-time-code"}
-    client.device_login()
-    assert seen[1]["headers"] == {"X-API-Key": "legacy"}
+    with pytest.raises(BackendError, match="配对码"):
+        client.device_login("")
+    assert len(seen) == 1
 
 
 def test_dialog_saves_only_to_account_file(qapp, tmp_path):
@@ -90,7 +91,7 @@ def test_dialog_shows_current_logged_in_account(qapp, tmp_path):
 
     assert "已登录用户 7" in dialog.status.text()
     assert "http://server" in dialog.status.text()
-    assert dialog.buttons[2].isEnabled()
+    assert dialog.buttons[-1].isEnabled()
     dialog.close()
 
 
@@ -101,7 +102,8 @@ def test_dialog_shows_signed_out_state(qapp, tmp_path):
     dialog = AccountDialog(BackendClient("http://server", "legacy"), store)
 
     assert "未登录" in dialog.status.text()
-    assert not dialog.buttons[2].isEnabled()
+    assert [button.text() for button in dialog.buttons] == ["配对绑定", "退出并清除本机账号"]
+    assert not dialog.buttons[-1].isEnabled()
     dialog.close()
 
 

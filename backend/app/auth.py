@@ -14,15 +14,21 @@ def require_token(x_api_key: str = Header(default="")) -> None:
         raise HTTPException(401, "API Key 无效")
 
 
+def current_session_user(authorization: str = Header(default="")) -> int:
+    if not authorization:
+        raise HTTPException(401, "session_required")
+    scheme, _, token = authorization.partition(" ")
+    uid = accounts.session_user(token) if scheme.lower() == "bearer" else None
+    if uid is None:
+        raise HTTPException(401, "session_invalid")
+    return uid
+
+
 def current_user(
     authorization: str = Header(default=""), x_api_key: str = Header(default="")
 ) -> int:
     if authorization:
-        scheme, _, token = authorization.partition(" ")
-        uid = accounts.session_user(token) if scheme.lower() == "bearer" else None
-        if uid is None:
-            raise HTTPException(401, "session_invalid")
-        return uid
+        return current_session_user(authorization)
     if config.ALLOW_LEGACY_API_KEY:
         require_token(x_api_key)
         return accounts.DEFAULT_USER

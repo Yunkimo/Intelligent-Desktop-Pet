@@ -101,7 +101,7 @@ def session_user(token):
             (digest(token), time.time()),
         ).fetchone()
     if row:
-        return row[0]
+        return row[0] if row[0] != DEFAULT_USER else None
     wx_id = wechat_store.session_user(token)
     return wechat_owner(wx_id) if wx_id is not None else None
 
@@ -113,13 +113,15 @@ def pair(user_id):
     return {"pairing_code": code, "expires_in": pairing_store.TTL_SECONDS}
 
 
-def device_session(code=None, source: str | None = None):
-    """API Key 仅能签发默认演示用户；私有用户由一次性配对码确定。"""
+def device_session(code: str, source: str | None = None):
+    """仅为一次性配对码所属的私人用户签发设备会话。"""
     token = secrets.token_urlsafe(32)
     with db._conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         now = time.time()
-        user_id = DEFAULT_USER if code is None else pairing_store.consume(conn, code, now, source)
+        user_id = pairing_store.consume(conn, code, now, source)
+        if user_id == DEFAULT_USER:
+            user_id = None
         if user_id is not None:
             conn.execute("DELETE FROM device_sessions WHERE expires_at<=?", (now,))
             conn.execute(

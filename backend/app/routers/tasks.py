@@ -36,9 +36,15 @@ async def create_task(
 async def update_task(
     task_id: int, payload: TaskUpdate, request: Request, user_id: int = Depends(current_user)
 ):
-    task = await run_in_threadpool(
-        db.update_task, task_id, payload.model_dump(exclude_unset=True), user_id=user_id
-    )
+    try:
+        task = await run_in_threadpool(
+            db.update_task,
+            task_id,
+            payload.model_dump(mode="json", exclude_unset=True),
+            user_id=user_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
     if task is None:
         raise HTTPException(status_code=404, detail="日程不存在")
     await request.app.state.push_service.notify("task.updated", task_id, user_id=user_id)
