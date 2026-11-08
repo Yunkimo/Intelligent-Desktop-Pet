@@ -480,8 +480,9 @@ class PetWindow(QWidget):
         # 每轮发送前重建提示词，让「现在几点」跟随真实时间，而不是启动时的旧时间
         self._refresh_system_prompt()
         self.memory.add_user(text)
-        self.input.hide()
-        self.bubble.clear()
+        if not self._capture_pending:
+            self.input.hide()
+            self.bubble.clear()
         self._start_chat(self.memory.get_messages())
 
     def _start_chat(self, messages: list[dict]) -> None:
@@ -501,6 +502,7 @@ class PetWindow(QWidget):
         self.chat_worker.chunk.connect(self._on_chunk)
         self.chat_worker.status.connect(self._on_tool_status)
         self.chat_worker.done.connect(self._on_chat_done)
+        self.chat_worker.capture_finished.connect(self._on_capture_finished)
         self.chat_worker.error.connect(self._on_chat_error)
         self.chat_worker.start()
 
@@ -533,6 +535,27 @@ class PetWindow(QWidget):
             self.avatar.react("confused")
             self.bubble.set_text("嗯…这个我答不上来…")
 
+    def _on_capture_finished(self, text: str, needs_input: bool) -> None:
+        self._on_chat_done(text)
+        if self._capture_pending and needs_input:
+            self.bubble.set_prompt(text)
+        else:
+            if not self._capture_pending:
+                self.bubble.clear_prompt()
+            self.bubble.set_text(text)
+        if self._capture_pending or needs_input:
+            self._show_choice_input()
+        else:
+            self.input.hide()
+            self._position_bubble()
+
+    def _show_choice_input(self) -> None:
+        self.input.show()
+        if self.isVisible():
+            self.activateWindow()
+            self.input.focus_input()
+        self._position_bubble()
+
     def _remember_capture_state(self) -> None:
         if self.chat_worker is not None:
             self._capture_pending = self.chat_worker.pending
@@ -543,6 +566,8 @@ class PetWindow(QWidget):
         self.input.set_busy(False)
         self.avatar.react("confused")
         self.bubble.set_text(f"呜…出错了：{msg}")
+        if self._capture_pending:
+            self._show_choice_input()
 
     # ---------- 语音合成 ----------
     def _toggle_voice(self) -> None:
@@ -966,6 +991,10 @@ class PetWindow(QWidget):
         dialog.deleteLater()
 
     def _apply_account(self, account):
+        if getattr(self, "_capture_pending", None):
+            self._capture_pending = None
+            self.bubble.clear_prompt()
+            self.input.hide()
         self.backend.session_required = True
         self.backend.session_token = (account or {}).get("device_token", "")
         self._auth_notice_shown = False
