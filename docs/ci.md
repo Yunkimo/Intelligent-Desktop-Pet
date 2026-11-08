@@ -35,6 +35,7 @@
 python -m pip install -r backend/requirements-dev.txt
 python -m ruff check tests_deployment
 python -m ruff format --check tests_deployment
+python -X utf8 scripts/check_repo_content.py --tree HEAD
 python scripts/check_docs.py
 python scripts/check_c4_docs.py
 python -m pytest tests_deployment -q -o addopts= -o junit_family=legacy --junitxml=ci-results/deployment.xml
@@ -59,6 +60,8 @@ python scripts/check_c3_integration.py
 ```
 
 审计继续沿用pip-audit，对相应requirements执行，保留其非零失败码。桌宠依赖下限会导致解析版本变化，不能把某个旧审计当作永久无漏洞结论。
+
+仓库级 pre-commit 和 CI 检查 Git 暂存区中的跟踪内容。已发布源码可用 --tree 加提交或标签复核。 图片按文件签名识别，检查脚本同时拦截日志、数据库和其他本地生成文件。
 
 ## 文档检查边界
 

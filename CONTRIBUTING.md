@@ -13,6 +13,9 @@ ruff check .            # 静态检查
 ruff format .           # 格式化
 ```
 
+小程序先执行 `npm ci --prefix miniprogram`，再运行 `npm run lint --prefix miniprogram` 和
+`npm run format:check --prefix miniprogram`。按改动文件执行 Ruff 或 Prettier 格式化，避免混入无关的全库格式变更。
+
 ## 提交规范（Conventional Commits）
 
 提交信息统一为 `type(scope): 中文 + 英文专业词`：标题用中文描述改动，技术名词保留英文（如 hook、WebSocket、CI、JSON），不强行翻译。一个提交只做一件事。Issue、PR 说明和项目文档使用中文。
@@ -45,6 +48,23 @@ scope 表示改动所属模块，取以下固定值：
 3. 开发并按上面的规范提交。
 4. 关联已有 Issue，推送到远端并创建以 `develop` 为目标的 **Pull Request**，通过 CI 与至少一名其他成员评审后合并。`main` 保留验收版本。
 
+在干净工作区执行。下例用 `fix/capture-title` 修复 Issue #116。
+
+```bash
+git status --short
+git fetch origin
+git switch develop
+git pull --ff-only origin develop
+git switch -c fix/capture-title
+git add -p
+git diff --cached --check
+git diff --cached
+git commit -m "fix(backend): 清理提醒标题末尾标点"
+git push -u origin fix/capture-title
+```
+
+Issue 写清现象、复现步骤、期望结果和验收项。PR 写清变更、验证命令和结果。若 PR 的目标为集成分支 `develop`，正文使用 `Refs #116` 并在 Issue 记录验收。目标为默认分支且合并时应关闭议题，可写 `Closes #116`。修复与对应回归测试可以放在同一提交，独立的格式整理、重构或文档变更另行提交。进入 `main` 的验收版本走发布 PR。
+
 ## 测试要求
 
 - 新增或修改逻辑必须补充/更新对应单元测试。
@@ -75,7 +95,7 @@ python -m pip_audit -r backend/requirements.txt
 ```
 
 提交前查看 `git diff`，显式暂存本次任务文件，再查看 `git diff --cached` 并运行
-`python -m pre_commit run --all-files`。钩子执行 Ruff、暂存区空白检查和密钥扫描；
+`python -m pre_commit run --all-files`。钩子执行 Ruff、暂存区空白检查、Git 内容检查和密钥扫描；
 必须在已激活且安装后端开发依赖的环境中提交，禁止使用 `--no-verify`。
 第三方 `assets/` 与依赖清单不参加密钥启发式扫描；业务源码、配置、测试和文档参加扫描。
 .secrets.baseline 仅登记已核实的两处占位值：设计文档 `sk-xxxx`、桌宠测试 `sk-test`。

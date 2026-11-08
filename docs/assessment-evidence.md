@@ -1,5 +1,7 @@
 # 考核证据索引
 
+V2 的 20 项检查入口集中在 [V2 评分要点与证据](v2-assessment.md)。下文保留各阶段的原始记录。
+
 ## A1–A4 桌宠端
 
 关联 issue [#1](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/1)、[#2](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/2)、[#3](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/3)、[#4](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/4)，PR [#17](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/17)。以下是桌宠端 A1–A4 的证据，不代表项目已完成全部考核。

@@ -48,3 +48,26 @@ B4 原为可选，按用户明确要求纳入本轮。代码、测试、设计�
 | C / YingboQi | [#13](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/13) | 阶段文档同步、复用CI并补文档/部署回归与结果归档、依赖素材许可/安全边界 | 实现、41项部署文档回归与实际CI五个执行通过；用户已确认人工核验通过，见[C5记录](c5-verification.md)及PR #63；共享CI变更待成员PR复核 | 待团队确认，不代填 |
 
 C4部署事实与演练仅引用[既有C4记录](c4-verification.md)，不在C5重复计算工作量；A/B模块事实仍归原模块，不以本轮编辑代填其完成状态。
+
+## V2 工作量与绩效口径
+
+统计基线是发布提交 `a11a420`。用以下命令统计从仓库起点到 V2 的非合并提交，作者名取 Git 元数据。
+
+```powershell
+git log --no-merges --format=%an a11a420 |
+  Group-Object | Sort-Object Count -Descending | Select-Object Name,Count
+git log --no-merges --numstat a11a420 -- pet backend miniprogram docs tests tests_deployment
+```
+
+| 成员 | Git 作者名及提交数 | 代表性交付与验证证据 |
+| --- | --- | --- |
+| A / Yunkimo | `Yunkimo` 108 | 桌宠文字录入与确认交互，含 Qt 回归和标题清理。 [Issue #116](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/116) · [PR #117](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/117) · `54346d8` |
+| B / wwweiliang | `wwweiliang` 54 | WebSocket 同步及账号隔离，含验收证据、接口设计与故障场景。 [Issue #5](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/5) · [PR #16](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/16) · 验证记录提交 `b180c7d` |
+| C / YingboQi | `Yingbo Qi` 74，`YingboQi` 7，共 81 | 部署、回归、架构文档与供应链说明。 [Issue #13](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/13) · [PR #63](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/63) · `52257a5`、`c44a90f` |
+| 未归属 | `Your Name` 5 | Git 元数据没有可确认的成员名，单列待核对 |
+
+每项工作由成员在 Issue 记录负责人、验收条件、预估复杂度与协作者。完成后关联 PR、设计稿或用例、CI 或实测结果，并记录复核人。代码增删行和提交数用于复核变更规模与覆盖面。测试、设计、文档和复核人员可通过其署名提交、PR 评论或 Issue 验收记录展示贡献。
+
+### 绩效分配建议
+
+按已验收任务分配。任务开工前由团队共同评估复杂度（1、2、3、5、8 点）。验收时确认每项任务各成员份额，总和为 100%，覆盖设计、实现、测试、文档和评审。成员积分为各任务点数乘个人份额后相加，建议绩效比例为个人积分占全体积分的比例。用同一任务份额反映协作可避免一份成果重复计量，也能让设计和测试按实际交付计分。任务点、个人份额与最终绩效均待团队核定。

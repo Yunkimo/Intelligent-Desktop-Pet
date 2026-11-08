@@ -44,3 +44,15 @@
 - 后端：`backend/.venv/Scripts/python -m pytest backend/tests -q`（B 侧 + C 识别用例）
 - 小程序逻辑层：`cd miniprogram && npm ci && npm run lint && npm test`（ws 7 项；C3 合并后加入 subscribe 7 项，CI 同款）
 - 部署自检：`backend/.venv/Scripts/python scripts/check_deployment.py [BASE_URL]`（健康 + 鉴权 + WS）
+
+## V2 统一文字录入
+
+两个客户端连接同一后端，用测试账号验收。先记录已有事项数，再执行各用例。
+
+| ID | 操作 | 预期结果 | 回归证据 |
+| --- | --- | --- | --- |
+| V2-01 | 输入「明天下午三点交报告」 | 待办截止为次日 15:00，选择默认提醒后新增一条 14:00 的关联提醒 | [后端分类与确认](../backend/tests/test_capture.py) |
+| V2-02 | 输入「明天14:00整理资料」和「明天14:00到15:00写报告」 | 单时间点动作识别为待办，明确占用时段识别为日程 | [后端分类](../backend/tests/test_capture.py) |
+| V2-03 | 输入「明天下午三点提醒我取快递、」 | 独立提醒标题为「取快递」 | [标题回归](../backend/tests/test_capture.py) |
+| V2-04 | 桌宠输入「明天三点交报告」，等待超过普通气泡时限，输入无效序号后再选择 | 气泡和输入框持续可用，有效选择后完成当前确认 | [桌宠交互回归](../tests/test_capture_prompt.py) |
+| V2-05 | 同一账号通过桌宠和小程序分别录入。第二个账号查看列表并保持在线 | 原账号两端能查询记录，第二个账号查不到也收不到对应推送 | [双账号冒烟](../scripts/smoke_backend_accounts.py)、[真机步骤](v2-demo.md#微信真机验收) |
