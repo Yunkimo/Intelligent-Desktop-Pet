@@ -20,6 +20,7 @@ BARE_TODO = re.compile(r"^(?:交|提交|买|取|寄|复习|缴费|还书|打电�
 ACTION = re.compile(
     r"^(?:交|提交|写|读|看|买|取|寄|还|给|打电话|复习|整理|完成|准备|做|修|缴|付|拿|预约|联系)"
 )
+REPORT_SUBMISSION = re.compile(r"^(?:交|提交)\s*报告")
 SCHEDULE = re.compile(r"开会|会议|面试|上课|讲座|考试|约见|预约|安排|预留|参加")
 TODO = re.compile(r"^(?:请)?(?:帮我)?(?:记个?待办|添加待办|待办[:：]?)\s*")
 EARLY = re.compile(r"提前(\d{1,3}|[一二两三四五六七八九十]+)(?:个)?(分钟|小时)(?:通知我|提醒我?)?")
@@ -128,13 +129,16 @@ def _plan(text: str, now: datetime) -> dict:
     if due:
         title = DUE.sub("", title).strip()
     if standalone:
-        title = REMIND_WORD.sub("", title, count=1).strip()
+        title = REMIND_WORD.sub("", title, count=1)
+        title = re.sub(r"^[\s、]+|[\s、]+$", "", title)
     schedule = bool(SCHEDULE.search(title)) and not due and not explicit_todo
+    separator = RANGE.match(title) if times else None
     if not (
         due
         or explicit_todo
         or standalone
         or schedule
+        or separator
         or (consumed and ACTION.match(title))
         or BARE_TODO.match(title)
     ):
@@ -142,14 +146,15 @@ def _plan(text: str, now: datetime) -> dict:
     if not title or len(extra) > 1:
         return _reply("请每次说一件事，并写清事项名称和时间。")
     ends = []
-    if times and (separator := RANGE.match(title)):
+    if separator:
         ends, _, length = _read_time(title[separator.end() :], now, day)
         if not ends:
             return _reply("请补充日程的结束时间。")
         title = title[separator.end() + length :].strip()
         if not title:
             return _reply("请补充日程名称。")
-        schedule = True
+    report_submission = REPORT_SUBMISSION.match(title)
+    schedule = bool(schedule or separator) and not report_submission
     if (schedule or standalone) and not times:
         return _reply("请补充具体时间，例如「明天上午九点」。")
 
@@ -170,54 +175,48 @@ def _plan(text: str, now: datetime) -> dict:
         else:
             return _reply("请分开录入多个事项。")
 
-    kinds = (
-        ["reminder"]
+    kind = (
+        "reminder"
         if standalone
-        else ["todo"]
-        if due or explicit_todo
-        else ["schedule"]
-        if schedule
-        else ["todo", "schedule"]
-        if times and (offset is not None or skip_reminder)
-        else ["todo", "reminder", "schedule"]
-        if times
-        else ["todo"]
+        else "schedule"
+        if schedule and not (due or explicit_todo)
+        else "todo"
     )
     options = []
-    for kind in kinds:
-        for instant in times or [None]:
-            for end in ends or [None]:
-                if end and end <= instant:
+    for instant in times or [None]:
+        for end in ends or [None]:
+            if end and end <= instant:
+                continue
+            deadline = end if report_submission and kind == "todo" and end else instant
+            for reminder in fixed or [None]:
+                when = deadline.isoformat() if deadline else day.isoformat() if day else None
+                if kind == "reminder":
+                    reminder = instant
+                elif offset is not None:
+                    reminder = deadline - timedelta(minutes=offset)
+                if (deadline and deadline < now) or (reminder and reminder < now):
                     continue
-                for reminder in fixed or [None]:
-                    when = instant.isoformat() if instant else day.isoformat() if day else None
-                    if kind == "reminder":
-                        reminder = instant
-                    elif offset is not None:
-                        reminder = instant - timedelta(minutes=offset)
-                    if (instant and instant < now) or (reminder and reminder < now):
-                        continue
-                    label = {"todo": "待办", "schedule": "日程", "reminder": "提醒"}[kind]
-                    stamp = when[:16].replace("T", " ") if when else ""
-                    action = {"todo": "截止", "schedule": "开始", "reminder": "通知"}[kind]
-                    detail = f"{label}「{title}」" + (f" · {stamp} {action}" if stamp else "")
-                    if end:
-                        detail += f" · {end.isoformat()[11:16]} 结束"
-                    if reminder and kind != "reminder":
-                        detail += f" · {reminder.isoformat()[:16].replace('T', ' ')} 提醒"
-                    options.append(
-                        {
-                            "label": detail,
-                            "kind": kind,
-                            "title": title,
-                            "due_at": when if kind == "todo" else None,
-                            "start_at": when if kind == "schedule" else None,
-                            "end_at": end.isoformat() if end else None,
-                            "remind_at": reminder.isoformat() if reminder else None,
-                            "remind_before_minutes": offset,
-                            "skip_reminder": skip_reminder,
-                        }
-                    )
+                label = {"todo": "待办", "schedule": "日程", "reminder": "提醒"}[kind]
+                stamp = when[:16].replace("T", " ") if when else ""
+                action = {"todo": "截止", "schedule": "开始", "reminder": "通知"}[kind]
+                detail = f"{label}「{title}」" + (f" · {stamp} {action}" if stamp else "")
+                if end and kind == "schedule":
+                    detail += f" · {end.isoformat()[11:16]} 结束"
+                if reminder and kind != "reminder":
+                    detail += f" · {reminder.isoformat()[:16].replace('T', ' ')} 提醒"
+                options.append(
+                    {
+                        "label": detail,
+                        "kind": kind,
+                        "title": title,
+                        "due_at": when if kind == "todo" else None,
+                        "start_at": when if kind == "schedule" else None,
+                        "end_at": end.isoformat() if end and kind == "schedule" else None,
+                        "remind_at": reminder.isoformat() if reminder else None,
+                        "remind_before_minutes": offset,
+                        "skip_reminder": skip_reminder,
+                    }
+                )
     if not options or (not times and day and day < now.date()):
         return _reply("请确认时间，使用尚未过去的日期和时刻。")
     return {"options": options}

@@ -64,6 +64,7 @@ class ChatWorker(QThread):
     chunk = pyqtSignal(str)  # 流式增量
     status = pyqtSignal(str)  # 工具执行状态（如「正在安排日程…」）
     done = pyqtSignal(str)  # 完整回复
+    capture_finished = pyqtSignal(str, bool)  # 回复及是否需要用户补充
     error = pyqtSignal(str)
 
     def __init__(
@@ -85,7 +86,7 @@ class ChatWorker(QThread):
         self.pending = pending
         self.capture_retry = capture_retry
 
-    def _capture(self):
+    def _capture(self) -> tuple[str, bool] | None:
         if self.backend is None or not self.backend.session_token:
             return None
         text = self.messages[-1]["content"]
@@ -93,7 +94,12 @@ class ChatWorker(QThread):
             return None
         session = self.backend.session_token
         choice = text.strip()
-        if self.pending and self.pending[0] == session and choice in self.pending[2]:
+        if self.pending and self.pending[0] == session:
+            if choice == "取消":
+                self.pending = None
+                return "已退出本次选择。", False
+            if choice not in self.pending[2]:
+                return "请输入可选的序号，或输入「取消」。", False
             result = self.backend.confirm_capture(
                 self.pending[1], self.pending[2][choice], self.pending[3]
             )
@@ -115,7 +121,11 @@ class ChatWorker(QThread):
         if choices:
             numbers = [str(i) for i in range(1, len(choices) + 1)]
             stage = result.get("stage", "item")
-            selections = {number: int(number) for number in numbers}
+            selections = {
+                number: int(number)
+                for number, option in zip(numbers, choices, strict=True)
+                if not option.get("disabled")
+            }
             if stage == "reminder":
                 selections["不提醒"] = len(choices)
                 if not choices[0].get("disabled"):
@@ -125,14 +135,13 @@ class ChatWorker(QThread):
                 f"{number}. {option.get('choice_label', option['label'])}"
                 for number, option in zip(numbers, choices, strict=True)
             )
-            message += "\n请回复序号。"
-        return message
+            message += "\n请回复序号，或输入「取消」。"
+        return message, result["status"] == "needs_clarification"
 
     def run(self) -> None:
         try:
-            if (message := self._capture()) is not None:
-                self.chunk.emit(message)
-                self.done.emit(message)
+            if (reply := self._capture()) is not None:
+                self.capture_finished.emit(*reply)
                 return
             agent = Agent(self.client, self.tools)
             result = agent.run(self.messages, on_chunk=self.chunk.emit, on_status=self.status.emit)
