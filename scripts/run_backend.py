@@ -29,11 +29,6 @@ def main() -> int:
         if not math.isfinite(args.interval) or args.interval <= 0:
             parser.error("interval 必须为正有限秒数")
         os.environ["SCHEDULER_INTERVAL_SECONDS"] = str(args.interval)
-    configured = os.getenv("DB_PATH", "").strip()
-    database = Path(configured) if configured else BACKEND / "data/pet.db"
-    if not database.is_absolute():
-        database = BACKEND / database
-    os.environ["DB_PATH"] = str(database.resolve())
     return subprocess.call(
         [
             sys.executable,

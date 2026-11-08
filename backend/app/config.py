@@ -19,8 +19,8 @@ LLM_API_KEY = os.getenv("LLM_API_KEY", "").strip()
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "").strip()
 LLM_VISION_MODEL = os.getenv("LLM_VISION_MODEL", "").strip()
 
-# SQLite 数据库路径（默认 backend/data/pet.db，已被 git 忽略）
-DB_PATH = Path(os.getenv("DB_PATH", str(BACKEND_DIR / "data" / "pet.db")))
+# 各启动入口均以 backend/ 解释相对路径，空值采用默认数据库。
+DB_PATH = (BACKEND_DIR / (os.getenv("DB_PATH", "").strip() or "data/pet.db")).resolve()
 
 
 def positive_seconds(name: str, default: str) -> float:
