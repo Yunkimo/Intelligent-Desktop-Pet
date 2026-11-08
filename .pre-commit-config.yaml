@@ -17,6 +17,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: repo-content
+        name: Git 跟踪内容检查
+        entry: python -X utf8 scripts/check_repo_content.py
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: secrets
         name: 密钥扫描
         entry: python -X utf8 -m detect_secrets.pre_commit_hook

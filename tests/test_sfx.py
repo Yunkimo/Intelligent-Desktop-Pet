@@ -24,7 +24,26 @@ def test_only_waiting_and_done_have_cues():
     assert set(CUE_FILES) == {"waiting", "done"}
 
 
-def test_missing_file_is_silently_skipped(qapp, tmp_path):
+def test_fresh_checkout_generates_distinct_playable_cues(qapp, tmp_path):
+    sfx = AgentSfx(tmp_path)
+    lengths = []
+    for state, name in CUE_FILES.items():
+        assert sfx.play(state) is True
+        path = Path(sfx._effects[name].source().toLocalFile())
+        assert path.parent != tmp_path
+        with wave.open(str(path), "rb") as handle:
+            assert handle.getnchannels() == 1
+            assert handle.getsampwidth() == 2
+            lengths.append(handle.getnframes())
+            assert any(handle.readframes(handle.getnframes()))
+    assert lengths[0] < lengths[1]
+
+
+def test_unwritable_temp_location_is_silently_skipped(qapp, tmp_path, monkeypatch):
+    def deny(*args, **kwargs):
+        raise PermissionError
+
+    monkeypatch.setattr("pet.sfx.TemporaryDirectory", deny)
     sfx = AgentSfx(tmp_path)
     assert sfx.play("waiting") is False
     assert sfx._effects == {}

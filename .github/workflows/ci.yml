@@ -118,8 +118,8 @@ jobs:
       - name: Compression boundary checks (mock upstream)
         run: python ../scripts/check_backend_compression.py
 
-      - name: Secret scan and whitespace check
-        # ruff 已在本 job 直接跑过，此处只保留 pre-commit 独有的两步
+      - name: Tracked content, secrets and whitespace
+        # ruff 已在本 job 直接跑过，此处运行 pre-commit 的仓库级检查
         if: matrix.python-version == '3.12'
         working-directory: .
         run: SKIP=ruff-check,ruff-format pre-commit run --all-files

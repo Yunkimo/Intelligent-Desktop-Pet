@@ -1,48 +1,70 @@
-# 密钥与本地数据
+# 凭据、本地配置和运行数据
 .env
+.env.*
+!.env.example
+!.env.*.example
 data/
-
-# 小程序本地配置（含 API Key，不入库；由 miniprogram/config.example.js 复制而来）
 miniprogram/config.js
-# 微信开发者工具的个人项目配置（每台机器不同，不入库）
 miniprogram/project.private.config.json
-node_modules/
 
-# Python
+# 解释器、依赖、构建与工具缓存
 __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
 venv/
-
-# 临时音频
-*.mp3
-tmp/
-
-# 构建产物
-build/
-dist/
-
-# 工具缓存与日志
+node_modules/
 .pytest_cache/
 .ruff_cache/
-*.log
+build/
+dist/
+tmp/
 
-# 覆盖率产物
+# 日志与覆盖率
+*.log
+*.log.*
 .coverage
 .coverage.*
+htmlcov/
+ci-results/
+demo-recordings/
 
-# SQLite（默认库在 backend/data/ 下，已被上面的 data/ 忽略；此处兜底自定义 DB_PATH）
+# SQLite 主文件及伴随文件（包含自定义 DB_PATH）
 *.db
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
 
-# 模型缓存（faster-whisper 下载到用户目录，通常不在仓库内，兜底忽略）
-*.pt
+# 本地媒体、文档成品、安装包、归档、模型
+*.wav
+*.mp3
+*.ogg
+*.flac
+*.mp4
+*.webm
+*.mov
+*.avi
+*.mkv
+*.pdf
+*.docx
+*.xlsx
+*.pptx
+*.zip
+*.7z
+*.tar
+*.gz
+*.whl
+*.exe
+*.dll
+*.so
+*.dylib
+*.msi
 *.bin
-
-# Node（小程序端 JS 检查）
-node_modules/
-
-# GitHub Actions / local regression outputs (published separately as artifacts)
-ci-results/
+*.pt
+*.onnx
+*.safetensors
