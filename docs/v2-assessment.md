@@ -15,7 +15,7 @@
 | Git | 9 | 前后端解耦 | [系统架构](../README.md#系统架构)、[API 契约](api-contract.md) |
 | Git | 10 | 部署和演示脚本 | [部署手册](deploy.md)、[演示命令](../README.md#演示与复现)、[Linux 部署入口](../scripts/deploy-server.sh) |
 | 文档 | 1 | 用户手册 | [桌宠用户手册](user-manual.md)、[小程序说明](../miniprogram/README.md) |
-| 文档 | 2 | 重构收益 | [重构前后对比](refactor-report.md)，移除 Live2D 的提交净减 1,902 行 |
+| 文档 | 2 | 重构收益 | [重构前后对比](refactor-report.md)，移除 Live2D 的提交净减 1,888 行 |
 | 文档 | 3 | 实验指标 | [图片识别基准](b7-server-verification.md)、[同步实验](b6-verification.md)、[桌宠时延原始记录](evidence/c4/desktop-latency-20261025.md) |
 | 文档 | 4 | 环境参数 | [实验环境](environment.md)，各实验报告记录样本、配置和适用范围 |
 | 文档 | 5 | 测试用例 | [人工用例](test-cases.md)、[自动化与复现](testing.md)、[V2 实际 CI](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/42465570187) |

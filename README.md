@@ -195,7 +195,7 @@ python scripts/check_docs.py
 | 文档 | 内容 |
 | --- | --- |
 | [课程设计与开发说明](https://github.com/Yunkimo/Intelligent-Desktop-Pet/blob/cde778e7484bb964bfbca144a28ddecffd4157f5/docs/course-design/README.md) | 课设交付文档，含重构前后 UML、三端时序、优化动机与验证效果。该报告固定在课程快照，当前配对规则以本页和账号契约为准。 |
-| [设计文档](docs/design.md) · [重构量化分析](docs/refactor-report.md) | 架构演进、菜单命令化、形象依赖精简及前后对照 |
+| [设计文档](docs/design.md) · [新旧桌宠重构报告](docs/refactor-report.md) | 旧仓库与 V2 源码对照、三端架构演进及量化结果 |
 | [用户手册](docs/user-manual.md) · [小程序说明](miniprogram/README.md) | 操作流程和客户端配置 |
 | [API 契约](docs/api-contract.md) · [账号契约](docs/b8-accounts.md) · [天气订阅](docs/weather-subscriptions.md) | REST、WebSocket、个人账号、提醒与错误语义 |
 | [部署手册](docs/deploy.md) · [安全设计](docs/security.md) · [C5 交付记录](docs/c5-verification.md) | HTTPS/WSS、数据库备份、密钥管理与运维验证 |
