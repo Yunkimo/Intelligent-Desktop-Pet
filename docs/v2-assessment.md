@@ -20,7 +20,7 @@
 | 文档 | 4 | 环境参数 | [实验环境](environment.md)，各实验报告记录样本、配置和适用范围 |
 | 文档 | 5 | 测试用例 | [人工用例](test-cases.md)、[自动化与复现](testing.md)、[V2 实际 CI](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/42465570187) |
 | 文档 | 6 | 安全设计 | [安全设计](security.md)、[账号隔离与会话](b8-accounts.md)、[账号隔离验证](b8-verification.md) |
-| 文档 | 7 | 系统演示视频 | [演示流程与真机检查](v2-demo.md) |
+| 文档 | 7 | 系统演示视频 | 本版按要求撤下视频，保留 [演示流程与真机检查](v2-demo.md) |
 | 团队 | 1 | 工作量度量 | [工作量台账](workload.md#v2-工作量与绩效口径)，任务验收点、合入提交、评审和复现证据 |
 | 团队 | 2 | 绩效分配与理由 | [建议分配规则](workload.md#绩效分配建议)，由团队确认任务点与个人份额后计算 |
 | 团队 | 3 | 多人提交 | [V2 非合并提交统计](workload.md#v2-工作量与绩效口径)，按 Git 作者名归档 |

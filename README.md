@@ -136,7 +136,7 @@ Invoke-RestMethod http://127.0.0.1:8001/api/health
 
 Linux 可用 `bash scripts/run-backend.sh 8001 1` 启动本地后端。生产环境的部署、备份与回滚步骤见 [部署手册](docs/deploy.md) 和 [部署脚本](scripts/deploy-server.sh)。
 
-本地演示录制桌宠操作与后端实测，真机验收另有步骤。 [视频时间轴与真机验收](docs/v2-demo.md)
+可按步骤复现本地双账号测试，也可用微信真机走一遍三端流程。 [演示流程与真机验收](docs/v2-demo.md)
 
 ### 三端真机流程
 
