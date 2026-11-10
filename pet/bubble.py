@@ -98,6 +98,7 @@ class SpeechBubble(QWidget):
         self.timeout_ms = timeout_ms
         self.max_width = max_width
         self._text = ""
+        self._prompt = ""
         self._tail_up = False
 
         # 气泡是独立置顶浮层，可随形象在屏幕上的方位自由翻转摆位：
@@ -124,6 +125,18 @@ class SpeechBubble(QWidget):
     def set_text(self, text: str) -> None:
         self._text = text
         self._apply_text()
+
+    def set_prompt(self, text: str) -> None:
+        """等待选择期间保留问题，普通提示显示在选项下方。"""
+        self._prompt = text
+        self._text = ""
+        self._apply_text()
+
+    def clear_prompt(self) -> None:
+        if self._prompt:
+            self._prompt = ""
+            self.clear()
+            self.hide()
 
     def append_chunk(self, chunk: str) -> None:
         self._text += chunk
@@ -154,11 +167,13 @@ class SpeechBubble(QWidget):
         self._resize_to_text()
         self.show()
         self.update()
-        if self.timeout_ms > 0:
+        self._timer.stop()
+        if not self._prompt and self.timeout_ms > 0:
             self._timer.start(self.timeout_ms)
 
     def _wrap(self) -> list[str]:
-        return wrap_text(self._text, self.max_width, self.fontMetrics().horizontalAdvance)
+        text = "\n\n".join(part for part in (self._prompt, self._text) if part)
+        return wrap_text(text, self.max_width, self.fontMetrics().horizontalAdvance)
 
     def _resize_to_text(self) -> None:
         lines = self._wrap()
@@ -171,7 +186,7 @@ class SpeechBubble(QWidget):
         self.resized.emit()
 
     def paintEvent(self, event) -> None:  # noqa: N802
-        if not self._text:
+        if not (self._prompt or self._text):
             return
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)

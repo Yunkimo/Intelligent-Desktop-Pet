@@ -140,9 +140,14 @@ def test_business_restart_backup_restore(tmp_path, isolated_env):
                     },
                 )
                 assert reminder.status_code == 201
-                event = json.loads(ws.recv(timeout=5))
-                assert event["type"] == "reminder.due"
-                assert (dt.datetime.now(dt.timezone.utc) - due).total_seconds() <= 5
+                reminder_id = reminder.json()["id"]
+                received = {}
+                for _ in range(2):
+                    event = json.loads(ws.recv(timeout=5))
+                    assert event["data"]["id"] == reminder_id
+                    received[event["type"]] = dt.datetime.now(dt.timezone.utc)
+                assert received.keys() == {"reminder.created", "reminder.due"}
+                assert 0 <= (received["reminder.due"] - due).total_seconds() <= 5
     backup_dir = tmp_path / "backups"
     backup_dir.mkdir(mode=0o700)
     backup = backup_dir / "before-update.db"

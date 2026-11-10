@@ -52,6 +52,7 @@ def run(args):
     from PyQt6.QtCore import QEvent, QObject, QTimer
     from PyQt6.QtWidgets import QApplication
 
+    from pet.backend_client import BackendClient
     from pet.config import Settings
     from pet.window import PetWindow
 
@@ -113,7 +114,7 @@ def run(args):
         if app.platformName().lower() in {"offscreen", "minimal"}:
             raise ValueError("Actual desktop platform required")
         report["qt_platform"] = app.platformName()
-        window = PetWindow(settings)
+        window = PetWindow(settings, backend=BackendClient(settings.backend_url, token))
         if window.hotkey is not None:
             window.hotkey.stop()
         window.ws.error.disconnect()

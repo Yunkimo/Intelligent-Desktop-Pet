@@ -72,13 +72,16 @@ def claim_due(now: float) -> dict | None:
     """原子领取一个到期任务；过期领取可以重试，但尝试总数有上限。"""
     with db._conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
+        from .recurrence import maintain_in
+
+        maintain_in(conn, now)
         conn.execute(
             "UPDATE reminder_deliveries SET status='failed', claim_token=NULL, "
             "last_error='attempts_exhausted' WHERE status='sending' AND lease_until<=? AND attempts>=?",
             (now, config.SCHEDULER_MAX_ATTEMPTS),
         )
         row = conn.execute(
-            "SELECT d.* FROM reminder_deliveries d JOIN reminders r ON r.id=d.reminder_id "
+            "SELECT d.*,r.user_id FROM reminder_deliveries d JOIN reminders r ON r.id=d.reminder_id "
             "WHERE r.done=0 AND r.channel IN ('pc','both') AND d.due_at<=? AND d.attempts<? AND "
             "((d.status IN ('pending','retry') AND d.next_attempt_at<=?) "
             "OR (d.status='sending' AND d.lease_until<=?)) ORDER BY d.due_at,r.id LIMIT 1",
@@ -137,7 +140,14 @@ def finish(claim: dict, now: float, error: str | None) -> bool:
             (state, error, now + delay if error else 0, claim["claim_token"]),
         )
         if result.rowcount and error is None:
-            conn.execute("UPDATE reminders SET done=1 WHERE id=?", (claim["reminder_id"],))
+            conn.execute(
+                "UPDATE reminders SET done=CASE WHEN repeat_rule IS NULL THEN 1 ELSE 0 END WHERE id=?",
+                (claim["reminder_id"],),
+            )
+        if result.rowcount:
+            from .recurrence import advance
+
+            advance(conn, claim["reminder_id"], now)
         return result.rowcount == 1
 
 

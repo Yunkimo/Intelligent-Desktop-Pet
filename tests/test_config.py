@@ -25,7 +25,8 @@ def test_env_override(monkeypatch):
 def test_config_json_fields():
     s = Settings()
     assert s.pet_name == "小萌"  # 运行时可通过「切换人设」更改
-    assert s.whisper_model == "base"
+    assert s.whisper_model == "small"
+    assert s.asr_ai_correction is True
     assert s.tts_voice == "zh-CN-XiaoxiaoNeural"
     assert s.max_history > 0
 
@@ -174,3 +175,15 @@ def test_save_env_values_appends_missing_key(monkeypatch, tmp_path):
 
     lines = (tmp_path / ".env").read_text(encoding="utf-8").splitlines()
     assert lines == ["LLM_API_KEY=sk-old", "ACCOUNT_API_KEY=sk-new"]
+
+
+def test_update_voice_enabled_sets_attr_and_saves(monkeypatch):
+    from pet.config import Settings
+
+    saved: dict = {}
+    monkeypatch.setattr(Settings, "_save_json", lambda self, **kw: saved.update(kw))
+    settings = Settings()
+    settings.update_voice_enabled(False)
+
+    assert settings.enable_voice is False
+    assert saved == {"enable_voice": False}

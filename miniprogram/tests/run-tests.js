@@ -4,8 +4,19 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 
-// 同时保留 WebSocket 适配层和 C3 订阅恢复回归。
-const TEST_FILES = ['ws-logic.test.js', 'subscribe-logic.test.js'];
+// 同时保留 WebSocket 适配层、C3 订阅恢复回归、C6 学期周数逻辑、
+// C7 导入草稿逻辑、C8 一句话解析逻辑与 C9 统一会话。
+const TEST_FILES = [
+  'ws-logic.test.js',
+  'subscribe-logic.test.js',
+  'semester-logic.test.js',
+  'course-import-logic.test.js',
+  'task-parse-logic.test.js',
+  'session-logic.test.js',
+  'weekly-logic.test.js',
+  'api-auth-logic.test.js',
+  'weather-logic.test.js',
+];
 
 let failed = 0;
 for (const file of TEST_FILES) {

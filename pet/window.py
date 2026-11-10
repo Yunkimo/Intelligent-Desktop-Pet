@@ -3,11 +3,12 @@
 import os
 from pathlib import Path
 
-from PyQt6.QtCore import QPoint, QRect, Qt, QTimer, QUrl
+from PyQt6.QtCore import QPoint, QRect, Qt, QTimer, QUrl, pyqtSignal
 from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PyQt6.QtWidgets import QApplication, QFileDialog, QInputDialog, QMenu, QWidget
 
+from .account import AccountStore
 from .agent_status import AgentStatusMonitor
 from .asr import ASREngine
 from .avatar import create_avatar
@@ -16,6 +17,7 @@ from .bubble import SpeechBubble, badge_placement, bubble_placement
 from .commands import Command, Submenu, populate_menu
 from .config import Settings
 from .event_cache import RecentEvents
+from .habits import HabitStore
 from .health import HealthMonitor
 from .hook_install import (
     claude_code_installed,
@@ -36,6 +38,7 @@ from .tools import build_tools
 from .tray import TrayIcon
 from .tts import TTSEngine
 from .usage import UsageStore
+from .weather_tip import WeatherTipMonitor, WeatherTipWorker
 from .worker import ASRWorker, ChatWorker, TTSWorker
 
 _GAP = 8
@@ -66,7 +69,9 @@ def _is_confused_reply(text: str) -> bool:
 
 
 class PetWindow(QWidget):
-    def __init__(self, settings: Settings) -> None:
+    account_expired = pyqtSignal()
+
+    def __init__(self, settings: Settings, *, backend: BackendClient | None = None) -> None:
         super().__init__()
         self.settings = settings
 
@@ -74,7 +79,7 @@ class PetWindow(QWidget):
         # 用量记账是旁路：provider 每次调用回来顺手记一笔，失败不影响对话
         self.usage_store = UsageStore(settings.usage_path, settings.usage_retention_days)
         self.llm = LLMClient(create_chat_provider(settings, on_usage=self.usage_store.record_usage))
-        self.asr_engine = ASREngine(settings.whisper_model)
+        self.asr_engine = ASREngine(settings.whisper_model, hotwords=settings.asr_hotwords)
         self.tts_engine = TTSEngine(
             settings.tts_voice,
             settings.tts_rate,
@@ -83,21 +88,48 @@ class PetWindow(QWidget):
             settings.tts_windows_fallback,
         )
 
-        # —— 后端客户端（惰性：不配置后端也不影响纯聊天）——
-        self.backend = BackendClient(settings.backend_url, settings.api_token)
-        self.tools = build_tools(self.backend)
+        # —— 生活习惯（本地明文，可关闭）——
+        self.habits = (
+            HabitStore(settings.habits_path, settings.habits_max)
+            if settings.habits_enabled
+            else None
+        )
+        if self.habits is None:
+            print("[habits] 已关闭（config.json 的 habits_enabled=false）", flush=True)
+        else:
+            print(
+                f"[habits] 启用 path={self.habits.path} 已有 {len(self.habits.list_habits())} 条",
+                flush=True,
+            )
 
-        # —— WebSocket 实时接收（未配置 API_TOKEN 时不启动）——
+        # —— 后端客户端（惰性：不配置后端也不影响纯聊天）——
+        self.backend = backend if backend is not None else BackendClient(settings.backend_url)
+        self.tools = build_tools(self.backend, self.habits)
+
+        self.account_store = AccountStore(
+            Path(__file__).resolve().parent.parent / "data/account.json", settings.backend_url
+        )
+        self.account_expired.connect(self._account_expired)
+        self.backend.on_auth_error = self.account_expired.emit
+        self._auth_notice_shown = False
         self._recent_events = RecentEvents()
-        self.ws = WsListener(build_ws_url(settings.backend_url, settings.api_token), parent=self)
-        self.ws.event.connect(self._on_backend_event)
-        self.ws.error.connect(lambda e: print(f"[ws] {e}"))
-        if settings.api_token:
-            self.ws.start()
+        self._ws_generation = 0
+        self._ws_threads = []
+        try:
+            account = self.account_store.load()
+        except (ValueError, OSError):
+            account = {"signed_out": True}
+        self.backend.session_required = account is not None
+        self.backend.session_token = (account or {}).get("device_token", "")
+        self._restart_account_ws()
+        if not self.backend.session_token:
+            QTimer.singleShot(
+                500, lambda: self.show_hint("首次使用请打开「后端账号」，输入小程序生成的配对码")
+            )
 
         # —— 记忆 ——
         self.memory = Memory(settings.history_path, settings.max_history, settings.persist_history)
-        self.memory.set_system(build_system_prompt(settings))
+        self.memory.set_system(build_system_prompt(settings, self._habits_summary()))
 
         self._init_window()
         self._init_children()
@@ -106,6 +138,7 @@ class PetWindow(QWidget):
         self._init_audio()
         self._init_hotkey()
         self._init_health()
+        self._init_weather_tip()
 
         # 托盘：左键显隐；关闭窗口时按 tray_enabled 决定隐藏还是真正退出
         self._quitting = False
@@ -117,7 +150,10 @@ class PetWindow(QWidget):
 
         # worker 引用（保持存活，防被 GC）
         self.chat_worker: ChatWorker | None = None
+        self._capture_pending = None
+        self._capture_retry = None
         self.asr_worker: ASRWorker | None = None
+        self._close_after_asr = False
         self.tts_worker: TTSWorker | None = None
         self._tts_tmp: str | None = None
         self._tool_status_active = False
@@ -318,6 +354,15 @@ class PetWindow(QWidget):
         commands.append(Command("切换图片…", self._choose_image))
         commands.append(Submenu(self._build_persona_menu()))
         commands.append(Command("设置语音快捷键…", self._set_voice_hotkey))
+        commands.append(Command("生活习惯…", self._show_habit_dialog))
+        commands.append(
+            Command(
+                "语音输出",
+                self._toggle_voice,
+                checkable=True,
+                checked=lambda: self.settings.enable_voice,
+            )
+        )
         commands.append(
             Command(
                 "监控 Claude",
@@ -342,6 +387,7 @@ class PetWindow(QWidget):
                 checked=lambda: getattr(self, "_status_badges_visible", True),
             )
         )
+        commands.append(Command("后端账号（绑定 / 重新登录）", self._show_account_dialog))
         commands.append(Command("测试后端连接", self._debug_backend))
         if include_quit:
             commands.append(self._quit_command())
@@ -362,11 +408,32 @@ class PetWindow(QWidget):
         menu.addAction("添加人设…").triggered.connect(self._add_persona)
         return menu
 
+    def _habits_summary(self) -> str:
+        """当前习惯摘要；未启用习惯记忆时返回空串。"""
+        return self.habits.summary() if self.habits is not None else ""
+
+    def _refresh_system_prompt(self) -> None:
+        """重建系统提示词（人设 + 习惯摘要），让改动立即生效。"""
+        self.memory.set_system(build_system_prompt(self.settings, self._habits_summary()))
+
+    def _show_habit_dialog(self) -> None:
+        """打开生活习惯窗口；关闭后刷新提示词，新习惯下一轮对话即生效。"""
+        if self.habits is None:
+            self.bubble.set_text("习惯记忆已关闭（config.json 的 habits_enabled）")
+            return
+        from .habit_dialog import HabitDialog
+
+        dialog = HabitDialog(self.habits, self)
+        try:
+            dialog.exec()
+        finally:
+            self._refresh_system_prompt()
+
     def _switch_persona(self, name: str) -> None:
         """切换人设，并清空旧人设对话避免语气/身份残留。"""
         if not self.settings.switch_persona(name):
             return
-        self.memory.set_system(build_system_prompt(self.settings))
+        self._refresh_system_prompt()
         self.memory.clear_history()  # 清空旧人设对话，避免语气/身份残留
         self.setWindowTitle(self.settings.pet_name)
         self.bubble.set_text(f"人设已切换为「{name}」")
@@ -407,9 +474,15 @@ class PetWindow(QWidget):
 
     # ---------- 文本/聊天 ----------
     def send_text(self, text: str) -> None:
+        if getattr(self, "_account_dialog", None) is not None:
+            self.show_hint("请先完成账号操作")
+            return
+        # 每轮发送前重建提示词，让「现在几点」跟随真实时间，而不是启动时的旧时间
+        self._refresh_system_prompt()
         self.memory.add_user(text)
-        self.input.hide()
-        self.bubble.clear()
+        if not self._capture_pending:
+            self.input.hide()
+            self.bubble.clear()
         self._start_chat(self.memory.get_messages())
 
     def _start_chat(self, messages: list[dict]) -> None:
@@ -417,10 +490,19 @@ class PetWindow(QWidget):
             return
         self.input.set_busy(True)
         self._tool_status_active = False
-        self.chat_worker = ChatWorker(self.llm, messages, tools=self.tools, parent=self)
+        self.chat_worker = ChatWorker(
+            self.llm,
+            messages,
+            tools=self.tools,
+            parent=self,
+            backend=self.backend,
+            pending=self._capture_pending,
+            capture_retry=self._capture_retry,
+        )
         self.chat_worker.chunk.connect(self._on_chunk)
         self.chat_worker.status.connect(self._on_tool_status)
         self.chat_worker.done.connect(self._on_chat_done)
+        self.chat_worker.capture_finished.connect(self._on_capture_finished)
         self.chat_worker.error.connect(self._on_chat_error)
         self.chat_worker.start()
 
@@ -437,7 +519,10 @@ class PetWindow(QWidget):
         self.bubble.set_text(text)
 
     def _on_chat_done(self, text: str) -> None:
+        self._remember_capture_state()
         self.input.set_busy(False)
+        # 本轮可能新增/删除了习惯（工具调用），重建提示词让下一轮立即带上
+        self._refresh_system_prompt()
         if text:
             self.memory.add_assistant(text)
             self.memory.save()
@@ -450,19 +535,71 @@ class PetWindow(QWidget):
             self.avatar.react("confused")
             self.bubble.set_text("嗯…这个我答不上来…")
 
+    def _on_capture_finished(self, text: str, needs_input: bool) -> None:
+        self._on_chat_done(text)
+        if self._capture_pending and needs_input:
+            self.bubble.set_prompt(text)
+        else:
+            if not self._capture_pending:
+                self.bubble.clear_prompt()
+            self.bubble.set_text(text)
+        if self._capture_pending or needs_input:
+            self._show_choice_input()
+        else:
+            self.input.hide()
+            self._position_bubble()
+
+    def _show_choice_input(self) -> None:
+        self.input.show()
+        if self.isVisible():
+            self.activateWindow()
+            self.input.focus_input()
+        self._position_bubble()
+
+    def _remember_capture_state(self) -> None:
+        if self.chat_worker is not None:
+            self._capture_pending = self.chat_worker.pending
+            self._capture_retry = self.chat_worker.capture_retry
+
     def _on_chat_error(self, msg: str) -> None:
+        self._remember_capture_state()
         self.input.set_busy(False)
         self.avatar.react("confused")
         self.bubble.set_text(f"呜…出错了：{msg}")
+        if self._capture_pending:
+            self._show_choice_input()
 
     # ---------- 语音合成 ----------
+    def _toggle_voice(self) -> None:
+        """切换语音输出开关并持久化；关闭时立即停止当前播放。"""
+        enabled = not self.settings.enable_voice
+        self.settings.update_voice_enabled(enabled)
+        if not enabled:
+            self._stop_voice()
+        self.bubble.set_text("语音输出已开启" if enabled else "语音输出已关闭")
+
+    def _stop_voice(self) -> None:
+        """停止当前语音播放并清理临时文件。"""
+        self.player.stop()
+        self.player.setSource(QUrl())
+        self._cleanup_tts_tmp()
+
     def _speak(self, text: str) -> None:
+        if not self.settings.enable_voice:
+            return
         self.tts_worker = TTSWorker(self.tts_engine, text, parent=self)
         self.tts_worker.ready.connect(self._play_voice)
         self.tts_worker.error.connect(lambda e: print(f"[TTS] {e}"))
         self.tts_worker.start()
 
     def _play_voice(self, path: str) -> None:
+        if not self.settings.enable_voice:
+            # 合成期间被关闭：丢弃已生成的文件，避免继续播放或泄漏临时文件
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+            return
         self._tts_tmp = path
         self.player.setSource(QUrl.fromLocalFile(path))
         self.player.play()
@@ -490,11 +627,25 @@ class PetWindow(QWidget):
             self._stop_recording()
 
     def _start_recording(self) -> None:
-        if self.asr_worker is not None and self.asr_worker.isRunning():
+        if self.asr_worker is not None:
             return
-        self.asr_worker = ASRWorker(self.asr_engine, self.settings.max_record_secs, parent=self)
+        if self.chat_worker is not None and self.chat_worker.isRunning():
+            self.input.set_listening(False)
+            return
+        correct = self.llm.provider.correct_transcript if self.settings.llm_api_key else None
+        self.asr_worker = ASRWorker(
+            self.asr_engine,
+            self.settings.max_record_secs,
+            parent=self,
+            review=self.settings.asr_ai_correction,
+            correct=correct,
+        )
+        self.input.set_listening(True)
         self.asr_worker.text.connect(self._on_asr_text)
+        self.asr_worker.draft.connect(self._on_asr_draft)
+        self.asr_worker.status.connect(self._on_asr_status)
         self.asr_worker.error.connect(self._on_asr_error)
+        self.asr_worker.finished.connect(self._on_asr_finished)
         self.asr_worker.start()
 
     def _stop_recording(self) -> None:
@@ -502,12 +653,48 @@ class PetWindow(QWidget):
             self.asr_worker.request_stop()
 
     def _on_asr_text(self, text: str) -> None:
+        """识别完成：结果填进输入框，由用户确认（回车）后再发送。"""
+        if self._close_after_asr:
+            return
         self.input.set_listening(False)
         if text:
             self.input.edit.setText(text)
-            self.send_text(text)
+            if not self.input.isVisible():
+                self.input.show()
+            self.input.focus_input()
+            self._position_bubble()
         else:
             self.bubble.set_text("没听清，再说一次嘛～")
+
+    def _on_asr_status(self, message: str) -> None:
+        self.input.set_listening(False)
+        self.input.mic.setEnabled(False)
+        self.bubble.set_text(message)
+
+    def _on_asr_finished(self) -> None:
+        worker = self.sender()
+        worker.deleteLater()
+        if worker is self.asr_worker:
+            self.asr_worker = None
+            if self._close_after_asr:
+                self.close()
+                return
+            if self.chat_worker is None or not self.chat_worker.isRunning():
+                self.input.mic.setEnabled(True)
+
+    def _on_asr_draft(self, text: str) -> None:
+        if self._close_after_asr:
+            return
+        self.input.set_listening(False)
+        self.input.edit.setText(text)
+        if self.isVisible():
+            self.input.show()
+            self.input.focus_input()
+        hint = "确认文字后按回车发送"
+        if not self.settings.llm_api_key:
+            hint = "未配置对话模型，已保留原转写"
+        self.bubble.set_text(hint)
+        self._position_bubble()
 
     def _on_asr_error(self, msg: str) -> None:
         self.input.set_listening(False)
@@ -516,11 +703,15 @@ class PetWindow(QWidget):
     # ---------- Claude Code 状态监控 ----------
     def _init_claude_monitor(self) -> None:
         """创建状态角标与监控器；按配置决定是否立即开始轮询。"""
-        self.status_badge = StatusBadge(self)
-        self.codex_status_badge = StatusBadge(self, agent_name="Codex")
+        scale = self.settings.status_badge_scale
+        self.status_badge = StatusBadge(self, scale=scale)
+        self.codex_status_badge = StatusBadge(self, agent_name="Codex", scale=scale)
         # 双击角标复位其手动位置，回到自动摆位
         self.status_badge.position_reset.connect(self._position_status_badge)
         self.codex_status_badge.position_reset.connect(self._position_status_badge)
+        # 拖拽边缘缩放：两个角标同步档位并写回 config.json
+        self.status_badge.scale_changed.connect(self._on_badge_scale_changed)
+        self.codex_status_badge.scale_changed.connect(self._on_badge_scale_changed)
         # 角标显隐是独立于桌宠的用户开关：启动时按配置恢复
         self._status_badges_visible = self.settings.status_badges_visible
         self.status_badge.set_user_visible(self._status_badges_visible)
@@ -587,6 +778,7 @@ class PetWindow(QWidget):
     def _badge_commands(self) -> list[Command]:
         """角标右键的命令表：顺序固定，与桌宠右键菜单共享同一批方法。"""
         return [
+            Command("显示桌宠", self._show_pet),
             Command(
                 "监控 Claude",
                 self._toggle_claude_monitor,
@@ -704,7 +896,6 @@ class PetWindow(QWidget):
 
     def _on_hotkey_pressed(self) -> None:
         """长按快捷键：开始录音。"""
-        self.input.set_listening(True)
         self._start_recording()
 
     def _on_hotkey_released(self) -> None:
@@ -727,6 +918,94 @@ class PetWindow(QWidget):
         if self.settings.enable_voice:
             self._speak(text)
 
+    def _init_weather_tip(self) -> None:
+        """每晚到点查一次次日天气；有雨弹带伞气泡，语音随 enable_voice。"""
+        self._weather_tip_workers: list[WeatherTipWorker] = []
+        self.weather_tip = WeatherTipMonitor(
+            self.settings.weather_tip_hour,
+            state_path=self.settings.weather_tip_state_path,
+            parent=self,
+        )
+        self.weather_tip.check_due.connect(self._check_weather_tip)
+        if self.settings.weather_tip_enabled:
+            self.weather_tip.start()
+
+    def _check_weather_tip(self) -> None:
+        """触发一次天气查询；失败静默，避免未绑定账号时反复报错。"""
+        worker = WeatherTipWorker(self.backend, self.settings.weather_tip_city, parent=self)
+        worker.tip.connect(self._on_weather_tip)
+        worker.failed.connect(lambda msg: print(f"[weather-tip] {msg}"))
+        self._weather_tip_workers.append(worker)
+        worker.finished.connect(lambda w=worker: self._release_weather_tip_worker(w))
+        worker.start()
+
+    def _release_weather_tip_worker(self, worker: WeatherTipWorker) -> None:
+        if worker in self._weather_tip_workers:
+            self._weather_tip_workers.remove(worker)
+        worker.deleteLater()
+
+    def _on_weather_tip(self, tip: str) -> None:
+        """弹出带伞提示；语音开关与健康提醒共用同一开关。"""
+        self.show_hint(tip)
+        self.avatar.react("poke")
+        if self.settings.enable_voice:
+            self._speak(tip)
+
+    def _account_expired(self):
+        if not self._auth_notice_shown:
+            self._auth_notice_shown = True
+            self.show_hint("后端账号已失效，请打开「后端账号」重新绑定")
+        self.ws.request_stop()
+
+    def _restart_account_ws(self):
+        self._ws_generation += 1
+        generation = self._ws_generation
+        if hasattr(self, "ws"):
+            self.ws.request_stop()
+        credential = self.backend.ws_credential()
+        self.ws = WsListener(build_ws_url(self.settings.backend_url, credential), parent=self)
+        self._ws_threads.append(self.ws)
+        self.ws.event.connect(
+            lambda event: (
+                self._on_backend_event(event) if generation == self._ws_generation else None
+            )
+        )
+        self.ws.auth_error.connect(
+            lambda: self._account_expired() if generation == self._ws_generation else None
+        )
+        self.ws.error.connect(lambda message: print("[ws] " + message))
+        if credential:
+            self.ws.start()
+
+    def _show_account_dialog(self):
+        from .account_dialog import AccountDialog
+
+        if self.chat_worker is not None and self.chat_worker.isRunning():
+            self.show_hint("请等当前对话结束后再切换账号")
+            return
+        dialog = AccountDialog(self.backend, self.account_store, self)
+        self._account_dialog = dialog
+        dialog.changed.connect(self._apply_account)
+        dialog.exec()
+        self._account_dialog = None
+        dialog.deleteLater()
+
+    def _apply_account(self, account):
+        if getattr(self, "_capture_pending", None):
+            self._capture_pending = None
+            self.bubble.clear_prompt()
+            self.input.hide()
+        self.backend.session_required = True
+        self.backend.session_token = (account or {}).get("device_token", "")
+        self._auth_notice_shown = False
+        self._recent_events = RecentEvents()
+        # 清除当前对话上下文，避免下一账号继续携带上一账号的工具返回数据。
+        self.memory.messages.clear()
+        self._refresh_system_prompt()  # 带上习惯摘要，切账号后不丢长期记忆
+        self.memory.save()
+        self.show_hint("后端账号已更新")
+        self._restart_account_ws()
+
     # ---------- 后端实时事件 ----------
     def _on_backend_event(self, event: dict) -> None:
         """验证信封并去重；缓存跟随窗口，断线重连不重复显示或播报。"""
@@ -735,7 +1014,7 @@ class PetWindow(QWidget):
         data = event.get("data")
         if (
             event.get("version") != 1
-            or etype not in {"reminder.due", "task.created", "course.created"}
+            or etype not in {"reminder.due", "task.created", "course.created", "reminder.created"}
             or not isinstance(event_id, str)
             or not 1 <= len(event_id) <= 128
             or not isinstance(data, dict)
@@ -748,7 +1027,9 @@ class PetWindow(QWidget):
         if etype == "reminder.due":
             self._remind_health(self._reminder_text(data["id"]))
         elif etype == "task.created":
-            self.show_hint("收到新日程啦，需要我帮你看看吗～")
+            self.show_hint("事项已同步")
+        elif etype == "reminder.created":
+            self.show_hint("提醒已同步")
         elif etype == "course.created":
             self.show_hint("课表有更新啦～")
         self._recent_events.remember(event_id)
@@ -846,6 +1127,22 @@ class PetWindow(QWidget):
             self.bubble.raise_()
         self._reposition_overlays()
 
+    def _show_pet(self) -> None:
+        """角标菜单「显示桌宠」：只负责显示，不切换隐藏。"""
+        if not self.isVisible():
+            self.show_from_tray()
+        else:
+            self.raise_()
+            self._reposition_overlays()
+
+    def _on_badge_scale_changed(self, scale: float) -> None:
+        """拖拽角标边缘缩放后：同步另一个角标、写回配置、重新摆位。"""
+        for badge in (self.status_badge, self.codex_status_badge):
+            if badge.scale != scale:
+                badge.set_scale(scale)
+        self.settings.update_status_badge_scale(scale)
+        self._position_status_badge()
+
     def toggle_tray_visibility(self) -> None:
         """托盘左键：可见则隐藏，不可见则恢复。"""
         if self.isVisible():
@@ -854,16 +1151,32 @@ class PetWindow(QWidget):
             self.show_from_tray()
 
     def closeEvent(self, event) -> None:  # noqa: N802
+        dialog = getattr(self, "_account_dialog", None)
+        if dialog is not None and dialog.worker is not None and dialog.worker.isRunning():
+            event.ignore()
+            return
         # 托盘启用时关闭只是隐藏；只有「退出」命令置 _quitting 后才真正收尾
         if self.settings.tray_enabled and not getattr(self, "_quitting", False):
             self.hide_to_tray()
             event.ignore()
             return
+        worker = getattr(self, "asr_worker", None)
+        if worker is not None:
+            self._close_after_asr = True
+            worker.requestInterruption()
+            worker.request_stop()
+            event.ignore()
+            return
         if self.hotkey is not None:
             self.hotkey.stop()
         self.health.stop()
-        self.ws.request_stop()
-        self.ws.wait(2000)
+        getattr(self, "weather_tip", None) and self.weather_tip.stop()
+        for worker in getattr(self, "_weather_tip_workers", []):
+            worker.wait(2000)
+        for listener in self._ws_threads:
+            listener.request_stop()
+        for listener in self._ws_threads:
+            listener.wait(6500)
         self.agent_status.stop()
         self.codex_agent_status.stop()
         # 角标与气泡是独立顶层浮窗；不关闭的话，桌宠窗口消失后仍有可见顶层

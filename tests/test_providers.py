@@ -1,9 +1,11 @@
 """提供者（策略）与 LLM 客户端（门面）测试，使用 mock 隔离网络。"""
 
+import json
+
 import pytest
 
 from pet.llm import LLMClient, LLMError
-from pet.providers import OpenAICompatProvider, create_chat_provider
+from pet.providers import OpenAICompatProvider, create_chat_provider, extract_dsml_calls
 
 
 class _Delta:
@@ -208,9 +210,99 @@ def test_chat_with_tools_empty_tool_calls(monkeypatch):
     assert out == {"content": "答", "tool_calls": []}
 
 
+def test_chat_with_tools_recovers_dsml_calls(monkeypatch):
+    """模型把工具调用写成 DSML 正文时，应解析成 tool_calls 且不把标记展示给用户。"""
+    content = (
+        "好嘞～「完成电路实验」明天下午 3 点截止，我提前一小时提醒你哦\n"
+        "<|DSML|calls>\n"
+        '<|DSML|invoke name="create_task">\n'
+        '<|DSML|parameter name="title" string="true">完成电路实验</|DSML|parameter>\n'
+        '<|DSML|parameter name="due_at" string="true">2026-11-07T15:00</|DSML|parameter>\n'
+        '<|DSML|parameter name="remind_at" string="true">2026-11-07T14:00</|DSML|parameter>\n'
+        "</|DSML|invoke>\n"
+        "</|DSML|calls>"
+    )
+    provider = OpenAICompatProvider("sk", "https://x", "m")
+    monkeypatch.setattr(provider, "_client", _FakeClientMsg(_RespMsg(_Msg(content, []))))
+
+    out = provider.chat_with_tools([{"role": "user", "content": "x"}], [])
+
+    assert out["content"] == "好嘞～「完成电路实验」明天下午 3 点截止，我提前一小时提醒你哦"
+    assert len(out["tool_calls"]) == 1
+    call = out["tool_calls"][0]
+    assert call["type"] == "function"
+    assert call["function"]["name"] == "create_task"
+    assert json.loads(call["function"]["arguments"]) == {
+        "title": "完成电路实验",
+        "due_at": "2026-11-07T15:00",
+        "remind_at": "2026-11-07T14:00",
+    }
+
+
+def test_stream_chat_hides_dsml_split_across_chunks(monkeypatch):
+    provider = OpenAICompatProvider("sk", "https://x", "m")
+    chunks = [_Chunk("好"), _Chunk("<|DS"), _Chunk('ML|invoke name="x">')]
+    monkeypatch.setattr(provider, "_client", _FakeClient(chunks))
+
+    collected = []
+    text = provider.stream_chat([{"role": "user", "content": "x"}], on_chunk=collected.append)
+
+    assert text == "好"
+    assert collected == ["好"]
+
+
+def test_extract_dsml_calls_supports_fullwidth_pipes():
+    """DeepSeek 特殊 token 用全角 ｜，截图里就是这种写法。"""
+    content = (
+        "好嘞～把「交实验报告」改到今天下午 3 点，提前一小时喊你\n"
+        "<｜DSML｜calls>\n"
+        '<｜DSML｜invoke name="list_tasks">\n\n'
+        "</｜DSML｜invoke>\n"
+        "</｜DSML｜calls>"
+    )
+
+    cleaned, calls = extract_dsml_calls(content)
+
+    assert cleaned == "好嘞～把「交实验报告」改到今天下午 3 点，提前一小时喊你"
+    assert calls == [
+        {
+            "id": "dsml-1",
+            "type": "function",
+            "function": {"name": "list_tasks", "arguments": "{}"},
+        }
+    ]
+
+
+def test_extract_dsml_calls_supports_spaced_pipes():
+    content = (
+        "好\n"
+        "< | | DSML | | calls>\n"
+        '< | | DSML | | invoke name="list_tasks">\n'
+        "</ | | DSML | | invoke>\n"
+        "</ | | DSML | | calls>"
+    )
+
+    cleaned, calls = extract_dsml_calls(content)
+
+    assert cleaned == "好"
+    assert [c["function"]["name"] for c in calls] == ["list_tasks"]
+
+
+def test_stream_chat_hides_fullwidth_dsml(monkeypatch):
+    provider = OpenAICompatProvider("sk", "https://x", "m")
+    chunks = [_Chunk("好"), _Chunk("<｜DS"), _Chunk("ML｜invoke>")]
+    monkeypatch.setattr(provider, "_client", _FakeClient(chunks))
+
+    collected = []
+    text = provider.stream_chat([{"role": "user", "content": "x"}], on_chunk=collected.append)
+
+    assert text == "好"
+    assert collected == ["好"]
+
+
 def test_llm_client_chat_with_tools_passthrough():
     class _Prov:
-        def chat_with_tools(self, messages, tools, on_chunk=None):
+        def chat_with_tools(self, messages, tools, on_chunk=None, force=False):
             return {"content": "ok", "tool_calls": []}
 
     out = LLMClient(_Prov()).chat_with_tools([{"role": "user", "content": "hi"}], [])
@@ -219,7 +311,7 @@ def test_llm_client_chat_with_tools_passthrough():
 
 def test_llm_client_chat_with_tools_wraps_error():
     class _Boom:
-        def chat_with_tools(self, messages, tools, on_chunk=None):
+        def chat_with_tools(self, messages, tools, on_chunk=None, force=False):
             raise RuntimeError("boom")
 
     with pytest.raises(LLMError):

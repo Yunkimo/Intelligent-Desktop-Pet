@@ -1,0 +1,39 @@
+.detail-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+
+.detail-row {
+  margin: 8rpx 0;
+  font-size: 28rpx;
+  color: #57606f;
+}
+
+.detail-label {
+  display: inline-block;
+  width: 160rpx;
+  color: #a4b0be;
+  font-size: 26rpx;
+}
+
+.detail-forecast {
+  margin-top: 4rpx;
+  color: #2f9e44;
+  font-size: 26rpx;
+}
+
+.detail-hint {
+  margin-top: 12rpx;
+  color: #a4b0be;
+  font-size: 22rpx;
+}
+
+.back-btn {
+  margin: 24rpx 24rpx 0;
+}

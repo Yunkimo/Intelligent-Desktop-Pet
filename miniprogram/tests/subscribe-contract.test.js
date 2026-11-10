@@ -21,7 +21,17 @@ const rt = runtime({
     request: (options) => {
       fetch(options.url, {
         method: options.method,
-        headers: options.header,
+        // B8 后测试适配器携带当前会话；正式页面的 Bearer 管道由 C9 交付。
+        headers: {
+          ...options.header,
+          ...(!options.header.Authorization &&
+          !new URL(options.url).pathname.startsWith('/api/wechat/')
+            ? {
+                Authorization:
+                  'Bearer ' + rt.storage.get('wechat_session:' + baseUrl).session_token,
+              }
+            : {}),
+        },
         body: options.data ? JSON.stringify(options.data) : undefined,
       })
         .then(async (response) => {
@@ -54,6 +64,7 @@ async function check(name, fn) {
   console.log('PASS ' + name);
 }
 async function raw(path, method = 'GET', body, session) {
+  session = session || rt.storage.get('wechat_session:' + baseUrl)?.session_token;
   const response = await fetch(baseUrl + path, {
     method,
     headers: {
@@ -70,7 +81,7 @@ async function task(time = '2000-01-01T08:00+08:00') {
   return api.createTask({ title: 'C3 集成回归', remind_at: time, note: '当前内容' });
 }
 async function reminder(t) {
-  return (await api.getReminders()).find((r) => r.task_id === t.id);
+  return (await api.getReminders()).find((r) => r.task_id === t.id && r.channel === 'phone');
 }
 async function state(r) {
   return (await raw('/api/reminders/' + r.id + '/delivery')).data;
@@ -79,6 +90,7 @@ async function tick() {
   return (await raw('/__test__/tick', 'POST')).data;
 }
 async function main() {
+  await sub.withSession(async () => {});
   await check('真实登记、拒绝两次后同意、409 不变成功', async () => {
     const t = await task();
     choice = 'reject';
@@ -115,14 +127,21 @@ async function main() {
     remainingDrops = 1;
     await assert.rejects(sub.subscribeTaskReminder(t));
     assert.equal((await sub.subscribeTaskReminder(t)).status, 'pending');
-    assert.equal((await api.getReminders()).filter((r) => r.task_id === t.id).length, 1);
+    assert.equal(
+      (await api.getReminders()).filter((r) => r.task_id === t.id && r.channel === 'phone').length,
+      1
+    );
     await api.deleteTask(t.id);
     const concurrent = await task();
     await Promise.all([
       sub.subscribeTaskReminder(concurrent),
       sub.subscribeTaskReminder(concurrent),
     ]);
-    assert.equal((await api.getReminders()).filter((r) => r.task_id === concurrent.id).length, 1);
+    assert.equal(
+      (await api.getReminders()).filter((r) => r.task_id === concurrent.id && r.channel === 'phone')
+        .length,
+      1
+    );
     await api.deleteTask(concurrent.id);
   });
   await check('等价 UTC 写入不重置事件或完成状态', async () => {
@@ -200,7 +219,9 @@ async function main() {
     }
     const page = rt.loadPage('pages/index/index.js');
     await page.loadToday();
-    const times = tasks.map((t) => page.data.reminders.find((r) => r.task_id === t.id).remindTime);
+    const times = tasks.map(
+      (t) => page.data.reminders.find((r) => r.task_id === t.id && r.channel === 'phone').remindTime
+    );
     assert.equal(times[0], '10:00');
     assert.equal(times[1], '01:00');
     for (const t of tasks) {
@@ -209,7 +230,11 @@ async function main() {
   });
   await check('真实 WS 阳性对照：pc 有事件，phone 仅微信渠道', async () => {
     const received = [];
-    const socket = new WebSocket(baseUrl.replace('http:', 'ws:') + '/ws?token=' + token);
+    const socket = new WebSocket(
+      baseUrl.replace('http:', 'ws:') +
+        '/ws?token=' +
+        rt.storage.get('wechat_session:' + baseUrl).session_token
+    );
     await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('WS timeout')), 3000);
       socket.addEventListener(

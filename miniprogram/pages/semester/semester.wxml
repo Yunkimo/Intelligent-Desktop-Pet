@@ -1,0 +1,49 @@
+<view class="page">
+  <view wx:if="{{error}}" class="error-banner">
+    <text>{{error}}</text>
+    <text class="retry" bindtap="retry">重试</text>
+  </view>
+
+  <view class="card intro">
+    <text class="intro-title">学期设置</text>
+    <text class="intro-text">设置第一周的周一和总周数后，小程序会按真实日期自动计算本周是第几周，不再需要每周手动调整。</text>
+  </view>
+
+  <view class="card form-card">
+    <view class="form-item">
+      <text class="label">第一周的周一</text>
+      <picker mode="date" value="{{startDate}}" bindchange="onDateChange">
+        <view class="picker-value {{startDate ? '' : 'placeholder'}}">{{startDate || '选择开学日期'}}</view>
+      </picker>
+      <text class="hint">必须是周一，例如 2026-09-07</text>
+    </view>
+    <view class="form-item">
+      <text class="label">总周数</text>
+      <picker mode="selector" range="{{weekCountOptions}}" value="{{weekIndex}}" bindchange="onWeekChange">
+        <view class="picker-value">{{weekCountOptions[weekIndex]}}</view>
+      </picker>
+    </view>
+    <view wx:if="{{currentText}}" class="current-text">{{currentText}}</view>
+    <button class="btn btn-primary save-btn" disabled="{{saving || loading}}" loading="{{saving}}" bindtap="save">保存学期</button>
+  </view>
+
+  <view class="card form-card">
+    <view class="form-item">
+      <text class="label">登录账号</text>
+      <view class="picker-value">{{loggedOut ? '未登录' : (loginAccount ? '业务账号 #' + loginAccount : '未登录')}}</view>
+      <text class="hint">课程、日程、学期按账号隔离；同一账号可在桌宠端配对查看。</text>
+    </view>
+    <view wx:if="{{!loggedOut}}" class="form-item">
+      <text class="label">桌宠配对码</text>
+      <view wx:if="{{pairingCode}}" class="pairing-row">
+        <view class="pairing-code">{{pairingCode}}</view>
+        <button class="btn btn-ghost mini" bindtap="copyPairing">复制</button>
+      </view>
+      <text wx:if="{{pairingCode}}" class="hint">{{pairingValidity}}，只能使用一次。重新生成后旧码失效。</text>
+      <text wx:else class="hint">生成后可复制到桌宠端绑定当前账号。</text>
+      <button class="btn btn-primary save-btn" disabled="{{pairingBusy}}" loading="{{pairingBusy}}" bindtap="generatePairing">{{pairingCode ? '重新生成' : '生成配对码'}}</button>
+    </view>
+    <button wx:if="{{loggedOut}}" class="btn btn-primary" disabled="{{loggingOut}}" loading="{{loggingOut}}" bindtap="login">登录</button>
+    <button wx:else class="btn btn-ghost" disabled="{{loggingOut}}" loading="{{loggingOut}}" bindtap="logout">退出登录</button>
+  </view>
+</view>

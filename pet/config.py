@@ -12,6 +12,7 @@ from .paths import app_dir
 BASE_DIR = app_dir()
 DEFAULT_TTS_VOICE = "zh-CN-XiaoxiaoNeural"
 DEFAULT_TTS_TIMEOUT_SECONDS = 30
+DEFAULT_WEATHER_CITY = "长沙"
 
 
 def save_env_values(**values: str) -> Path:
@@ -92,6 +93,11 @@ class Settings:
         self.sprite_size: int = int(data.get("sprite_size", 180))
 
         self.whisper_model: str = data.get("whisper_model", "base")
+        # 语音识别热词：空格分隔，作为识别提示注入；课设场景给一组通用词，用户可覆盖
+        self.asr_hotwords: str = str(
+            data.get("asr_hotwords", "课表 日程 提醒 待办 上课 考试 作业 会议 图书馆 老师")
+        )
+        self.asr_ai_correction: bool = data.get("asr_ai_correction", False) is True
         self.tts_voice: str = data.get("tts_voice", DEFAULT_TTS_VOICE)
         # 旧默认声音已不在服务声音列表中，仅迁移该旧值，保留其他自选声音。
         if self.tts_voice == "zh-CN-XiaoyouNeural":
@@ -117,12 +123,27 @@ class Settings:
         self.health_enabled: bool = bool(data.get("health_enabled", True))
         self.sedentary_interval_min: int = int(data.get("sedentary_interval_min", 45))
 
+        # 天气提示：每晚定时查次日是否有雨，有雨弹带伞气泡；可与健康提醒共用语音开关
+        self.weather_tip_enabled: bool = bool(data.get("weather_tip_enabled", True))
+        # 城市留空 = 跟随后端 WEATHER_TIP_CITY，避免两端各配一份
+        self.weather_tip_city: str = str(data.get("weather_tip_city", "")).strip()
+        self.weather_tip_hour: int = self._bounded_int(
+            data.get("weather_tip_hour", 21), "weather_tip_hour", 0, 23
+        )
+        self.weather_tip_state_path: Path = BASE_DIR / data.get(
+            "weather_tip_state_path", "data/weather-tip.json"
+        )
+
         # Claude Code 回合状态监控（默认关闭，右键菜单可开）
         self.monitor_claude: bool = bool(data.get("monitor_claude", False))
         # Codex 回合状态监控（默认关闭，独立于 Claude）
         self.monitor_codex: bool = bool(data.get("monitor_codex", False))
         # 状态角标显隐（默认显示；关闭后监控照常运行，只是不弹角标）
         self.status_badges_visible: bool = bool(data.get("status_badges_visible", True))
+        # 角标缩放：拖拽角标边缘调整，写回 config.json 后重启保持
+        self.status_badge_scale: float = self._bounded_float(
+            data.get("status_badge_scale", 1.0), "status_badge_scale", 0.6, 2.5
+        )
 
         # 系统托盘：关闭后右键「隐藏至托盘」置灰，关闭窗口仍直接退出
         self.tray_enabled: bool = bool(data.get("tray_enabled", True))
@@ -148,6 +169,10 @@ class Settings:
             "agent_status_path", "data/agent-status.json"
         )
         self.usage_path: Path = BASE_DIR / data.get("usage_path", "data/usage.json")
+        # 生活习惯记忆：本地明文 JSON，可关闭、可在「生活习惯」窗口清空
+        self.habits_enabled: bool = bool(data.get("habits_enabled", True))
+        self.habits_path: Path = BASE_DIR / data.get("habits_path", "data/habits.json")
+        self.habits_max: int = self._bounded_int(data.get("habits_max", 50), "habits_max", 1, 500)
 
     @staticmethod
     def _bounded_int(value: object, name: str, low: int, high: int) -> int:
@@ -191,6 +216,15 @@ class Settings:
         self.voice_hotkey = hotkey
         self._save_json(voice_hotkey=hotkey)
 
+    def update_voice_enabled(self, enabled: bool) -> None:
+        """更新语音输出开关并写回 config.json，使设置重启后仍然生效。"""
+        self.enable_voice = bool(enabled)
+        self._save_json(enable_voice=self.enable_voice)
+
+    def update_asr_ai_correction(self, enabled: bool) -> None:
+        self._save_json(asr_ai_correction=enabled)
+        self.asr_ai_correction = enabled
+
     def update_health(self, enabled: bool | None = None, sedentary_min: int | None = None) -> None:
         """更新健康关怀配置并写回 config.json（复用 _save_json）。"""
         updates: dict[str, object] = {}
@@ -216,6 +250,11 @@ class Settings:
         """更新状态角标显隐开关并写回 config.json。"""
         self.status_badges_visible = bool(visible)
         self._save_json(status_badges_visible=self.status_badges_visible)
+
+    def update_status_badge_scale(self, scale: float) -> None:
+        """更新角标缩放并写回 config.json；夹在 0.6-2.5 之间。"""
+        self.status_badge_scale = min(2.5, max(0.6, round(float(scale), 2)))
+        self._save_json(status_badge_scale=self.status_badge_scale)
 
     def switch_persona(self, name: str) -> bool:
         """切换到指定人设（从 personas 预设读取），写回 config.json 并返回是否成功。"""

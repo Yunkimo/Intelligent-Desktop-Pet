@@ -103,9 +103,9 @@ def test_reconnect_keeps_window_cache(qapp, monkeypatch):
         def settimeout(self, _timeout):
             pass
 
-        def recv(self):
+        def recv_data(self, control_frame=False):
             frame = next(self.frames, None)
-            return json.dumps(frame) if frame else ""
+            return 1, json.dumps(frame) if frame else ""
 
         def close(self):
             pass

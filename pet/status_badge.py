@@ -12,6 +12,15 @@ _STYLES = {
     "idle": ("", "", ""),
 }
 
+# 缩放基准：字号 11px、横向内边距 8px、纵向 2px、圆角 9px
+_BASE_FONT_PX = 11
+_BASE_PAD_X = 8
+_BASE_PAD_Y = 2
+_BASE_RADIUS = 9.0
+MIN_SCALE = 0.6
+MAX_SCALE = 2.5
+_EDGE_GRAB = 6  # 距右/下边缘多少像素内算"抓边缘"
+
 
 class StatusBadge(QLabel):
     """状态角标；idle 时自动隐藏。
@@ -27,8 +36,10 @@ class StatusBadge(QLabel):
     position_reset = pyqtSignal()
     # 右键角标：携带全局坐标，由窗口弹出与桌宠一致的命令菜单
     context_menu_requested = pyqtSignal(QPoint)
+    # 拖拽边缘缩放后通知窗口持久化（参数为 0.6-2.5 的缩放系数）
+    scale_changed = pyqtSignal(float)
 
-    def __init__(self, parent=None, agent_name: str = "Claude") -> None:
+    def __init__(self, parent=None, agent_name: str = "Claude", scale: float = 1.0) -> None:
         super().__init__(parent)
         self.agent_name = agent_name
         self.setWindowFlags(
@@ -41,12 +52,35 @@ class StatusBadge(QLabel):
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setCursor(Qt.CursorShape.SizeAllCursor)
+        self.setMouseTracking(True)
         self._fg, self._bg = _STYLES["unknown"][1:]
         self._state = "idle"
         self._user_visible = True
         self._press_pos: QPoint | None = None
         self._user_moved = False
+        self._scale = self._clamp_scale(scale)
+        self._resizing = False
+        self._resize_origin = QPoint(0, 0)
+        self._resize_start_width = 1
+        self._resize_start_scale = 1.0
         self.hide()
+
+    @property
+    def scale(self) -> float:
+        """当前缩放系数（1.0 为基准字号 11px）。"""
+        return self._scale
+
+    @staticmethod
+    def _clamp_scale(scale: float) -> float:
+        return min(MAX_SCALE, max(MIN_SCALE, round(float(scale), 2)))
+
+    def set_scale(self, scale: float) -> None:
+        """外部设置缩放（启动恢复配置时用）；重新排字号与圆角。"""
+        clamped = self._clamp_scale(scale)
+        if clamped == self._scale and self._state != "idle":
+            return
+        self._scale = clamped
+        self._apply_style()
 
     @property
     def is_manually_positioned(self) -> bool:
@@ -60,16 +94,25 @@ class StatusBadge(QLabel):
         if not text:
             self.hide()
             return
-        text = text.replace("Claude", self.agent_name)
         self._fg, self._bg = fg, bg
-        self.setText(text)
+        self.setText(text.replace("Claude", self.agent_name))
+        self._apply_style()
+        self._apply_visibility()
+
+    def _apply_style(self) -> None:
+        """按当前缩放系数生成样式并重新适配尺寸。"""
+        # 四舍五入（不用 round，避免 .5 时的银行家舍入）
+        font_px = max(8, int(_BASE_FONT_PX * self._scale + 0.5))
+        pad_x = max(4, round(_BASE_PAD_X * self._scale))
+        pad_y = max(1, round(_BASE_PAD_Y * self._scale))
+        radius = max(4.0, _BASE_RADIUS * self._scale)
         self.setStyleSheet(
-            f"QLabel {{ color: {fg}; background-color: {bg}; "
-            f"border: 1px solid {fg}; border-radius: 9px; "
-            "padding: 2px 8px; font-size: 11px; }"
+            f"QLabel {{ color: {self._fg}; background-color: {self._bg}; "
+            f"border: 1px solid {self._fg}; border-radius: {radius:.0f}px; "
+            f"padding: {pad_y}px {pad_x}px; font-size: {font_px}px; }}"
         )
         self.adjustSize()
-        self._apply_visibility()
+        self.update()
 
     def set_user_visible(self, visible: bool) -> None:
         """用户级显隐开关：关闭后状态更新也不弹出，重开时按当前状态恢复。"""
@@ -84,14 +127,36 @@ class StatusBadge(QLabel):
         self.show()
         self.raise_()
 
-    # ---------- 拖拽移动与双击复位 ----------
+    # ---------- 拖拽移动 / 边缘缩放 / 双击复位 ----------
+    def _on_edge(self, pos) -> bool:
+        """是否按在右边缘或下边缘（右下角也命中），用于缩放。"""
+        return pos.x() >= self.width() - _EDGE_GRAB or pos.y() >= self.height() - _EDGE_GRAB
+
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() != Qt.MouseButton.LeftButton:
+            return
+        if self._on_edge(event.position().toPoint()):
+            self._resizing = True
+            self._resize_origin = event.globalPosition().toPoint()
+            self._resize_start_width = max(1, self.width())
+            self._resize_start_scale = self._scale
             return
         self._press_pos = event.globalPosition().toPoint()
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802
+        if self._resizing and (event.buttons() & Qt.MouseButton.LeftButton):
+            # 用全局拖拽位移算比例：宽度会随缩放变化，直接用本地坐标会自我放大
+            grown = event.globalPosition().toPoint().x() - self._resize_origin.x()
+            ratio = (self._resize_start_width + grown) / self._resize_start_width
+            self.set_scale(self._resize_start_scale * ratio)
+            self.scale_changed.emit(self._scale)
+            return
         if self._press_pos is None or not (event.buttons() & Qt.MouseButton.LeftButton):
+            self.setCursor(
+                Qt.CursorShape.SizeFDiagCursor
+                if self._on_edge(event.position().toPoint())
+                else Qt.CursorShape.SizeAllCursor
+            )
             return
         delta = event.globalPosition().toPoint() - self._press_pos
         if delta.manhattanLength() > 4:
@@ -102,6 +167,13 @@ class StatusBadge(QLabel):
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         if event.button() != Qt.MouseButton.LeftButton:
             return
+        if self._resizing:
+            self._resizing = False
+            self.setCursor(
+                Qt.CursorShape.SizeFDiagCursor
+                if self._on_edge(event.position().toPoint())
+                else Qt.CursorShape.SizeAllCursor
+            )
         self._press_pos = None
 
     def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802
@@ -135,6 +207,7 @@ class StatusBadge(QLabel):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(QPen(QColor(self._fg), 1))
         painter.setBrush(QColor(self._bg))
-        painter.drawRoundedRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5), 9, 9)
+        radius = max(4.0, _BASE_RADIUS * self._scale)
+        painter.drawRoundedRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5), radius, radius)
         painter.end()
         super().paintEvent(event)

@@ -61,6 +61,12 @@ def new_session(openid: str, now: float | None = None) -> dict:
         user_id = conn.execute(
             "SELECT id FROM wechat_users WHERE appid=? AND openid=?", (config.WX_APPID, openid)
         ).fetchone()[0]
+        owner = conn.execute(
+            "SELECT business_user_id FROM wechat_users WHERE id=?", (user_id,)
+        ).fetchone()[0]
+        if owner is None:
+            owner = conn.execute("INSERT INTO users(created_at) VALUES (?)", (now,)).lastrowid
+            conn.execute("UPDATE wechat_users SET business_user_id=? WHERE id=?", (owner, user_id))
         conn.execute("DELETE FROM wechat_sessions WHERE user_id=? OR expires_at<=?", (user_id, now))
         conn.execute(
             "INSERT INTO wechat_sessions VALUES (?,?,?)",
@@ -68,6 +74,7 @@ def new_session(openid: str, now: float | None = None) -> dict:
         )
     return {
         "user_id": user_id,
+        "account_id": owner,
         "openid": openid,
         "session_token": token,
         "expires_in": config.WX_SESSION_TTL_SECONDS,
@@ -117,7 +124,7 @@ def subscribe(
         conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
             "SELECT r.*,d.event_id FROM reminders r JOIN reminder_deliveries d ON d.reminder_id=r.id "
-            "WHERE r.id=? AND r.wechat_user_id=?",
+            "WHERE r.id=? AND r.wechat_user_id=? AND r.user_id=(SELECT business_user_id FROM wechat_users WHERE id=r.wechat_user_id)",
             (reminder_id, user_id),
         ).fetchone()
         if row is None:
@@ -184,7 +191,7 @@ def status(reminder_id: int, user_id: int | None = None) -> list[dict]:
     with db._conn() as conn:
         rows = conn.execute(
             "SELECT s.* FROM wechat_subscriptions s JOIN reminders r ON r.id=s.reminder_id "
-            "WHERE s.reminder_id=? AND (? IS NULL OR (s.user_id=? AND r.wechat_user_id=?)) ORDER BY s.id",
+            "WHERE s.reminder_id=? AND (? IS NULL OR (s.user_id=? AND r.wechat_user_id=? AND r.user_id=(SELECT business_user_id FROM wechat_users WHERE id=r.wechat_user_id))) ORDER BY s.id",
             (reminder_id, user_id, user_id, user_id),
         ).fetchall()
     return [_public(row) for row in rows]
@@ -262,7 +269,12 @@ def finish(claim: dict, now: float, outcome: str, error: str | None) -> None:
         ).rowcount
         if changed and outcome == "sent":
             conn.execute(
-                "UPDATE reminders SET done=1 WHERE id=? AND channel='phone' AND wechat_user_id=? "
+                "UPDATE reminders SET done=CASE WHEN repeat_rule IS NULL THEN 1 ELSE 0 END WHERE id=? AND channel='phone' AND wechat_user_id=? "
                 "AND EXISTS(SELECT 1 FROM reminder_deliveries WHERE reminder_id=? AND event_id=?)",
                 (claim["reminder_id"], claim["user_id"], claim["reminder_id"], claim["event_id"]),
             )
+
+        if changed:
+            from .recurrence import advance
+
+            advance(conn, claim["reminder_id"], now)

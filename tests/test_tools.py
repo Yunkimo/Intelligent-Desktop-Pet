@@ -113,6 +113,16 @@ def test_tool_schema_shape():
     assert "title" in schema["function"]["parameters"]["properties"]
 
 
+def test_tool_descriptions_distinguish_task_and_reminder():
+    tools = build_tools(_FakeBackend())
+    task_schema = tool_schema(tools["create_task"])
+    reminder_schema = tool_schema(tools["create_reminder"])
+    task_props = task_schema["function"]["parameters"]["properties"]
+    assert "提前" in task_props["remind_at"]["description"]
+    assert "日程" in task_schema["function"]["description"]
+    assert "完成" in reminder_schema["function"]["description"]
+
+
 def test_list_courses_missing_fields_no_keyerror():
     b = _FakeBackend()
     b.courses = [{"name": "缺字段课"}]
@@ -157,3 +167,231 @@ def test_web_search_failure_returns_message(monkeypatch):
     monkeypatch.setattr(ddgs, "DDGS", _Boom)
     out = build_tools(_FakeBackend())["web_search"].fn(query="hello")
     assert "失败" in out
+
+
+# ---------- 天气：今天 / 明天 / 后天 / 一周 ----------
+def _forecast_payload() -> dict:
+    return {
+        "current": {"temperature_2m": 7.9, "apparent_temperature": 5.8},
+        "daily": {
+            "time": [
+                "2026-10-30",
+                "2026-10-31",
+                "2026-11-01",
+                "2026-11-02",
+                "2026-11-03",
+                "2026-11-04",
+                "2026-11-05",
+            ],
+            "weather_code": [0, 3, 3, 0, 2, 3, 0],
+            "temperature_2m_max": [19.5, 10.6, 16.3, 14.7, 16.5, 14.0, 12.6],
+            "temperature_2m_min": [6.6, 3.8, 4.6, 4.5, 4.8, 6.0, 3.4],
+        },
+    }
+
+
+def _weather_tool(monkeypatch, forecast=None, geo=None):
+    import pet.tools as tools_module
+
+    tools_module._GEO_CACHE.clear()
+    geo = (
+        geo
+        if geo is not None
+        else {"results": [{"name": "北京", "latitude": 39.9, "longitude": 116.4}]}
+    )
+    forecast = forecast if forecast is not None else _forecast_payload()
+    calls: list[str] = []
+
+    class _Resp:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, **kwargs):
+        calls.append(url)
+        if "geocoding" in url:
+            return _Resp(geo)
+        return _Resp(forecast)
+
+    monkeypatch.setattr(tools_module.httpx, "get", fake_get)
+    return tools_module.build_tools(_FakeBackend())["get_weather"].fn, calls
+
+
+def test_weather_today_reports_current_and_range(monkeypatch):
+    fn, _ = _weather_tool(monkeypatch)
+    text = fn(city="北京")
+    assert "北京 今天（2026-10-30）" in text
+    assert "晴" in text
+    assert "6.6~19.5°C" in text
+    assert "当前 7.9°C" in text and "体感 5.8°C" in text
+
+
+def test_weather_defaults_to_changsha_and_honors_explicit_city(monkeypatch):
+    import pet.tools as tools_module
+
+    calls = []
+
+    def geocode(city):
+        calls.append(city)
+        return 0.0, 0.0, city
+
+    monkeypatch.setattr(tools_module, "_geocode", geocode)
+    monkeypatch.setattr(tools_module, "_daily_forecast", lambda *_: _forecast_payload())
+    tool = build_tools(_FakeBackend())["get_weather"]
+
+    assert "city" not in tool.parameters["required"]
+    assert tool.fn(day="明天").startswith("长沙 明天")
+    assert tool.fn(city=" ", day="明天").startswith("长沙 明天")
+    assert tool.fn(city="北京", day="明天").startswith("北京 明天")
+    assert calls == ["长沙", "长沙", "北京"]
+
+
+def test_weather_tomorrow_reports_forecast_only(monkeypatch):
+    fn, _ = _weather_tool(monkeypatch)
+    text = fn(city="北京", day="明天")
+    assert "北京 明天（2026-10-31）" in text
+    assert "阴" in text and "3.8~10.6°C" in text
+    assert "当前" not in text
+
+
+def test_weather_day_after_and_fourth_day(monkeypatch):
+    fn, _ = _weather_tool(monkeypatch)
+    assert "2026-11-01" in fn(city="北京", day="后天")
+    assert "大后天" in fn(city="北京", day="大后天")
+
+
+def test_weather_week_lists_seven_days(monkeypatch):
+    fn, _ = _weather_tool(monkeypatch)
+    lines = fn(city="北京", day="未来一周").splitlines()
+    assert lines[0].startswith("北京 未来 7 天")
+    assert len(lines) == 8  # 标题 + 7 天
+    assert "2026-10-30 周五：晴，6.6~19.5°C" in lines[1]
+    assert "2026-11-05 周四" in lines[-1]
+
+
+def test_weather_unknown_day_falls_back_to_today(monkeypatch):
+    fn, _ = _weather_tool(monkeypatch)
+    assert "北京 今天" in fn(city="北京", day="下周")
+
+
+def test_weather_unknown_city_is_reported(monkeypatch):
+    fn, _ = _weather_tool(monkeypatch, geo={"results": []})
+    assert "查不到" in fn(city="火星")
+
+
+def test_weather_missing_daily_is_reported(monkeypatch):
+    fn, _ = _weather_tool(monkeypatch, forecast={"daily": {}})
+    assert "查不到" in fn(city="北京")
+
+
+def test_weather_geocode_result_is_cached(monkeypatch):
+    fn, calls = _weather_tool(monkeypatch)
+    fn(city="北京", day="明天")
+    before = len(calls)
+    fn(city="北京", day="后天")
+    assert len(calls) == before + 1  # 第二次只请求预报，不再地理编码
+
+
+def test_weather_accepts_weekday_name(monkeypatch):
+    fn, _ = _weather_tool(monkeypatch)
+    text = fn(city="北京", day="星期日")
+    assert "周日（2026-11-01）" in text
+
+
+def test_weather_accepts_chinese_relative_day(monkeypatch):
+    fn, _ = _weather_tool(monkeypatch)
+    assert "2026-11-02" in fn(city="北京", day="三天后")
+
+
+def test_weather_accepts_month_day(monkeypatch):
+    fn, _ = _weather_tool(monkeypatch)
+    assert "2026-11-02" in fn(city="北京", day="11月2日")
+
+
+def test_weather_accepts_iso_date(monkeypatch):
+    fn, _ = _weather_tool(monkeypatch)
+    text = fn(city="北京", day="2026-11-03")
+    assert "周二（2026-11-03）" in text
+
+
+def test_weather_out_of_range_date_falls_back_to_today(monkeypatch):
+    fn, _ = _weather_tool(monkeypatch)
+    assert "北京 今天" in fn(city="北京", day="2026-12-24")
+
+
+# ---------- 每周提醒 ----------
+def test_next_weekday_datetime_picks_nearest():
+    from datetime import datetime
+
+    from pet.tools import _next_weekday_datetime
+
+    saturday = datetime(2026, 10, 31, 20, 0)  # 周六 20:00
+    assert _next_weekday_datetime("周日", "19:00", saturday) == datetime(2026, 11, 1, 19, 0)
+    assert _next_weekday_datetime("星期六", "21:00", saturday) == datetime(2026, 10, 31, 21, 0)
+    assert _next_weekday_datetime("周六", "18:00", saturday) == datetime(2026, 11, 7, 18, 0)
+
+
+def test_next_weekday_datetime_rejects_bad_input():
+    from pet.tools import _next_weekday_datetime
+
+    assert _next_weekday_datetime("周八", "19:00") is None
+    assert _next_weekday_datetime("周日", "25:00") is None
+    assert _next_weekday_datetime("周日", "晚上七点") is None
+
+
+def _weekly_backend(created, echoed_rule="weekly"):
+    class _Backend(_FakeBackend):
+        def create_reminder(
+            self, title, remind_at, body="", channel="both", task_id=None, repeat_rule=None
+        ):
+            created.update(title=title, remind_at=remind_at, body=body, repeat_rule=repeat_rule)
+            return {"id": 1, "repeat_rule": echoed_rule}
+
+    return _Backend()
+
+
+def test_create_weekly_reminder_asks_backend_for_weekly_rule(monkeypatch):
+    import pet.tools as tools_module
+
+    created = {}
+    from datetime import datetime
+
+    fixed = datetime(2026, 11, 1, 19, 0)
+    monkeypatch.setattr(tools_module, "_next_weekday_datetime", lambda w, t: fixed)
+
+    tool = tools_module.build_tools(_weekly_backend(created))["create_weekly_reminder"]
+    text = tool.fn(title="跑步", weekday="周日", remind_time="19:00")
+
+    assert created["remind_at"] == "2026-11-01T19:00"
+    assert created["repeat_rule"] == "weekly"  # 交给后端排期
+    assert "每周" in text and "都会提醒" in text
+
+
+def test_create_weekly_reminder_reports_when_backend_rejects_rule(monkeypatch):
+    import pet.tools as tools_module
+
+    created = {}
+    from datetime import datetime
+
+    monkeypatch.setattr(
+        tools_module, "_next_weekday_datetime", lambda w, t: datetime(2026, 11, 1, 19, 0)
+    )
+
+    tool = tools_module.build_tools(_weekly_backend(created, echoed_rule=None))[
+        "create_weekly_reminder"
+    ]
+    text = tool.fn(title="跑步", weekday="周日", remind_time="19:00")
+
+    assert "只提醒一次" in text
+
+
+def test_create_weekly_reminder_reports_bad_schedule():
+    from pet.tools import build_tools
+
+    tool = build_tools(_FakeBackend())["create_weekly_reminder"]
+    assert "没听懂" in tool.fn(title="跑步", weekday="周八", remind_time="19:00")

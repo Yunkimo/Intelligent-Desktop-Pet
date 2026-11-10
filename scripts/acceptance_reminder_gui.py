@@ -24,6 +24,7 @@ def run(args) -> dict:
     from PyQt6.QtCore import QEvent, QObject, Qt, QTimer
     from PyQt6.QtWidgets import QApplication
 
+    from pet.backend_client import BackendClient
     from pet.config import Settings
     from pet.window import PetWindow
 
@@ -113,7 +114,7 @@ def run(args) -> dict:
                     else "B2 提醒验收（临时环境）"
                 )
                 app = QApplication([])
-                window = PetWindow(settings)
+                window = PetWindow(settings, backend=BackendClient(settings.backend_url, token))
                 # 截图工具不枚举 Qt Tool 窗口；只在验收进程改为普通顶层窗口。
                 if args.capture_window:
                     window.setWindowFlag(Qt.WindowType.Tool, False)

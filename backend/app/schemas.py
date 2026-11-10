@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 from .reminder_time import normalize_reminder_time
 
@@ -43,11 +43,21 @@ class TaskIn(BaseModel):
 
 
 class TaskUpdate(BaseModel):
+    start_at: AwareDatetime | None = None
+    end_at: AwareDatetime | None = None
     title: str | None = None
     note: str | None = None
     due_at: str | None = None
     remind_at: str | None = None
     done: bool | None = None
+
+    @model_validator(mode="after")
+    def validate_non_null(self) -> "TaskUpdate":
+        """显式空值仅用于清除日期；必填业务字段不可清空。"""
+        for field in self.model_fields_set & {"title", "note", "done"}:
+            if getattr(self, field) is None:
+                raise ValueError(f"{field} 不能为 null")
+        return self
 
     @field_validator("remind_at")
     @classmethod
@@ -62,6 +72,7 @@ class ReminderIn(BaseModel):
     remind_at: str
     channel: Literal["both", "pc", "phone"] = "both"
     task_id: int | None = None
+    repeat_rule: Literal["weekly"] | None = None
     wechat_user_id: int | None = Field(default=None, gt=0)
 
     @field_validator("remind_at")
@@ -78,12 +89,13 @@ class ReminderUpdate(BaseModel):
     channel: Literal["both", "pc", "phone"] | None = None
     done: bool | None = None
     task_id: int | None = None
+    repeat_rule: Literal["weekly"] | None = None
     wechat_user_id: int | None = Field(default=None, gt=0)
 
     @model_validator(mode="after")
     def validate_update(self) -> "ReminderUpdate":
         """拒绝不可空字段的显式 null，仅允许缺省表示不修改。"""
-        for field in self.model_fields_set - {"task_id", "wechat_user_id"}:
+        for field in self.model_fields_set - {"task_id", "wechat_user_id", "repeat_rule"}:
             if getattr(self, field) is None:
                 raise ValueError(f"{field} 不能为 null")
         if "remind_at" in self.model_fields_set:

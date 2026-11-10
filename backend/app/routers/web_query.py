@@ -4,10 +4,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
-from ..auth import require_token
+from ..auth import current_user
 from ..web_query import QueryResult, WebQueryError, validate_input
 
-router = APIRouter(prefix="/api/tools", tags=["web-query"], dependencies=[Depends(require_token)])
+router = APIRouter(prefix="/api/tools", tags=["web-query"], dependencies=[Depends(current_user)])
 
 
 def checked(value: str, *, city: bool = False) -> str:

@@ -95,3 +95,66 @@ def test_online_failure_uses_configured_windows_fallback(tmp_path, monkeypatch):
     assert engine.synthesize("hello") == "local.wav"
     assert calls == ["hello"]
     assert list(tmp_path.glob("*.mp3")) == []
+
+
+# ---------- 朗读文本清洗 ----------
+def test_sanitize_strips_emoji_but_keeps_words():
+    from pet.tts import sanitize_for_speech
+
+    assert sanitize_for_speech("今天天气晴 ☀️ 气温 11°C ✨") == "今天天气晴 气温 11°C"
+    assert sanitize_for_speech("出门记得带伞 ☔") == "出门记得带伞"
+
+
+def test_sanitize_strips_markdown_markers():
+    from pet.tts import sanitize_for_speech
+
+    assert sanitize_for_speech("**重点**：记得`喝水`") == "重点：记得喝水"
+    assert sanitize_for_speech("- 第一项\n- 第二项") == "第一项\n第二项"
+    assert sanitize_for_speech("## 小标题") == "小标题"
+
+
+def test_sanitize_collapses_whitespace():
+    from pet.tts import sanitize_for_speech
+
+    assert sanitize_for_speech("  好多    空格  ") == "好多 空格"
+
+
+def test_sanitize_returns_empty_for_emoji_only():
+    from pet.tts import sanitize_for_speech
+
+    assert sanitize_for_speech("🎉🎉✨") == ""
+
+
+def test_synthesize_rejects_emoji_only_text():
+    from pet.tts import TTSEngine
+
+    engine = TTSEngine("zh-CN-XiaoxiaoNeural")
+    try:
+        engine.synthesize("🎉✨")
+    except ValueError as exc:
+        assert "没有可朗读" in str(exc)
+    else:
+        raise AssertionError("纯表情应当拒绝合成")
+
+
+def test_sanitize_flattens_markdown_table():
+    from pet.tts import sanitize_for_speech
+
+    text = (
+        "北京未来一周：\n"
+        "| 日期 | 天气 | 气温 |\n"
+        "|------|------|------|\n"
+        "| 10/30 周五 | 晴 | 6.6~19.5°C |\n"
+        "| 10/31 周六 | 阴 | 3.8~10.6°C |"
+    )
+    spoken = sanitize_for_speech(text)
+    assert "|" not in spoken
+    assert "---" not in spoken
+    assert "10/30 周五，晴，6.6~19.5°C" in spoken
+    assert "10/31 周六，阴，3.8~10.6°C" in spoken
+
+
+def test_sanitize_strips_numbered_list_markers():
+    from pet.tts import sanitize_for_speech
+
+    assert sanitize_for_speech("1. 带伞\n2. 穿外套") == "带伞\n穿外套"

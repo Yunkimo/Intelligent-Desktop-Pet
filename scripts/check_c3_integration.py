@@ -55,6 +55,7 @@ def main() -> int:
             WX_SECRET=secrets.token_hex(24),
             WX_TEMPLATE_ID="test",
             WX_TEMPLATE_FIELDS=json.dumps({"thing1": "title", "time2": "remind_at"}),
+            WX_TEMPLATE_DATE_FIELDS="[]",
             C3_TEST_PORT=str(port),
             TZ="Asia/Shanghai",
             LLM_API_KEY="",

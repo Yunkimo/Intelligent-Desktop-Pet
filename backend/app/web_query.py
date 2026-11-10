@@ -17,6 +17,62 @@ from pydantic import BaseModel, Field
 
 from . import config
 
+# 次日预报按代码本地化；wttr.in 的 lang_zh 可能仍返回英文。
+FORECAST_ZH = {
+    113: "晴",
+    116: "多云",
+    119: "阴",
+    122: "阴",
+    125: "霾",
+    143: "薄雾",
+    146: "烟",
+    149: "烟霾",
+    152: "烟雾",
+    248: "雾",
+    260: "冻雾",
+    176: "局部小雨",
+    179: "局部小雪",
+    182: "局部雨夹雪",
+    185: "局部冻毛毛雨",
+    200: "雷暴",
+    227: "风吹雪",
+    230: "暴风雪",
+    263: "局部毛毛雨",
+    266: "毛毛雨",
+    281: "冻毛毛雨",
+    284: "强冻毛毛雨",
+    293: "局部小雨",
+    296: "小雨",
+    299: "局部中雨",
+    302: "中雨",
+    305: "局部大雨",
+    308: "大雨",
+    311: "小冻雨",
+    314: "中到大冻雨",
+    317: "小雨夹雪",
+    320: "中到大雨夹雪",
+    323: "局部小雪",
+    326: "小雪",
+    329: "局部中雪",
+    332: "中雪",
+    335: "局部大雪",
+    338: "大雪",
+    350: "冰粒",
+    353: "阵雨",
+    356: "中到大阵雨",
+    359: "强阵雨",
+    362: "阵性雨夹雪",
+    365: "中到大阵性雨夹雪",
+    368: "阵雪",
+    371: "中到大阵雪",
+    374: "阵性冰粒",
+    377: "中到大阵性冰粒",
+    386: "伴雷阵雨",
+    389: "雷阵雨",
+    392: "伴雷阵雪",
+    395: "强雷阵雪",
+}
+
 
 class WebQueryError(Exception):
     """仅暴露稳定错误码，不包含查询、上游响应或代理凭证。"""
@@ -265,6 +321,82 @@ class WebQueryClient:
             fetched_at=datetime.now(timezone.utc).isoformat(),
             observed_at=clean_text(observed, 80),
         )
+
+    async def forecast(self, city: str, target_date: str) -> dict:
+        """读取明确目标日期的逐时预报，不用实况天气冒充明日预报。"""
+        url = config.WEB_WEATHER_URL + "/" + quote(city, safe="")
+        body = await self._fetch(url, {"format": "j1", "lang": "zh", "m": ""})
+        wet_codes = {
+            176,
+            179,
+            182,
+            185,
+            200,
+            227,
+            230,
+            263,
+            266,
+            281,
+            284,
+            293,
+            296,
+            299,
+            302,
+            305,
+            308,
+            311,
+            314,
+            317,
+            320,
+            323,
+            326,
+            329,
+            332,
+            335,
+            338,
+            350,
+            353,
+            356,
+            359,
+            362,
+            365,
+            368,
+            371,
+            374,
+            377,
+            386,
+            389,
+            392,
+            395,
+        }
+        # 上游的 Haze / Smoke / Smoky haze / Smog 均不属于降水。
+        dry_codes = {113, 116, 119, 122, 125, 143, 146, 149, 152, 248, 260}
+        try:
+            data = json.loads(body)
+            days = [day for day in data["weather"] if day["date"] == target_date]
+            if len(days) != 1 or not days[0]["hourly"]:
+                raise ValueError()
+            descriptions = []
+            rainy = []
+            for hour in days[0]["hourly"]:
+                code = int(hour["weatherCode"])
+                if code not in wet_codes | dry_codes:
+                    raise ValueError()
+                desc = FORECAST_ZH[code]
+                descriptions.append(desc)
+                if code in wet_codes:
+                    rainy.append(desc)
+            rain = bool(rainy)
+            desc = clean_text("、".join(dict.fromkeys(rainy or descriptions)), 200)
+        except (ValueError, KeyError, IndexError, TypeError, AttributeError, RecursionError):
+            raise WebQueryError("weather_forecast_invalid") from None
+        return {
+            "rain": rain,
+            "desc": desc,
+            "tip": f"明天有{desc}，记得带伞" if rain else "",
+            "source_url": url,
+            "provider": "wttr.in",
+        }
 
     async def search(self, query: str, limit: int) -> QueryResult:
         """提取 DuckDuckGo HTML 标题、摘要及来源，不抓取搜索结果页面。"""

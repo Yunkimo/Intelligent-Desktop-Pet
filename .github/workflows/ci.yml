@@ -40,6 +40,26 @@ jobs:
         run: |
           set -o pipefail
           python scripts/check_c3_integration.py | tee ci-results/c3-integration.txt
+      - name: C6 semester/calendar regression (skips until B6 merges)
+        run: |
+          set -o pipefail
+          python scripts/check_c6_integration.py | tee ci-results/c6-integration.txt
+      - name: C7 course import draft/save regression (real backend, no vision key)
+        run: |
+          set -o pipefail
+          python scripts/check_c7_integration.py | tee ci-results/c7-integration.txt
+      - name: C8 one-sentence task parse/save regression (real backend)
+        run: |
+          set -o pipefail
+          python scripts/check_c8_integration.py | tee ci-results/c8-integration.txt
+      - name: Weather umbrella-tip subscription regression (skips until B merges)
+        run: |
+          set -o pipefail
+          python scripts/check_weather_integration.py | tee ci-results/weather-integration.txt
+      - name: C9 unified session two-account isolation regression (real backend, mock WeChat)
+        run: |
+          set -o pipefail
+          python scripts/check_c9_integration.py | tee ci-results/c9-integration.txt
       - name: Keep miniprogram results
         if: always()
         uses: actions/upload-artifact@v4
@@ -78,8 +98,14 @@ jobs:
       - name: Test backend (pytest)
         run: pytest --cov=app --cov-report=term --cov-report=xml:../ci-results/backend-coverage.xml --junitxml=../ci-results/backend.xml
 
+      - name: B8 account HTTP and WebSocket isolation
+        run: python ../scripts/smoke_backend_accounts.py
+
       - name: Real WebSocket smoke test
         run: python ../scripts/smoke_backend_ws.py
+
+      - name: Semester calendar and mutation events smoke test
+        run: python ../scripts/smoke_backend_semester.py
 
       - name: Reminder scheduling smoke test
         run: python ../scripts/smoke_backend_scheduler.py --interval 1 --samples 30 --max-delay 5
@@ -92,8 +118,8 @@ jobs:
       - name: Compression boundary checks (mock upstream)
         run: python ../scripts/check_backend_compression.py
 
-      - name: Secret scan and whitespace check
-        # ruff 已在本 job 直接跑过，此处只保留 pre-commit 独有的两步
+      - name: Tracked content, secrets and whitespace
+        # ruff 已在本 job 直接跑过，此处运行 pre-commit 的仓库级检查
         if: matrix.python-version == '3.12'
         working-directory: .
         run: SKIP=ruff-check,ruff-format pre-commit run --all-files

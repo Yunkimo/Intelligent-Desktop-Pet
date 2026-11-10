@@ -142,7 +142,11 @@ class WeChatClient:
                 local = datetime.fromisoformat(reminder[source]).astimezone(
                     timezone(timedelta(minutes=config.REMINDER_NAIVE_OFFSET_MINUTES))
                 )
-                value = local.strftime("%Y-%m-%d %H:%M")
+                value = (
+                    local.strftime("%Y-%m-%d")
+                    if key in config.WX_TEMPLATE_DATE_FIELDS
+                    else local.strftime("%Y-%m-%d %H:%M")
+                )
             else:
                 value = str(reminder.get(source) or reminder["title"])[:20]
             fields[key] = {"value": value}
@@ -155,6 +159,36 @@ class WeChatClient:
         }
         if reminder.get("reminder_id"):
             payload["page"] = f"pages/reminder/reminder?reminder_id={int(reminder['reminder_id'])}"
+        await self._send_payload(payload)
+
+    async def send_weather(self, openid: str, event: dict) -> None:
+        """天气消息使用独立模板字段和日期，不改变日程通知。"""
+        require_config()
+        if not config.WEATHER_WX_TEMPLATE_ID or not config.WEATHER_WX_TEMPLATE_FIELDS:
+            raise WeChatError("weather_template_not_configured")
+        values = {
+            "title": "明日带伞提醒",
+            "city": event["city"],
+            "target_date": event["target_date"],
+            "tip": "明天可能有降水，出门记得带伞",
+        }
+        fields = {
+            key: {"value": values[source] if source == "target_date" else values[source][:20]}
+            for key, source in config.WEATHER_WX_TEMPLATE_FIELDS.items()
+        }
+        await self._send_payload(
+            {
+                "touser": openid,
+                "template_id": config.WEATHER_WX_TEMPLATE_ID,
+                "data": fields,
+                "page": f"{config.WEATHER_WX_PAGE}?weather_event_id={event['event_id']}",
+                "miniprogram_state": config.WX_MINIPROGRAM_STATE,
+                "lang": "zh_CN",
+            }
+        )
+
+    async def _send_payload(self, payload: dict) -> None:
+        """共用已验证的 token 刷新与发送结果不明处理。"""
         token = await self.access_token()
         for attempt in range(2):
             data = await self._request(

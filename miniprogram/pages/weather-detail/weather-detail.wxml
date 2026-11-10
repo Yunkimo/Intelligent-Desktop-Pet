@@ -1,0 +1,24 @@
+<view class="page">
+  <view wx:if="{{error}}" class="error-banner">
+    <text>{{error}}</text>
+    <text class="retry" bindtap="retry">重试</text>
+  </view>
+
+  <view wx:if="{{event}}" class="card detail-card">
+    <view class="detail-title">带伞提醒详情</view>
+    <view class="detail-row"><text class="detail-label">城市</text>{{event.city}}</view>
+    <view class="detail-row"><text class="detail-label">预报日期</text>{{dateLabel}}（{{event.target_date}}）</view>
+    <view class="detail-row"><text class="detail-label">状态</text>{{statusText}}</view>
+    <view wx:if="{{sentText}}" class="detail-row"><text class="detail-label">发送</text>{{sentText}}</view>
+    <view wx:if="{{event.forecast}}" class="detail-row">
+      <text class="detail-label">天气快照</text>
+      <view class="detail-forecast">{{event.forecast.desc || (event.forecast.rain ? '可能有降水' : '无降水')}}</view>
+    </view>
+    <view wx:if="{{event.last_error}}" class="detail-row"><text class="detail-label">说明</text>{{event.last_error}}</view>
+    <view class="detail-hint">微信 API 接受不等于手机已展示；实收以微信服务通知为准。</view>
+  </view>
+
+  <view wx:if="{{!loading && !event && !error}}" class="empty">没有可显示的详情</view>
+
+  <button class="btn btn-ghost back-btn" bindtap="backHome">返回首页</button>
+</view>

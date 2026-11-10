@@ -1,6 +1,6 @@
 """后端客户端：REST（httpx）与 WebSocket（websocket-client）的统一入口。
 
-REST 部分封装课表/日程/提醒 CRUD，自动携带 X-API-Key 鉴权头；
+REST 部分封装课表/日程/提醒 CRUD，使用账号会话，兼容测试工具可显式传入 API Key；
 WebSocket 部分用后台线程接收后端事件广播，解析后经 Qt 信号上抛。
 """
 
@@ -17,47 +17,107 @@ class BackendError(Exception):
     """后端调用失败（网络异常或非 2xx 响应）。"""
 
 
+class SessionExpired(BackendError):
+    """会话失效，禁止自动退回共享身份。"""
+
+
 class BackendClient:
     """访问后端 REST 的客户端，封装课表 / 日程 / 提醒的 CRUD。
 
-    base_url 与 api_token 来自配置（见 Settings.backend_url / Settings.api_token）。
+    正常桌宠仅配置后端地址；显式 API Key 仅供兼容调用方使用。
     """
 
-    def __init__(self, base_url: str, api_token: str, timeout: float = 5.0) -> None:
+    def __init__(self, base_url: str, api_token: str = "", timeout: float = 5.0) -> None:
         self.base_url = base_url.rstrip("/")
         self._token = api_token
         self._timeout = timeout
+        self.session_token = ""
+        self.on_auth_error = None
+        self.session_required = False
+
+    def capture_text(self, text: str, request_id: str):
+        return self._request("POST", "/api/capture", {"text": text, "request_id": request_id})
+
+    def confirm_capture(self, request_id: str, option: int, stage: str = "item"):
+        return self._request(
+            "POST", f"/api/capture/{request_id}/confirm", {"option": option, "stage": stage}
+        )
 
     # ---------- 底层 ----------
+    def ws_credential(self) -> str:
+        return self.session_token or ("" if self.session_required else self._token)
+
     def _headers(self) -> dict[str, str]:
+        if self.session_token:
+            return {"Authorization": "Bearer " + self.session_token}
+        if not self.ws_credential():
+            raise SessionExpired("账号未绑定，请打开「后端账号」重新绑定")
         return {"X-API-Key": self._token}
 
-    def _request(self, method: str, path: str, json: dict | None = None):
+    def _request(self, method: str, path: str, json: dict | None = None, headers=None):
         url = f"{self.base_url}{path}"
         try:
             resp = httpx.request(
                 method,
                 url,
-                headers=self._headers(),
+                headers=self._headers() if headers is None else headers,
                 json=json,
                 timeout=self._timeout,
                 trust_env=False,  # 本地后端不走系统代理，否则会被 Clash 拦成 502
             )
-        except httpx.HTTPError as exc:
-            raise BackendError(f"后端不可达：{exc}") from exc
+        except httpx.HTTPError:
+            raise BackendError("后端不可达，请检查网络和后端地址") from None
+        if path == "/api/auth/device" and json and "pairing_code" in json:
+            if resp.status_code == 401:
+                raise SessionExpired("配对码无效、已使用或已过期，请重新生成")
+            if resp.status_code == 429:
+                raise BackendError("配对尝试过多，请稍后再试")
+        if resp.status_code == 401:
+            if self.on_auth_error is not None:
+                self.on_auth_error()
+            raise SessionExpired("后端返回 401：账号已失效，请打开「后端账号」重新绑定")
         if resp.status_code >= 400:
-            raise BackendError(f"后端返回 {resp.status_code}: {resp.text}")
+            raise BackendError(f"后端返回 {resp.status_code}，请检查请求或服务状态")
         if resp.status_code == 204:
             return None
         try:
             return resp.json()
         except ValueError as exc:  # 非 JSON 的 2xx 响应，避免向上抛裸异常
-            raise BackendError(f"后端响应不是合法 JSON：{resp.text[:200]}") from exc
+            raise BackendError("后端响应不是合法 JSON") from exc
+
+    def device_login(self, pairing_code: str):
+        """用一次性配对码登录，不携带已有会话或 API Key。"""
+        if not pairing_code.strip():
+            raise BackendError("请先输入配对码")
+        result = self._request(
+            "POST", "/api/auth/device", {"pairing_code": pairing_code.strip()}, headers={}
+        )
+        if (
+            not isinstance(result, dict)
+            or not isinstance(result.get("device_token"), str)
+            or not result["device_token"]
+            or type(result.get("user_id")) is not int
+        ):
+            raise BackendError("登录响应无效")
+        return result
+
+    def logout(self):
+        return self._request("POST", "/api/auth/logout")
+
+    def get_tomorrow_weather(self, city: str = "") -> dict:
+        """查次日天气提示（带伞判断）。city 留空时由后端用 WEATHER_TIP_CITY。
+
+        后端当前要求 city 必填；留空会返回 422，由调用方静默处理。
+        """
+        from urllib.parse import quote
+
+        query = f"?city={quote(city)}" if city else ""
+        return self._request("GET", f"/api/weather/tomorrow{query}")
 
     # ---------- 健康检查（无鉴权） ----------
     def health(self) -> dict:
         """GET /api/health，返回后端健康状态。"""
-        return self._request("GET", "/api/health")
+        return self._request("GET", "/api/health", headers={})
 
     # ---------- 课表 ----------
     def list_courses(self) -> list[dict]:
@@ -121,18 +181,19 @@ class BackendClient:
         body: str = "",
         channel: str = "both",
         task_id: int | None = None,
+        repeat_rule: str | None = None,
     ) -> dict:
-        return self._request(
-            "POST",
-            "/api/reminders",
-            json={
-                "title": title,
-                "body": body,
-                "remind_at": remind_at,
-                "channel": channel,
-                "task_id": task_id,
-            },
-        )
+        payload = {
+            "title": title,
+            "body": body,
+            "remind_at": remind_at,
+            "channel": channel,
+            "task_id": task_id,
+        }
+        # 重复提醒按 B5 契约必须独立于日程，不能带 task_id
+        if repeat_rule is not None:
+            payload["repeat_rule"] = repeat_rule
+        return self._request("POST", "/api/reminders", json=payload)
 
     def update_reminder(self, reminder_id: int, **fields) -> dict:
         return self._request("PUT", f"/api/reminders/{reminder_id}", json=fields)
@@ -173,6 +234,7 @@ class WsListener(QThread):
 
     event = pyqtSignal(dict)
     error = pyqtSignal(str)
+    auth_error = pyqtSignal()
 
     _RECONNECT_SECS = 3.0
     _RECV_TIMEOUT_SECS = 1.0
@@ -191,7 +253,10 @@ class WsListener(QThread):
                 ws = websocket.create_connection(self.url, timeout=5)
             except Exception as exc:  # noqa: BLE001 - 后端未起/鉴权失败，上报并退避重试
                 if not self._stop.is_set():
-                    self.error.emit(str(exc))
+                    if getattr(exc, "status_code", None) in (401, 403):
+                        self.auth_error.emit()
+                        return
+                    self.error.emit("后端实时连接失败，请检查网络")
                 if self._stop.wait(self._RECONNECT_SECS):
                     break
                 continue
@@ -199,7 +264,16 @@ class WsListener(QThread):
                 ws.settimeout(self._RECV_TIMEOUT_SECS)
                 while not self._stop.is_set():
                     try:
-                        raw = ws.recv()
+                        opcode, raw = ws.recv_data(control_frame=True)
+                        if opcode == websocket.ABNF.OPCODE_CLOSE:
+                            if len(raw) >= 2 and int.from_bytes(raw[:2], "big") == 1008:
+                                self.auth_error.emit()
+                                return
+                            break
+                        if opcode not in (websocket.ABNF.OPCODE_TEXT, websocket.ABNF.OPCODE_BINARY):
+                            continue
+                        if isinstance(raw, bytes):
+                            raw = raw.decode("utf-8")
                     except websocket.WebSocketTimeoutException:
                         continue  # 接收超时仅用于周期性检查停止标记
                     if not raw:

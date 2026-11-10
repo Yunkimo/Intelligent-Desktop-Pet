@@ -34,9 +34,9 @@ def test_run_emits_event(qapp, monkeypatch):
         def settimeout(self, t):
             pass
 
-        def recv(self):
+        def recv_data(self, control_frame=False):
             if frames:
-                return frames.pop(0)
+                return 1, frames.pop(0)
             raise _Timeout()
 
         def close(self):
@@ -74,4 +74,4 @@ def test_create_failure_emits_error_and_stops(qapp, monkeypatch):
 
     listener.error.connect(on_error)
     listener.run()
-    assert errors == ["refused"]
+    assert errors == ["后端实时连接失败，请检查网络"]

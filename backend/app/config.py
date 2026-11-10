@@ -19,8 +19,8 @@ LLM_API_KEY = os.getenv("LLM_API_KEY", "").strip()
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "").strip()
 LLM_VISION_MODEL = os.getenv("LLM_VISION_MODEL", "").strip()
 
-# SQLite 数据库路径（默认 backend/data/pet.db，已被 git 忽略）
-DB_PATH = Path(os.getenv("DB_PATH", str(BACKEND_DIR / "data" / "pet.db")))
+# 各启动入口均以 backend/ 解释相对路径，空值采用默认数据库。
+DB_PATH = (BACKEND_DIR / (os.getenv("DB_PATH", "").strip() or "data/pet.db")).resolve()
 
 
 def positive_seconds(name: str, default: str) -> float:
@@ -87,6 +87,11 @@ if not isinstance(WX_TEMPLATE_FIELDS, dict) or not all(
     for key, value in WX_TEMPLATE_FIELDS.items()
 ):
     raise ValueError("WX_TEMPLATE_FIELDS 仅支持 thingN 对应 title/body、timeN/dateN 对应 remind_at")
+WX_TEMPLATE_DATE_FIELDS = set(json.loads(os.getenv("WX_TEMPLATE_DATE_FIELDS", "[]")))
+if not isinstance(WX_TEMPLATE_DATE_FIELDS, set) or not all(
+    key in WX_TEMPLATE_FIELDS for key in WX_TEMPLATE_DATE_FIELDS
+):
+    raise ValueError("WX_TEMPLATE_DATE_FIELDS 必须是 WX_TEMPLATE_FIELDS 中已声明字段的子集")
 WX_DELIVERY_TIMEOUT_SECONDS = WX_TIMEOUT_SECONDS * 4
 WX_DELIVERY_LEASE_SECONDS = WX_DELIVERY_TIMEOUT_SECONDS + 2 * DB_TIMEOUT_SECONDS + 5
 # B4：固定上游主机，调用者只能提供城市或关键词，不能传入目标 URL。
@@ -95,3 +100,37 @@ WEB_SEARCH_URL = "https://html.duckduckgo.com/html/"
 WEB_QUERY_TIMEOUT_SECONDS = positive_seconds("WEB_QUERY_TIMEOUT_SECONDS", "8")
 WEB_QUERY_MAX_BYTES = integer_setting("WEB_QUERY_MAX_BYTES", "262144", 1024, 1048576)
 WEB_QUERY_MAX_CONCURRENT = integer_setting("WEB_QUERY_MAX_CONCURRENT", "4", 1, 16)
+
+LLM_TEXT_MODEL = os.getenv("LLM_TEXT_MODEL", "").strip()
+PARSE_TIMEOUT_SECONDS = positive_seconds("PARSE_TIMEOUT_SECONDS", "60")
+
+# B8：兼容通道只访问默认用户；正式多用户部署关闭。
+ALLOW_LEGACY_API_KEY = os.getenv("ALLOW_LEGACY_API_KEY", "true").lower()
+if ALLOW_LEGACY_API_KEY not in {"true", "false"}:
+    raise ValueError("ALLOW_LEGACY_API_KEY 必须为 true 或 false")
+ALLOW_LEGACY_API_KEY = ALLOW_LEGACY_API_KEY == "true"  # pragma: allowlist secret -- boolean switch
+DEVICE_SESSION_TTL_SECONDS = integer_setting("DEVICE_SESSION_TTL_SECONDS", "2592000", 60, 7776000)
+
+# 每日 21:00 上海时区预取演示城市的次日降水提示；不自动发送微信消息。
+WEATHER_TIP_ENABLED = os.getenv("WEATHER_TIP_ENABLED", "false").lower()
+if WEATHER_TIP_ENABLED not in {"true", "false"}:
+    raise ValueError("WEATHER_TIP_ENABLED 必须为 true 或 false")
+WEATHER_TIP_ENABLED = WEATHER_TIP_ENABLED == "true"
+WEATHER_TIP_CITY = os.getenv("WEATHER_TIP_CITY", "北京").strip()
+
+# 天气订阅独立配置；不能覆盖既有日程消息的模板映射。
+WEATHER_WX_TEMPLATE_ID = os.getenv("WEATHER_WX_TEMPLATE_ID", "").strip()
+WEATHER_WX_TEMPLATE_FIELDS = json.loads(os.getenv("WEATHER_WX_TEMPLATE_FIELDS", "{}"))
+if not isinstance(WEATHER_WX_TEMPLATE_FIELDS, dict) or not all(
+    isinstance(key, str)
+    and isinstance(value, str)
+    and (
+        (re.fullmatch(r"thing[0-9]+", key) and value in {"title", "city", "tip"})
+        or (re.fullmatch(r"date[0-9]+", key) and value == "target_date")
+    )
+    for key, value in WEATHER_WX_TEMPLATE_FIELDS.items()
+):
+    raise ValueError("WEATHER_WX_TEMPLATE_FIELDS 仅支持 thingN=title/city/tip、dateN=target_date")
+WEATHER_WX_PAGE = os.getenv("WEATHER_WX_PAGE", "pages/index/index").strip()
+if not re.fullmatch(r"pages/[A-Za-z0-9_/-]+", WEATHER_WX_PAGE):
+    raise ValueError("WEATHER_WX_PAGE 必须是小程序 pages 下的页面路径")
