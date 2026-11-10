@@ -2,7 +2,7 @@
 
 结论：当前 IP 开发调试路线下，真实云端模型识别、核对字段后批量导入、接口读回及清理通过；用户通过小程序界面完成图片识别、确认导入、编辑和删除，云端逐字段读回及按ID删除核对均通过。
 
-此前失败保留：[原502](public-image-recognition.json)、[恢复首次502](public-image-recognition-configured-20261025.json)、[重启后Key仍为示例值](server-vision-config-recheck-20261025.json)。用户随后替换服务器私有配置的真实视觉Key并执行systemctl restart；没有读取/归档真实Key。再次调用返回200，约17.13秒，见[识别结果](public-image-recognition-restarted-20261025.json)。不是使用Mock模型，也没有修改服务器业务代码。
+此前失败保留：[原502](public-image-recognition-initial-failure.json)、[恢复首次502](public-image-recognition-configured-20261025.json)、[重启后Key仍为示例值](server-vision-config-recheck-20261025.json)。用户随后替换服务器私有配置的真实视觉Key并执行systemctl restart；没有读取/归档真实Key。再次调用返回200，约17.13秒，见[识别结果](public-image-recognition-restarted-20261025.json)。不是使用Mock模型，也没有修改服务器业务代码。
 
 [合成课表](vision-synthetic-course.png)不含真实个人信息。一门课程：C4 Test Math、周一、08:00～09:40、A101、教师空、第1～16周，所有字段均与模型识别一致。实际请求文件为1,154,843字节PNG，通过无视觉影响的tEXt元数据扩展以超过1MiB；原图28,412字节。此结果证明大于1MiB的有效文件经过当前Nginx/后端并完成真实模型识别，不等于高分辨率大照片、正式HTTPS或所有课表准确率验收。
 
