@@ -170,6 +170,20 @@ AI 纠错过程见 [测试文档](testing.md) §5.3。跨端时间与完成语�
 
 各轮结论汇总在 [测试文档](testing.md) §5；目录内文件为执行时原始输出，不事后修改。
 
+### 重复证据文件索引
+
+以下每组文件在 Git 中指向同一个内容对象。每组保留一份原始输出，原文件名继续用于查找对应阶段。
+
+| 原文件（相对 evidence/） | 保留的原始输出 |
+| --- | --- |
+| `b2/dependency-audit.json` | [b1/dependency-audit.json](evidence/b1/dependency-audit.json) |
+| `b2/dependency-audit-py310.json` | [b1/dependency-audit-py310.json](evidence/b1/dependency-audit-py310.json) |
+| `b1/smoke-py313.json` | [b1/smoke-py310.json](evidence/b1/smoke-py310.json) |
+| `b2/pre-commit.txt` | [c4/develop-sync-precommit.txt](evidence/c4/develop-sync-precommit.txt) |
+| `b3/ws-smoke.json` | [b2/ws-regression.json](evidence/b2/ws-regression.json) |
+| `b4/desktop.txt` | [b3/desktop.txt](evidence/b3/desktop.txt) |
+| `c4/public-image-recognition.json` | [c4/public-image-recognition-initial-failure.json](evidence/c4/public-image-recognition-initial-failure.json) |
+
 ## C5 阶段文档、CI与依赖安全说明（Issue #13）
 
 仅计入C5的成果：同步启动/配置与当前三端数据流、将已有C4部署回归和文档检查接入现有CI、增加测试结果归档、扩展依赖/素材许可与安全边界。实际证据和未知项见[C5交付记录](c5-verification.md)。C4部署及人工复验仍只归#12；不计最终视频、冻结或最终材料汇总，不替A/B代填模块完成结论。
