@@ -68,3 +68,6 @@ demo-recordings/
 *.pt
 *.onnx
 *.safetensors
+
+# 本地编辑器配置
+/.vscode/
